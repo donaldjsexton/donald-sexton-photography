@@ -43,7 +43,7 @@
             <p class="eyebrow">Scope</p>
             <div class="admin-list">
                 <div class="admin-list__item"><strong>Included</strong><span class="meta">Title parsing, text extraction, image download, local media creation, import mappings, and auto classification into wedding stories or journal posts.</span></div>
-                <div class="admin-list__item"><strong>Temporary</strong><span class="meta">This importer is meant to bridge Pic-Time-generated blog content into the backend, not become a permanent source system.</span></div>
+                <div class="admin-list__item"><strong>Temporary</strong><span class="meta">This importer is meant to help move Pic-Time blog content into the CMS, not replace the main editing workflow.</span></div>
             </div>
         </article>
     </section>

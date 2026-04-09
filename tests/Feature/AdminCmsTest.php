@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\HomepageSetting;
 use App\Models\ImportRun;
+use App\Models\Inquiry;
 use App\Models\JournalPost;
 use App\Models\Media;
 use App\Models\Redirect;
@@ -27,9 +28,12 @@ class AdminCmsTest extends TestCase
         $this->get('/admin')
             ->assertRedirect(route('admin.login'));
 
+        $this->get('/admin/inquiries')
+            ->assertRedirect(route('admin.login'));
+
         $this->get('/admin/login')
             ->assertOk()
-            ->assertSee('Sign in to the editorial CMS.');
+            ->assertSee('Sign in to manage the site.');
     }
 
     public function test_admin_can_log_in_and_update_homepage_settings(): void
@@ -72,7 +76,7 @@ class AdminCmsTest extends TestCase
             'google_analytics_measurement_id' => 'g-test12345',
         ]);
 
-        $response->assertRedirect(route('admin.settings.edit', ['tab' => 'analytics']).'#analytics-settings');
+        $response->assertRedirect(route('admin.settings.edit', ['tab' => 'analytics']));
 
         $this->assertDatabaseHas('site_settings', [
             'google_analytics_measurement_id' => 'G-TEST12345',
@@ -221,6 +225,53 @@ XML;
         $this->assertNotNull($media);
         $this->assertSame(420, $media->original_wp_attachment_id);
         Storage::disk('public')->assertExists($media->path);
+    }
+
+    public function test_admin_can_review_and_update_inquiries(): void
+    {
+        $user = User::factory()->create();
+
+        $inquiry = Inquiry::create([
+            'primary_name' => 'Taylor',
+            'partner_name' => 'Jordan',
+            'email' => 'taylor@example.com',
+            'phone' => '555-0100',
+            'event_type' => 'wedding',
+            'event_date' => '2026-10-10',
+            'venue_name' => 'The Venue',
+            'location_city' => 'Tampa',
+            'guest_count_range' => '100-150',
+            'budget_range' => '$6,000-$8,000',
+            'coverage_interest' => ['Wedding day coverage'],
+            'message' => 'We would love to talk.',
+            'status' => 'new',
+            'source' => 'site_form',
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('admin.inquiries.index'))
+            ->assertOk()
+            ->assertSee('Inquiries')
+            ->assertSee('Taylor')
+            ->assertSee('Open');
+
+        $this->actingAs($user)
+            ->get(route('admin.inquiries.edit', $inquiry))
+            ->assertOk()
+            ->assertSee('Review inquiry details')
+            ->assertSee('Taylor')
+            ->assertSee('We would love to talk.');
+
+        $response = $this->actingAs($user)->put(route('admin.inquiries.update', $inquiry), [
+            'status' => 'follow_up',
+        ]);
+
+        $response->assertRedirect(route('admin.inquiries.edit', $inquiry));
+
+        $this->assertDatabaseHas('inquiries', [
+            'id' => $inquiry->id,
+            'status' => 'follow_up',
+        ]);
     }
 
     public function test_wordpress_import_command_accepts_local_file_paths(): void

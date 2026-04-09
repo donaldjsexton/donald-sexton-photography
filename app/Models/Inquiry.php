@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -39,6 +40,33 @@ class Inquiry extends Model
             'event_date' => 'date',
             'coverage_interest' => 'array',
         ];
+    }
+
+    public static function statusOptions(): array
+    {
+        return [
+            'new' => 'New',
+            'active' => 'Active',
+            'follow_up' => 'Follow Up',
+            'booked' => 'Booked',
+            'archived' => 'Archived',
+        ];
+    }
+
+    public function scopeAdminOrdered(Builder $query): Builder
+    {
+        return $query
+            ->orderByRaw("
+                case status
+                    when 'new' then 0
+                    when 'active' then 1
+                    when 'follow_up' then 2
+                    when 'booked' then 3
+                    when 'archived' then 4
+                    else 5
+                end
+            ")
+            ->latest('created_at');
     }
 
     public function venue(): BelongsTo

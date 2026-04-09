@@ -12,18 +12,24 @@
     @php
         $navigationGroups = [
             [
-                'label' => 'Workspace',
+                'label' => 'Content',
                 'items' => [
                     ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'patterns' => ['admin.dashboard']],
                     ['label' => 'Homepage', 'href' => route('admin.homepage.edit'), 'patterns' => ['admin.homepage.*']],
-                    ['label' => 'Media', 'href' => route('admin.media.index'), 'patterns' => ['admin.media.*']],
                     ['label' => 'Pages', 'href' => route('admin.pages.index'), 'patterns' => ['admin.pages.*']],
                     ['label' => 'Wedding Stories', 'href' => route('admin.wedding-stories.index'), 'patterns' => ['admin.wedding-stories.*']],
                     ['label' => 'Journal Posts', 'href' => route('admin.journal-posts.index'), 'patterns' => ['admin.journal-posts.*']],
+                    ['label' => 'Media', 'href' => route('admin.media.index'), 'patterns' => ['admin.media.*']],
                 ],
             ],
             [
-                'label' => 'Platform',
+                'label' => 'Leads',
+                'items' => [
+                    ['label' => 'Inquiries', 'href' => route('admin.inquiries.index'), 'patterns' => ['admin.inquiries.*']],
+                ],
+            ],
+            [
+                'label' => 'Operations',
                 'items' => [
                     ['label' => 'Settings', 'href' => route('admin.settings.edit'), 'patterns' => ['admin.settings.*', 'admin.imports.*']],
                 ],
@@ -35,15 +41,15 @@
         <aside class="admin-sidebar">
             <div class="admin-sidebar__surface">
                 <div class="admin-brand">
-                    <p class="eyebrow">Command Center</p>
-                    <h1>Donald Sexton</h1>
-                    <p class="meta">Editorial operations, content systems, and platform controls.</p>
+                    <p class="eyebrow">Site Admin</p>
+                    <h1>Donald Sexton Photography</h1>
+                    <p class="meta">Pages, stories, media, and site settings.</p>
                 </div>
 
                 <div class="admin-sidebar__status">
-                    <p class="eyebrow">System Pulse</p>
-                    <strong>{{ $analyticsMeasurementId ? 'Analytics Connected' : 'Analytics Pending' }}</strong>
-                    <span class="meta">{{ $analyticsMeasurementId ?: 'Configure GA4 in Settings' }}</span>
+                    <p class="eyebrow">Site Status</p>
+                    <strong>{{ $analyticsMeasurementId ? 'Analytics connected' : 'Analytics not set' }}</strong>
+                    <span class="meta">{{ $analyticsMeasurementId ?: 'Add a GA4 measurement ID in Settings.' }}</span>
                 </div>
 
                 @foreach ($navigationGroups as $group)
@@ -69,14 +75,14 @@
             <header class="admin-header">
                 <div class="admin-header__copy">
                     <p class="eyebrow">@yield('eyebrow', 'Admin')</p>
-                    <h2>@yield('heading', 'Dashboard')</h2>
+                    <h2>@yield('heading', 'Overview')</h2>
                     @hasSection('subheading')
                         <p class="admin-header__lede">@yield('subheading')</p>
                     @endif
                 </div>
 
                 <div class="admin-header__actions">
-                    <span class="admin-chip">Live System</span>
+                    <span class="admin-chip">Signed in</span>
                     <span class="meta">{{ auth()->user()?->email }}</span>
                     @yield('header_actions')
                     <form method="POST" action="{{ route('admin.logout') }}">

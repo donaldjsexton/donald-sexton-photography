@@ -12,8 +12,8 @@
     <main class="admin-login">
         <div class="form-panel admin-login__panel">
             <p class="eyebrow">Admin</p>
-            <h1 class="section-title">Sign in to the editorial CMS.</h1>
-            <p class="section-copy">Use an existing application user account to manage media, content, and imports.</p>
+            <h1 class="section-title">Sign in to manage the site.</h1>
+            <p class="section-copy">Use an existing account to edit pages, stories, media, and settings.</p>
 
             @if ($errors->any())
                 <ul class="errors">

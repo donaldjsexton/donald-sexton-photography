@@ -3,7 +3,7 @@
 @section('title', 'Platform Settings')
 @section('eyebrow', 'Platform')
 @section('heading', 'Settings')
-@section('subheading', 'Analytics, imports, and system-level controls now live in one place.')
+@section('subheading', 'Analytics and import tools for the site.')
 @section('content')
     @php
         $currentTab = request('tab', 'overview');
@@ -26,9 +26,9 @@
 
     <section class="admin-hero-panel" id="settings-overview">
         <div class="admin-hero-panel__copy">
-            <p class="eyebrow">Platform Overview</p>
-            <h3 class="feature-title">Treat the backend like infrastructure, not an afterthought.</h3>
-            <p class="section-copy">This workspace centralizes measurement, migration tools, and operational visibility so the admin can evolve like the rest of the product.</p>
+            <p class="eyebrow">Overview</p>
+            <h3 class="feature-title">Manage analytics and import tools.</h3>
+            <p class="section-copy">Keep site-level settings and one-off import tasks in one place.</p>
         </div>
 
         <div class="admin-inline-grid">
@@ -55,8 +55,8 @@
     <section class="admin-grid admin-grid--two" id="analytics-settings">
         <article class="admin-card admin-card--feature">
             <p class="eyebrow">Google Analytics</p>
-            <h3 class="feature-title">Wire GA4 directly into the public site shell.</h3>
-            <p class="section-copy">The tracking snippet only renders when a measurement ID is configured, so local and preview environments stay clean by default.</p>
+            <h3 class="feature-title">Set the GA4 measurement ID.</h3>
+            <p class="section-copy">The tracking snippet only loads when an ID is saved, so local and preview environments stay clean by default.</p>
 
             <form method="POST" action="{{ route('admin.settings.update') }}" class="admin-form">
                 @csrf
@@ -75,12 +75,12 @@
 
                 <p class="meta">Use a current GA4 ID in the format <code>G-XXXXXXXXXX</code>. If this field is blank, the app will fall back to <code>GOOGLE_ANALYTICS_MEASUREMENT_ID</code> when present.</p>
 
-                <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Platform Settings</button>
+                <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Settings</button>
             </form>
         </article>
 
         <article class="admin-card">
-            <p class="eyebrow">Runtime Status</p>
+            <p class="eyebrow">Current status</p>
             <div class="admin-list">
                 <div class="admin-list__item">
                     <strong>Resolved measurement ID</strong>
@@ -101,8 +101,8 @@
     <section class="admin-grid admin-grid--two" id="import-settings">
         <article class="admin-card admin-card--feature" id="wordpress-import">
             <p class="eyebrow">Legacy Blog Import</p>
-            <h3 class="feature-title">Ingest WordPress exports without losing structure.</h3>
-            <p class="section-copy">This pass imports legacy journal entries, matches featured media, records redirects, and promotes real weddings into the story collection where appropriate.</p>
+            <h3 class="feature-title">Import a WordPress export.</h3>
+            <p class="section-copy">This imports journal entries, featured media, redirects, and promoted real weddings where appropriate.</p>
 
             <form method="POST" action="{{ route('admin.imports.wordpress.store') }}" enctype="multipart/form-data" class="admin-form">
                 @csrf
@@ -120,8 +120,8 @@
 
         <article class="admin-card admin-card--feature" id="pictime-import">
             <p class="eyebrow">Pic-Time Import</p>
-            <h3 class="feature-title">Convert external gallery stories into first-party content.</h3>
-            <p class="section-copy">Paste one Pic-Time URL per line to extract narrative copy, download gallery media, and classify the result into wedding stories or journal posts.</p>
+            <h3 class="feature-title">Import Pic-Time blog content.</h3>
+            <p class="section-copy">Paste one Pic-Time URL per line to extract copy, download gallery media, and classify the result into wedding stories or journal posts.</p>
 
             <form method="POST" action="{{ route('admin.imports.pictime.store') }}" class="admin-form">
                 @csrf

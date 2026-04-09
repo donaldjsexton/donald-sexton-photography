@@ -1,0 +1,99 @@
+<?php
+
+namespace App\Http\Controllers\Admin;
+
+use App\Http\Controllers\Controller;
+use App\Models\Inquiry;
+use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
+
+class InquiryController extends Controller
+{
+    public function index(Request $request): View
+    {
+        $currentStatus = $request->string('status')->toString() ?: 'all';
+        $search = trim($request->string('search')->toString());
+        $statusOptions = Inquiry::statusOptions();
+
+        if ($currentStatus !== 'all' && ! array_key_exists($currentStatus, $statusOptions)) {
+            $currentStatus = 'all';
+        }
+
+        $query = Inquiry::query()->with('venue');
+
+        if ($currentStatus !== 'all') {
+            $query->where('status', $currentStatus);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($builder) use ($search): void {
+                $builder
+                    ->where('primary_name', 'like', "%{$search}%")
+                    ->orWhere('partner_name', 'like', "%{$search}%")
+                    ->orWhere('email', 'like', "%{$search}%")
+                    ->orWhere('phone', 'like', "%{$search}%")
+                    ->orWhere('venue_name', 'like', "%{$search}%")
+                    ->orWhere('location_city', 'like', "%{$search}%");
+            });
+        }
+
+        $statusCounts = ['all' => Inquiry::query()->count()];
+
+        foreach (array_keys($statusOptions) as $status) {
+            $statusCounts[$status] = Inquiry::query()->where('status', $status)->count();
+        }
+
+        return view('admin.inquiries.index', [
+            'inquiries' => $query->adminOrdered()->paginate(30)->withQueryString(),
+            'currentStatus' => $currentStatus,
+            'search' => $search,
+            'statusOptions' => $statusOptions,
+            'statusCounts' => $statusCounts,
+            'statusSummary' => [
+                [
+                    'label' => 'New',
+                    'value' => $statusCounts['new'],
+                    'meta' => 'Fresh leads waiting for a first response',
+                ],
+                [
+                    'label' => 'Active',
+                    'value' => $statusCounts['active'],
+                    'meta' => 'Conversations currently in progress',
+                ],
+                [
+                    'label' => 'Follow Up',
+                    'value' => $statusCounts['follow_up'],
+                    'meta' => 'Leads that need another touchpoint',
+                ],
+                [
+                    'label' => 'Booked',
+                    'value' => $statusCounts['booked'],
+                    'meta' => 'Won opportunities already in the pipeline',
+                ],
+            ],
+        ]);
+    }
+
+    public function edit(Inquiry $inquiry): View
+    {
+        return view('admin.inquiries.edit', [
+            'inquiry' => $inquiry->loadMissing('venue'),
+            'statusOptions' => Inquiry::statusOptions(),
+        ]);
+    }
+
+    public function update(Request $request, Inquiry $inquiry): RedirectResponse
+    {
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(array_keys(Inquiry::statusOptions()))],
+        ]);
+
+        $inquiry->update($validated);
+
+        return redirect()
+            ->route('admin.inquiries.edit', $inquiry)
+            ->with('status', 'Inquiry updated.');
+    }
+}

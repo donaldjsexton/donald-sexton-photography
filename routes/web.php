@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
+use App\Http\Controllers\Admin\InquiryController as AdminInquiryController;
 use App\Http\Controllers\Admin\JournalPostController as AdminJournalPostController;
 use App\Http\Controllers\Admin\MediaController as AdminMediaController;
 use App\Http\Controllers\Admin\PageController as AdminPageController;
@@ -35,6 +36,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/homepage', [AdminHomepageSettingsController::class, 'update'])->name('homepage.update');
         Route::get('/settings', [AdminSettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [AdminSettingsController::class, 'update'])->name('settings.update');
+        Route::get('/inquiries', [AdminInquiryController::class, 'index'])->name('inquiries.index');
+        Route::get('/inquiries/{inquiry}/edit', [AdminInquiryController::class, 'edit'])->name('inquiries.edit');
+        Route::put('/inquiries/{inquiry}', [AdminInquiryController::class, 'update'])->name('inquiries.update');
 
         Route::get('/media', [AdminMediaController::class, 'index'])->name('media.index');
         Route::get('/media/create', [AdminMediaController::class, 'create'])->name('media.create');

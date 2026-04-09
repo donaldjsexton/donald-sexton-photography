@@ -64,7 +64,15 @@ class DashboardController extends Controller
                         : 'Homepage content is still using safe fallbacks.',
                 ],
                 [
-                    'label' => 'Import Pipeline',
+                    'label' => 'Leads',
+                    'value' => Inquiry::query()->whereIn('status', ['new', 'active', 'follow_up'])->count(),
+                    'tone' => Inquiry::query()->where('status', 'new')->exists() ? 'warning' : 'neutral',
+                    'description' => Inquiry::query()->where('status', 'new')->exists()
+                        ? Inquiry::query()->where('status', 'new')->count().' new inquiries are waiting for review.'
+                        : 'No new inquiries are waiting right now.',
+                ],
+                [
+                    'label' => 'Imports',
                     'value' => ImportRun::query()->count(),
                     'tone' => $latestFailedImport ? 'warning' : 'positive',
                     'description' => $latestFailedImport
@@ -96,19 +104,24 @@ class DashboardController extends Controller
             ],
             'quickActions' => [
                 [
-                    'label' => 'Tune Homepage',
+                    'label' => 'Edit Homepage',
                     'href' => route('admin.homepage.edit'),
                     'description' => 'Update hero copy, featured stories, and curated journal selections.',
                 ],
                 [
-                    'label' => 'Open Settings',
-                    'href' => route('admin.settings.edit'),
-                    'description' => 'Manage analytics and import operations from one place.',
+                    'label' => 'Review Inquiries',
+                    'href' => route('admin.inquiries.index'),
+                    'description' => 'Sort new leads, update statuses, and keep the pipeline current.',
                 ],
                 [
                     'label' => 'Review Media',
                     'href' => route('admin.media.index'),
                     'description' => 'Audit focal points, alt text, and uploaded image inventory.',
+                ],
+                [
+                    'label' => 'Open Settings',
+                    'href' => route('admin.settings.edit'),
+                    'description' => 'Manage analytics and import operations from one place.',
                 ],
             ],
             'homepageSetting' => HomepageSetting::query()->first(),
