@@ -11,6 +11,7 @@ use App\Models\JournalPost;
 use App\Models\Media;
 use App\Models\Page;
 use App\Models\Redirect;
+use App\Models\SiteSetting;
 use App\Models\Tag;
 use App\Models\Testimonial;
 use App\Models\Venue;
@@ -151,6 +152,28 @@ class PublicRoutesTest extends TestCase
             ->assertOk()
             ->assertSee('Start with the full day', false)
             ->assertSee('Get a clear quote', false);
+    }
+
+    public function test_homepage_renders_default_seo_metadata_and_structured_data(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('<meta name="description" content="Calm wedding photography for Clearwater, Tampa, and beyond. Real wedding stories, planning guidance, and straightforward next steps.">', false)
+            ->assertSee('<meta name="robots" content="index,follow,max-image-preview:large">', false)
+            ->assertSee('"@type":"WebSite"', false)
+            ->assertSee('"@type":"ProfessionalService"', false);
+    }
+
+    public function test_public_layout_renders_google_analytics_when_platform_setting_exists(): void
+    {
+        SiteSetting::create([
+            'google_analytics_measurement_id' => 'G-TEST12345',
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('https://www.googletagmanager.com/gtag/js?id=G-TEST12345', false)
+            ->assertSee("gtag('config', 'G-TEST12345');", false);
     }
 
     public function test_homepage_uses_sequential_unique_story_pool_for_hero_and_discover(): void

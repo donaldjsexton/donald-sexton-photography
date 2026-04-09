@@ -4,23 +4,41 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     @php
+        $defaultDescription = 'Calm wedding photography for Clearwater, Tampa, and beyond.';
         $metaTitle = trim($__env->yieldContent('title', 'Donald Sexton Photography'));
-        $metaDescription = trim($__env->yieldContent('meta_description', ''));
+        $metaDescription = trim($__env->yieldContent('meta_description', $defaultDescription));
         $canonicalUrl = trim($__env->yieldContent('canonical_url', url()->current()));
+        $siteName = config('app.name', 'Donald Sexton Photography');
+        $siteUrl = rtrim(config('app.url', url('/')), '/');
+        $websiteSchema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'WebSite',
+            'name' => $siteName,
+            'url' => $siteUrl,
+        ];
+        $businessSchema = [
+            '@context' => 'https://schema.org',
+            '@type' => 'ProfessionalService',
+            'name' => $siteName,
+            'url' => $siteUrl,
+            'description' => $defaultDescription,
+            'areaServed' => ['Clearwater', 'Tampa', 'Florida'],
+        ];
     @endphp
     <title>{{ $metaTitle }}</title>
-    @if ($metaDescription !== '')
-        <meta name="description" content="{{ $metaDescription }}">
-    @endif
+    <meta name="description" content="{{ $metaDescription }}">
     @if ($canonicalUrl !== '')
         <link rel="canonical" href="{{ $canonicalUrl }}">
     @endif
+    <meta name="robots" content="index,follow,max-image-preview:large">
+    <meta name="author" content="Donald Sexton Photography">
+    <meta name="theme-color" content="#f9f7f4">
     <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ $siteName }}">
+    <meta property="og:locale" content="en_US">
     <meta property="og:title" content="{{ $metaTitle }}">
-    @if ($metaDescription !== '')
-        <meta property="og:description" content="{{ $metaDescription }}">
-        <meta name="twitter:description" content="{{ $metaDescription }}">
-    @endif
+    <meta property="og:description" content="{{ $metaDescription }}">
+    <meta name="twitter:description" content="{{ $metaDescription }}">
     @if ($canonicalUrl !== '')
         <meta property="og:url" content="{{ $canonicalUrl }}">
     @endif
@@ -28,6 +46,17 @@
     <meta name="twitter:title" content="{{ $metaTitle }}">
     <link rel="preconnect" href="https://fonts.bunny.net">
     <link href="https://fonts.bunny.net/css?family=cormorant-garamond:400,500,600,700|jost:300,400,500,600" rel="stylesheet" />
+    <script type="application/ld+json">{!! json_encode($websiteSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    <script type="application/ld+json">{!! json_encode($businessSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    @if ($analyticsMeasurementId)
+        <script async src="https://www.googletagmanager.com/gtag/js?id={{ $analyticsMeasurementId }}"></script>
+        <script>
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '{{ $analyticsMeasurementId }}');
+        </script>
+    @endif
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     @endif

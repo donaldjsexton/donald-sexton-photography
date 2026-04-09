@@ -7,6 +7,7 @@ use App\Http\Controllers\Admin\JournalPostController as AdminJournalPostControll
 use App\Http\Controllers\Admin\MediaController as AdminMediaController;
 use App\Http\Controllers\Admin\PageController as AdminPageController;
 use App\Http\Controllers\Admin\PicTimeImportController as AdminPicTimeImportController;
+use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\WeddingStoryController as AdminWeddingStoryController;
 use App\Http\Controllers\Admin\WordPressImportController as AdminWordPressImportController;
 use App\Http\Controllers\CollectionController;
@@ -32,6 +33,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('/homepage', [AdminHomepageSettingsController::class, 'edit'])->name('homepage.edit');
         Route::put('/homepage', [AdminHomepageSettingsController::class, 'update'])->name('homepage.update');
+        Route::get('/settings', [AdminSettingsController::class, 'edit'])->name('settings.edit');
+        Route::put('/settings', [AdminSettingsController::class, 'update'])->name('settings.update');
 
         Route::get('/media', [AdminMediaController::class, 'index'])->name('media.index');
         Route::get('/media/create', [AdminMediaController::class, 'create'])->name('media.create');

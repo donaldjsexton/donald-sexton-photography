@@ -7,6 +7,7 @@ use App\Models\ImportRun;
 use App\Models\JournalPost;
 use App\Models\Media;
 use App\Models\Redirect;
+use App\Models\SiteSetting;
 use App\Models\User;
 use App\Models\WeddingStory;
 use Illuminate\Support\Facades\Artisan;
@@ -61,6 +62,26 @@ class AdminCmsTest extends TestCase
 
         $settings = HomepageSetting::query()->first();
         $this->assertSame([$story->id], $settings?->featured_story_ids_json);
+    }
+
+    public function test_admin_can_update_platform_settings(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->put(route('admin.settings.update'), [
+            'google_analytics_measurement_id' => 'g-test12345',
+        ]);
+
+        $response->assertRedirect(route('admin.settings.edit', ['tab' => 'analytics']).'#analytics-settings');
+
+        $this->assertDatabaseHas('site_settings', [
+            'google_analytics_measurement_id' => 'G-TEST12345',
+        ]);
+
+        $settings = SiteSetting::query()->first();
+        $this->assertNotNull($settings);
+        $this->assertTrue($settings->analyticsIsConfigured());
+        $this->assertSame('G-TEST12345', $settings->analyticsMeasurementId());
     }
 
     public function test_admin_can_upload_media(): void
@@ -169,7 +190,7 @@ XML;
             'wxr_file' => UploadedFile::fake()->createWithContent('wordpress-export.xml', $xml),
         ]);
 
-        $response->assertRedirect(route('admin.imports.wordpress.index'));
+        $response->assertRedirect(route('admin.settings.edit', ['tab' => 'imports']).'#wordpress-import');
 
         $this->assertDatabaseHas('journal_posts', [
             'title' => 'Imported & Wedding Timeline',

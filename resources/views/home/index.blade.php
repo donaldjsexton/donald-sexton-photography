@@ -1,6 +1,8 @@
 @extends('layouts.app')
 
 @section('title', 'Donald Sexton Photography')
+@section('meta_description', 'Calm wedding photography for Clearwater, Tampa, and beyond. Real wedding stories, planning guidance, and straightforward next steps.')
+@section('canonical_url', url()->current())
 @section('body_class', 'home-page')
 
 @section('content')

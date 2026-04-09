@@ -3,12 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\ImportRun;
 use App\Services\PicTime\PicTimeImporter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
-use Illuminate\View\View;
 
 class PicTimeImportController extends Controller
 {
@@ -17,14 +15,9 @@ class PicTimeImportController extends Controller
     ) {
     }
 
-    public function index(): View
+    public function index(): RedirectResponse
     {
-        return view('admin.imports.pictime', [
-            'importRuns' => ImportRun::query()
-                ->where('source_type', 'pictime')
-                ->latest()
-                ->paginate(20),
-        ]);
+        return redirect()->to(route('admin.settings.edit', ['tab' => 'imports']).'#pictime-import');
     }
 
     public function store(Request $request): RedirectResponse
@@ -42,8 +35,7 @@ class PicTimeImportController extends Controller
 
         $run = $this->importer->importSources($sources, $validated['target']);
 
-        return redirect()
-            ->route('admin.imports.pictime.index')
+        return redirect()->to(route('admin.settings.edit', ['tab' => 'imports']).'#pictime-import')
             ->with('status', "Pic-Time import completed with status `{$run->status}`.");
     }
 }

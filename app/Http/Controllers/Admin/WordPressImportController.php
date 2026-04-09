@@ -3,11 +3,9 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\ImportRun;
 use App\Services\WordPress\WordPressJournalImporter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 
 class WordPressImportController extends Controller
 {
@@ -16,11 +14,9 @@ class WordPressImportController extends Controller
     ) {
     }
 
-    public function index(): View
+    public function index(): RedirectResponse
     {
-        return view('admin.imports.wordpress', [
-            'importRuns' => ImportRun::query()->latest()->paginate(20),
-        ]);
+        return redirect()->to(route('admin.settings.edit', ['tab' => 'imports']).'#wordpress-import');
     }
 
     public function store(Request $request): RedirectResponse
@@ -31,8 +27,7 @@ class WordPressImportController extends Controller
 
         $run = $this->importer->import($validated['wxr_file']);
 
-        return redirect()
-            ->route('admin.imports.wordpress.index')
+        return redirect()->to(route('admin.settings.edit', ['tab' => 'imports']).'#wordpress-import')
             ->with('status', "Legacy import completed with status `{$run->status}`.");
     }
 }
