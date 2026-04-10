@@ -109,7 +109,7 @@ php artisan launch:check
 
 ## Deployment Checklist
 
-Forge-focused deployment setup is documented in [`docs/deployment/forge.md`](docs/deployment/forge.md).
+Hetzner SSH deployment setup is documented in [`docs/deployment/hetzner-cpx11-deploy.md`](docs/deployment/hetzner-cpx11-deploy.md).
 
 Before deploying, confirm:
 

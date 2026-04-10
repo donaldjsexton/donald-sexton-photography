@@ -1,0 +1,89 @@
+name: Deploy over SSH
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-production:
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'main') ||
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: production-ssh-deploy
+      cancel-in-progress: false
+    environment:
+      name: production
+    env:
+      DEPLOY_BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || github.event.workflow_run.head_branch }}
+      DEPLOY_SHA: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
+      SSH_HOST: ${{ vars.PRODUCTION_SSH_HOST }}
+      SSH_PORT: ${{ vars.PRODUCTION_SSH_PORT || '22' }}
+      SSH_USER: ${{ vars.PRODUCTION_SSH_USER }}
+      APP_DIR: ${{ vars.PRODUCTION_APP_DIR }}
+      PHP_BIN: ${{ vars.PRODUCTION_PHP_BIN || 'php' }}
+      COMPOSER_BIN: ${{ vars.PRODUCTION_COMPOSER_BIN || 'composer' }}
+      NPM_BIN: ${{ vars.PRODUCTION_NPM_BIN || 'npm' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          fetch-depth: 1
+
+      - name: Validate deploy configuration
+        run: |
+          test -n "$SSH_HOST" || { echo "Missing PRODUCTION_SSH_HOST"; exit 1; }
+          test -n "$SSH_USER" || { echo "Missing PRODUCTION_SSH_USER"; exit 1; }
+          test -n "$APP_DIR" || { echo "Missing PRODUCTION_APP_DIR"; exit 1; }
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+
+      - name: Configure known hosts
+        env:
+          SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          fi
+
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload deploy script
+        run: |
+          scp -P "$SSH_PORT" scripts/deploy-cpx11.sh "$SSH_USER@$SSH_HOST:/tmp/dsp-deploy-$DEPLOY_SHA.sh"
+
+      - name: Run remote deploy
+        run: |
+          ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
+            "chmod +x /tmp/dsp-deploy-$DEPLOY_SHA.sh && \
+            APP_DIR='$APP_DIR' \
+            DEPLOY_BRANCH='$DEPLOY_BRANCH' \
+            DEPLOY_COMMIT='$DEPLOY_SHA' \
+            PHP_BIN='$PHP_BIN' \
+            COMPOSER_BIN='$COMPOSER_BIN' \
+            NPM_BIN='$NPM_BIN' \
+            /tmp/dsp-deploy-$DEPLOY_SHA.sh && \
+            rm -f /tmp/dsp-deploy-$DEPLOY_SHA.sh"
