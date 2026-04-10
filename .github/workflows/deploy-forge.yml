@@ -1,0 +1,56 @@
+name: Deploy to Forge
+
+on:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-production:
+    if: >
+      (github.event_name == 'workflow_dispatch' && github.ref_name == 'main') ||
+      (
+        github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: forge-production
+      cancel-in-progress: false
+    environment:
+      name: production
+    env:
+      DEPLOY_BRANCH: ${{ github.event_name == 'workflow_dispatch' && github.ref_name || github.event.workflow_run.head_branch }}
+      DEPLOY_SHA: ${{ github.event_name == 'workflow_dispatch' && github.sha || github.event.workflow_run.head_sha }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.DEPLOY_SHA }}
+          fetch-depth: 1
+
+      - name: Trigger Forge deployment
+        env:
+          FORGE_DEPLOY_HOOK_URL: ${{ secrets.FORGE_DEPLOY_HOOK_URL }}
+        run: |
+          author="$(git show -s --format=%an "$DEPLOY_SHA")"
+          message="$(git show -s --format=%s "$DEPLOY_SHA")"
+
+          curl --fail --show-error --silent --location \
+            --request POST \
+            --get "$FORGE_DEPLOY_HOOK_URL" \
+            --data-urlencode "forge_deploy_branch=$DEPLOY_BRANCH" \
+            --data-urlencode "forge_deploy_commit=$DEPLOY_SHA" \
+            --data-urlencode "forge_deploy_author=$author" \
+            --data-urlencode "forge_deploy_message=$message"
+
+          echo "Triggered Forge deployment for $DEPLOY_BRANCH @ $DEPLOY_SHA"

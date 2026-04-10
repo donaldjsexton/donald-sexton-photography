@@ -109,6 +109,8 @@ php artisan launch:check
 
 ## Deployment Checklist
 
+Forge-focused deployment setup is documented in [`docs/deployment/forge.md`](docs/deployment/forge.md).
+
 Before deploying, confirm:
 
 - `.env` is configured for the target environment
