@@ -22,7 +22,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Paginator::defaultView('vendor.pagination.editorial');
+        if (View::exists('vendor.pagination.editorial')) {
+            Paginator::defaultView('vendor.pagination.editorial');
+        } else {
+            Paginator::useTailwind();
+        }
 
         View::composer(['layouts.app', 'layouts.admin'], function ($view): void {
             $siteSettings = SiteSetting::current();

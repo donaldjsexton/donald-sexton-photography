@@ -1051,7 +1051,7 @@ HTML,
 
         $this->get(route('weddings.show', $story->slug))
             ->assertOk()
-            ->assertSee('A local gallery selection from this wedding is shown below.');
+            ->assertSee('The gallery from this wedding is shown below.');
     }
 
     public function test_image_only_pictime_journal_post_gets_a_clear_gallery_lead(): void
@@ -1093,6 +1093,6 @@ HTML,
 
         $this->get(route('journal.show', $post->slug))
             ->assertOk()
-            ->assertSee('A local gallery selection from this post is shown below.');
+            ->assertSee('The gallery from this post is shown below.');
     }
 }

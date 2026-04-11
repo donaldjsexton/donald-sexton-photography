@@ -1007,6 +1007,24 @@ class PicTimeImporter
         return ['imported' => $imported, 'reused' => $reused];
     }
 
+    public function inspectMediaForRecord(JournalPost|WeddingStory $record, bool $allowRemote = false): array
+    {
+        $payload = $this->repairPayloadForRecord($record, $allowRemote);
+        $mediaCount = $record->relationLoaded('media')
+            ? $record->media->count()
+            : $record->media()->count();
+
+        return [
+            'found' => count($payload['image_urls']),
+            'media_count' => $mediaCount,
+            'missing' => max(count($payload['image_urls']) - $mediaCount, 0),
+            'has_source_markup' => filled($payload['source_markup'] ?? null),
+            'has_excerpt' => filled($payload['excerpt'] ?? null),
+            'has_body_html' => filled($payload['body_html'] ?? null),
+            'source_url' => $this->repairSourceUrlForRecord($record),
+        ];
+    }
+
     public function hydrateMediaForRecord(JournalPost|WeddingStory $record): array
     {
         $payload = $this->repairPayloadForRecord($record);
@@ -1060,7 +1078,7 @@ class PicTimeImporter
         return ['found' => count($imageUrls), 'imported' => $imported, 'reused' => $reused];
     }
 
-    private function repairPayloadForRecord(JournalPost|WeddingStory $record): array
+    private function repairPayloadForRecord(JournalPost|WeddingStory $record, bool $allowRemote = true): array
     {
         $manualPath = storage_path('app/private/manual-pictime/'.$record->slug.'.html');
         $sourceMarkup = File::exists($manualPath)
@@ -1082,6 +1100,8 @@ class PicTimeImporter
         $sourceUrl = $this->repairSourceUrlForRecord($record);
 
         if (
+            $allowRemote
+            && (
             $sourceUrl !== null
             && (
                 $payload['image_urls'] === []
@@ -1089,7 +1109,7 @@ class PicTimeImporter
                 || blank($payload['excerpt'])
                 || blank($payload['body_html'])
             )
-        ) {
+        )) {
             $html = $this->fetchRemoteBody($sourceUrl);
 
             if ($html !== null) {

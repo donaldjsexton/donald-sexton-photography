@@ -133,7 +133,7 @@ class JournalPost extends Model
         }
 
         return match ($this->picTimeDetailMode()) {
-            'gallery_first' => 'A local gallery selection from this post is shown below.',
+            'gallery_first' => 'The gallery from this post is shown below.',
             'rich_local_gallery' => 'The full gallery from this post is shown below.',
             'thin_fallback' => $this->externalGallerySummary(),
             default => null,

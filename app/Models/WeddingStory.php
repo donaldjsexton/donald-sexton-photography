@@ -167,7 +167,7 @@ class WeddingStory extends Model
         }
 
         return match ($this->picTimeDetailMode()) {
-            'gallery_first' => 'A local gallery selection from this wedding is shown below.',
+            'gallery_first' => 'The gallery from this wedding is shown below.',
             'rich_local_gallery' => 'The full gallery from this wedding is shown below.',
             'thin_fallback' => $this->externalGallerySummary(),
             default => null,

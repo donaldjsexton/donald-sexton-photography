@@ -606,6 +606,127 @@ Artisan::command('pictime:repair-media {--slug=*} {--include-archived} {--all-re
     return 0;
 })->purpose('Hydrate local media for existing Pic-Time records from stored embed markup');
 
+Artisan::command('pictime:audit {--include-archived} {--limit=0} {--deep}', function (PicTimeImporter $importer) {
+    $includeArchived = (bool) $this->option('include-archived');
+    $limit = max(0, (int) $this->option('limit'));
+    $deep = (bool) $this->option('deep');
+
+    $applyPicTimeScope = function ($query) {
+        $query->where(function ($inner) {
+            $inner->where('canonical_url', 'like', '%pic-time.com%')
+                ->orWhere('original_wp_url', 'like', '%pic-time.com%')
+                ->orWhere('body', 'like', '%slideswebcomponentembed.js%')
+                ->orWhere('source_markup', 'like', '%slideswebcomponentembed.js%');
+        });
+    };
+
+    $auditModel = function (string $modelClass, string $routePrefix) use ($applyPicTimeScope, $includeArchived, $limit, $deep, $importer): array {
+        $query = $modelClass::query()
+            ->withCount('media')
+            ->orderBy('slug');
+
+        $applyPicTimeScope($query);
+
+        if (! $includeArchived) {
+            $query->published();
+        }
+
+        if ($limit > 0) {
+            $query->limit($limit);
+        }
+
+        $records = $query->get(['id', 'slug', 'title', 'status', 'published_at', 'canonical_url', 'original_wp_url', 'body', 'source_markup']);
+        $underIngested = collect();
+
+        if ($deep) {
+            $underIngested = $records
+                ->map(function ($record) use ($routePrefix, $importer) {
+                    $inspection = $importer->inspectMediaForRecord($record, false);
+
+                    return [
+                        'slug' => $record->slug,
+                        'title' => $record->title,
+                        'route' => $routePrefix.'/'.$record->slug,
+                        'media_count' => (int) $inspection['media_count'],
+                        'found' => (int) $inspection['found'],
+                        'missing' => (int) $inspection['missing'],
+                        'has_source_markup' => (bool) $inspection['has_source_markup'],
+                    ];
+                })
+                ->filter(fn ($record) => $record['found'] > $record['media_count'])
+                ->values();
+        }
+
+        $thin = $records
+            ->filter(fn ($record) => (int) $record->media_count <= 1)
+            ->values()
+            ->map(fn ($record) => [
+                'slug' => $record->slug,
+                'title' => $record->title,
+                'media_count' => (int) $record->media_count,
+                'route' => $routePrefix.'/'.$record->slug,
+            ])
+            ->all();
+
+        return [
+            'total' => $records->count(),
+            'zero_media' => $records->where('media_count', 0)->count(),
+            'one_media' => $records->where('media_count', 1)->count(),
+            'two_plus_media' => $records->filter(fn ($record) => (int) $record->media_count >= 2)->count(),
+            'thin' => $thin,
+            'under_ingested' => $underIngested->all(),
+        ];
+    };
+
+    $stories = $auditModel(WeddingStory::class, '/weddings');
+    $posts = $auditModel(JournalPost::class, '/journal');
+
+    $printSummary = function (string $label, array $audit): void {
+        $this->line("- {$label} total: {$audit['total']}");
+        $this->line("- {$label} with 0 media: {$audit['zero_media']}");
+        $this->line("- {$label} with 1 media: {$audit['one_media']}");
+        $this->line("- {$label} with 2+ media: {$audit['two_plus_media']}");
+    };
+
+    $this->components->info('Pic-Time audit complete.');
+    $printSummary('stories', $stories);
+    $printSummary('posts', $posts);
+
+    if ($stories['thin'] !== []) {
+        $this->line('Thin story routes:');
+
+        foreach ($stories['thin'] as $item) {
+            $this->line("- {$item['route']} ({$item['media_count']} media) {$item['title']}");
+        }
+    }
+
+    if ($posts['thin'] !== []) {
+        $this->line('Thin post routes:');
+
+        foreach ($posts['thin'] as $item) {
+            $this->line("- {$item['route']} ({$item['media_count']} media) {$item['title']}");
+        }
+    }
+
+    if ($deep && $stories['under_ingested'] !== []) {
+        $this->line('Under-ingested story routes:');
+
+        foreach ($stories['under_ingested'] as $item) {
+            $this->line("- {$item['route']} ({$item['media_count']} local / {$item['found']} discoverable) {$item['title']}");
+        }
+    }
+
+    if ($deep && $posts['under_ingested'] !== []) {
+        $this->line('Under-ingested post routes:');
+
+        foreach ($posts['under_ingested'] as $item) {
+            $this->line("- {$item['route']} ({$item['media_count']} local / {$item['found']} discoverable) {$item['title']}");
+        }
+    }
+
+    return 0;
+})->purpose('Audit the current Pic-Time surface and list remaining thin public routes');
+
 Artisan::command('pictime:sync-owners', function () {
     $copyMedia = function (string $fromType, int $fromId, string $toType, int $toId) {
         $existingMediaIds = DB::table('mediables')

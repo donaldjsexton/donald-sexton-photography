@@ -72,6 +72,18 @@ cleanup() {
 
 prepare_release_paths() {
     mkdir -p "$DEPLOY_ROOT/releases" "$DEPLOY_ROOT/shared"
+
+    if [[ ! -f "$DEPLOY_ROOT/shared/.env" && -f "$DEPLOY_ROOT/current/.env" ]]; then
+        log "Seeding shared env from the current release"
+        cp -fL "$DEPLOY_ROOT/current/.env" "$DEPLOY_ROOT/shared/.env"
+    fi
+
+    if [[ ! -d "$DEPLOY_ROOT/shared/storage" && -d "$DEPLOY_ROOT/current/storage" ]]; then
+        log "Seeding shared storage from the current release"
+        mkdir -p "$DEPLOY_ROOT/shared/storage"
+        cp -aL "$DEPLOY_ROOT/current/storage/." "$DEPLOY_ROOT/shared/storage/"
+    fi
+
     mkdir -p \
         "$DEPLOY_ROOT/shared/storage/app/public" \
         "$DEPLOY_ROOT/shared/storage/framework/cache/data" \
