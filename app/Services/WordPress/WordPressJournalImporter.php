@@ -202,6 +202,7 @@ class WordPressJournalImporter
     public function repairLegacyMediaForRecord(JournalPost|WeddingStory $record, ?string $sourceDir = null): array
     {
         $urls = $this->extractLegacyUploadUrls((string) ($record->body ?? ''));
+        $sourceDir = $this->resolveLegacyUploadSourceDir($sourceDir);
 
         if ($urls === []) {
             return ['found' => 0, 'imported' => 0, 'reused' => 0, 'failed' => 0];
@@ -233,6 +234,34 @@ class WordPressJournalImporter
         }
 
         return ['found' => count($urls), 'imported' => $imported, 'reused' => $reused, 'failed' => $failed];
+    }
+
+    public function resolveLegacyUploadSourceDir(?string $sourceDir = null): ?string
+    {
+        $candidates = [];
+
+        if (is_string($sourceDir) && trim($sourceDir) !== '') {
+            $candidates[] = trim($sourceDir);
+        }
+
+        $envPath = trim((string) env('LEGACY_WORDPRESS_UPLOADS_PATH', ''));
+        if ($envPath !== '') {
+            $candidates[] = $envPath;
+        }
+
+        $candidates[] = base_path('../shared/legacy/wp-content/uploads');
+        $candidates[] = base_path('../../shared/legacy/wp-content/uploads');
+        $candidates[] = public_path('wp-content/uploads');
+
+        foreach ($candidates as $candidate) {
+            $candidate = rtrim((string) $candidate, '/');
+
+            if ($candidate !== '' && File::isDirectory($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
     private function loadXml(string $path): \SimpleXMLElement

@@ -571,6 +571,59 @@ XML;
         ]);
     }
 
+    public function test_legacy_repair_media_auto_detects_legacy_upload_source(): void
+    {
+        $legacyRoot = storage_path('app/private/test-legacy-uploads');
+        $relativePath = 'tests/auto-detected-legacy-image.jpg';
+        $sourcePath = $legacyRoot.'/'.$relativePath;
+        $publicPath = public_path('wp-content/uploads/'.$relativePath);
+
+        File::ensureDirectoryExists(dirname($sourcePath));
+        file_put_contents($sourcePath, 'legacy-image');
+
+        if (File::exists($publicPath)) {
+            File::delete($publicPath);
+        }
+
+        $post = JournalPost::query()->create([
+            'title' => 'Legacy Upload Repair',
+            'slug' => 'legacy-upload-repair',
+            'status' => 'published',
+            'post_type' => 'advice',
+            'body' => '<p><img src="https://donaldsextonphotography.com/wp-content/uploads/tests/auto-detected-legacy-image.jpg" alt=""></p>',
+            'original_wp_post_id' => 7001,
+        ]);
+
+        $previous = getenv('LEGACY_WORDPRESS_UPLOADS_PATH') ?: null;
+        putenv('LEGACY_WORDPRESS_UPLOADS_PATH='.$legacyRoot);
+        $_ENV['LEGACY_WORDPRESS_UPLOADS_PATH'] = $legacyRoot;
+        $_SERVER['LEGACY_WORDPRESS_UPLOADS_PATH'] = $legacyRoot;
+
+        try {
+            Artisan::call('legacy:repair-media', [
+                '--slug' => [$post->slug],
+            ]);
+
+            $this->assertFileExists($publicPath);
+            $this->assertSame('legacy-image', file_get_contents($publicPath));
+        } finally {
+            if ($previous !== null) {
+                putenv('LEGACY_WORDPRESS_UPLOADS_PATH='.$previous);
+                $_ENV['LEGACY_WORDPRESS_UPLOADS_PATH'] = $previous;
+                $_SERVER['LEGACY_WORDPRESS_UPLOADS_PATH'] = $previous;
+            } else {
+                putenv('LEGACY_WORDPRESS_UPLOADS_PATH');
+                unset($_ENV['LEGACY_WORDPRESS_UPLOADS_PATH'], $_SERVER['LEGACY_WORDPRESS_UPLOADS_PATH']);
+            }
+
+            if (File::exists($publicPath)) {
+                File::delete($publicPath);
+            }
+
+            File::deleteDirectory(dirname($sourcePath));
+        }
+    }
+
     public function test_pictime_import_command_ingests_story_text_and_images(): void
     {
         Storage::fake('public');

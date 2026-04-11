@@ -534,7 +534,7 @@ Artisan::command('legacy:repair-media {--slug=*} {--include-archived} {--source-
         ->filter()
         ->values();
     $includeArchived = (bool) $this->option('include-archived');
-    $sourceDir = trim((string) $this->option('source-dir')) ?: null;
+    $sourceDir = $importer->resolveLegacyUploadSourceDir(trim((string) $this->option('source-dir')) ?: null);
 
     $queryModels = function (string $modelClass) use ($slugs, $includeArchived) {
         return $modelClass::query()
@@ -552,6 +552,12 @@ Artisan::command('legacy:repair-media {--slug=*} {--include-archived} {--source-
         $this->components->warn('No legacy WordPress records matched the current filters.');
 
         return 1;
+    }
+
+    if ($sourceDir) {
+        $this->line("- using legacy source dir: {$sourceDir}");
+    } else {
+        $this->line('- using legacy source dir: none detected, will fall back to remote URLs');
     }
 
     $summary = [
