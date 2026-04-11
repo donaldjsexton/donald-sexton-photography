@@ -170,3 +170,58 @@ This project has domain-specific skills available. You MUST activate the relevan
 - To filter on a particular test name: `php artisan test --compact --filter=testName` (recommended after making a change to a related file).
 
 </laravel-boost-guidelines>
+
+# Production Server
+
+This is a **production server** for Donald Sexton Photography (`donaldsextonphotography.com`). All work takes place on live infrastructure. Treat every action accordingly.
+
+## Deployment Structure
+
+The app lives at `/srv/dsp/` with a Deployer-style layout:
+
+```
+/srv/dsp/
+  current/          → symlink to the active release
+  releases/         → timestamped release directories
+  shared/
+    storage/        → Laravel shared storage (app/public = web-visible files)
+    legacy/
+      wp-content/uploads/   → legacy WordPress media
+    .env
+```
+
+- `current/storage` → `shared/storage` (symlink)
+- `current/public/storage` → release-specific path → `shared/storage/app/public` (two-hop symlink)
+- `current/public/wp-content/uploads` → `shared/legacy/wp-content/uploads` (symlink)
+
+## File Permissions
+
+Caddy runs as user `caddy` (groups: `caddy`, `www-data`). For static files to be served:
+
+- Directories must be at least `0755` (others need `r-x`)
+- Files must be at least `0644` (others need `r--`)
+- If a directory is `deploy:deploy` with `0750`, Caddy **cannot enter it** — requests silently fall through to PHP and return 404
+
+When files are created by artisan commands (running as `deploy`), check that permissions are not too restrictive for Caddy.
+
+## Production Safety Rules
+
+- **Never restart Caddy, PHP-FPM, or other services without confirmation.**
+- **Never run `php artisan migrate` in production without confirmation.** Always check with `--pretend` first.
+- **Never edit `.env` or `shared/.env` without confirmation.**
+- Prefer `php artisan config:show` and `php artisan route:list` for inspection — they are read-only.
+- Before any `storage:link` or `storage:unlink`, confirm with the user — broken symlinks take the site down.
+
+## Artisan Commands to Know
+
+```bash
+php artisan legacy:audit-media       # audit missing legacy WP body images
+php artisan legacy:repair-media      # mirror missing legacy WP images locally
+php artisan launch:check             # deploy readiness checks
+php artisan pictime:import           # import Pic-Time blog pages
+php artisan wordpress:import         # import WP XML export
+```
+
+## Working Directory
+
+Always operate from `/srv/dsp/current` when running artisan or composer commands.
