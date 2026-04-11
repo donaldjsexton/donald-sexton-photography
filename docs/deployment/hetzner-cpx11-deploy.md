@@ -60,9 +60,10 @@ It is written specifically for a smaller `CPX11` box:
 - supports either a single in-place checkout or a release layout like `/srv/dsp/current`, `/srv/dsp/releases`, and `/srv/dsp/shared`
 - `flock` lock to prevent overlapping deploys
 - release deploys unpack a source archive from GitHub Actions into a new release directory
+- GitHub Actions builds the Vite assets before packaging the release
 - in-place deploys still support fast-forward only Git updates
 - production Composer install without dev dependencies
-- `NODE_OPTIONS=--max-old-space-size=512` to reduce Vite build memory pressure
+- server-side Node is only needed as a fallback if the release does not already contain `public/build/manifest.json`
 - Laravel cache rebuild and migrations
 
 The workflow uploads the current version of that script and a source archive to `/tmp` on the server, so the deploy logic always matches the commit that triggered the deploy.
@@ -78,7 +79,8 @@ The app directory set in `PRODUCTION_APP_DIR` should already:
   - in `.env` for in-place deployments
   - in `shared/.env` for release-based deployments
 - have write access for `storage/` and `bootstrap/cache/`
-- have working `php`, `composer`, `node`, and `npm` on the server user’s path
+- have working `php` and `composer` on the server user’s path
+- only need `node` and `npm` on the server if you intend to fall back to building assets there
 
 For the release layout you showed on the server, set:
 

@@ -104,11 +104,15 @@ build_release() {
         --prefer-dist \
         --optimize-autoloader
 
-    log "Installing Node dependencies"
-    "$NPM_BIN" ci --no-audit --no-fund
+    if [[ -f public/build/manifest.json ]]; then
+        log "Using prebuilt frontend assets from the release archive"
+    else
+        log "Installing Node dependencies"
+        "$NPM_BIN" ci --no-audit --no-fund
 
-    log "Building frontend assets with reduced Node memory usage"
-    NODE_OPTIONS="$NODE_OPTIONS" "$NPM_BIN" run build
+        log "Building frontend assets with reduced Node memory usage"
+        NODE_OPTIONS="$NODE_OPTIONS" "$NPM_BIN" run build
+    fi
 
     log "Running database migrations"
     "$PHP_BIN" artisan migrate --force
