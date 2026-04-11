@@ -1336,7 +1336,7 @@ Artisan::command('launch:check', function () {
         $report("Published `{$slug}` page exists", $exists);
 
         if (! $exists) {
-            $failures[] = "The published `{$slug}` page is missing. Create it before launch.";
+            $failures[] = "The published `{$slug}` page is missing. Run `php artisan launch:ensure-pages` to create it.";
             continue;
         }
 

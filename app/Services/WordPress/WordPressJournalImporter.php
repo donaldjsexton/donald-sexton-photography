@@ -642,7 +642,7 @@ class WordPressJournalImporter
             return null;
         }
 
-        return ltrim($path, '/');
+        return ltrim(rawurldecode($path), '/');
     }
 
     private function downloadLegacyUpload(string $url, string $relativePath, ?string $sourceDir = null): void
@@ -668,6 +668,19 @@ class WordPressJournalImporter
                 File::copy($candidate, $absolutePath);
 
                 return;
+            }
+
+            // Fall back to the original (non-resized) version when a WordPress-scaled
+            // variant like image-300x225.jpg is absent from the backup but the original is not.
+            $baseSuffix = preg_replace('~-\d+x\d+(\.[^.]+)$~i', '$1', $uploadsSuffix);
+            if ($baseSuffix !== $uploadsSuffix) {
+                foreach ([$sourceDir.'/'.$baseSuffix, $sourceDir.'/wp-content/uploads/'.$baseSuffix] as $candidate) {
+                    if (File::exists($candidate)) {
+                        File::copy($candidate, $absolutePath);
+
+                        return;
+                    }
+                }
             }
         }
 
