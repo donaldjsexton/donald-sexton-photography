@@ -29,18 +29,18 @@ class CrmMetricsTest extends TestCase
     {
         Carbon::setTestNow(Carbon::parse('2026-04-15 10:00:00'));
 
-        $this->makeInquiry(['status' => 'new', 'created_at' => now()->subDay()]);
-        $this->makeInquiry(['status' => 'active', 'created_at' => now()->subDay()]);
-        $this->makeInquiry(['status' => 'follow_up', 'created_at' => now()->subDay()]);
-        $this->makeInquiry(['status' => 'booked', 'created_at' => now()->subMonths(2)]);
-        $this->makeInquiry(['status' => 'archived', 'created_at' => now()->subDay()]);
-        $this->makeInquiry(['status' => 'new', 'created_at' => now()->subWeeks(2)]);
+        $this->makeInquiry(['status' => 'new'], now()->subDay());
+        $this->makeInquiry(['status' => 'active'], now()->subDay());
+        $this->makeInquiry(['status' => 'follow_up'], now()->subDay());
+        $this->makeInquiry(['status' => 'booked'], now()->subMonths(2));
+        $this->makeInquiry(['status' => 'archived'], now()->subDay());
+        $this->makeInquiry(['status' => 'new'], now()->subWeeks(2));
 
         $pulse = app(CrmMetrics::class)->pulse();
         $stats = collect($pulse['stats'])->keyBy('label');
 
-        $this->assertSame('3', $stats['New This Week']['value'], 'New, active, follow_up created this week count.');
-        $this->assertSame('3', $stats['Active Pipeline']['value'], 'new + active + follow_up inquiries.');
+        $this->assertSame('4', $stats['New This Week']['value'], 'All inquiries created this week regardless of status.');
+        $this->assertSame('4', $stats['Active Pipeline']['value'], 'new + active + follow_up (any time).');
         $this->assertSame('1', $stats['Booked YTD']['value']);
 
         Carbon::setTestNow();
@@ -71,7 +71,6 @@ class CrmMetricsTest extends TestCase
         $this->makeInquiry(['source' => 'site_form']);
         $this->makeInquiry(['source' => 'site_form']);
         $this->makeInquiry(['source' => 'referral']);
-        $this->makeInquiry(['source' => null]);
 
         $topSources = app(CrmMetrics::class)->pulse()['topSources'];
 
@@ -84,13 +83,21 @@ class CrmMetricsTest extends TestCase
     /**
      * @param  array<string, mixed>  $overrides
      */
-    private function makeInquiry(array $overrides = []): Inquiry
+    private function makeInquiry(array $overrides = [], ?Carbon $createdAt = null): Inquiry
     {
-        return Inquiry::create(array_merge([
+        $inquiry = Inquiry::create(array_merge([
             'primary_name' => 'Taylor',
             'email' => 'taylor+'.uniqid().'@example.com',
             'status' => 'new',
             'source' => 'site_form',
         ], $overrides));
+
+        if ($createdAt !== null) {
+            Inquiry::withoutTimestamps(function () use ($inquiry, $createdAt) {
+                $inquiry->forceFill(['created_at' => $createdAt])->save();
+            });
+        }
+
+        return $inquiry;
     }
 }

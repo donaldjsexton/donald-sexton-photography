@@ -225,3 +225,13 @@ php artisan wordpress:import         # import WP XML export
 ## Working Directory
 
 Always operate from `/srv/dsp/current` when running artisan or composer commands.
+
+# UI/UX Responsiveness
+
+Every UI change must account for the major breakpoints — mobile, tablet, and desktop — not just the viewport you happen to be designing in.
+
+- **Tables** are the biggest offender. A wide admin table that looks right on desktop will horizontally crush on a phone. Before shipping a table, decide the mobile strategy: stacked card rows, horizontal scroll with a sticky first column, or a condensed "key fields only" view.
+- **Grids and stat rows** should collapse cleanly — 4-col → 2-col → 1-col — not squeeze or clip.
+- **Navigation, toolbars, and filter bars** need a mobile plan too (drawer, collapsible, or wrapped) — don't leave them overflowing the viewport.
+- **Touch targets** should be at least 44×44px on mobile. Inline icon buttons that work with a mouse often don't work with a thumb.
+- When in doubt, test the change in a narrow viewport (≤ 420px) before calling a UI task complete.
