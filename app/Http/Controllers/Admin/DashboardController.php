@@ -12,11 +12,15 @@ use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Models\WeddingStory;
 use App\Services\CrmMetrics;
+use App\Services\MarketingHealth;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __construct(private readonly CrmMetrics $crmMetrics) {}
+    public function __construct(
+        private readonly CrmMetrics $crmMetrics,
+        private readonly MarketingHealth $marketingHealth,
+    ) {}
 
     public function __invoke(): View
     {
@@ -28,104 +32,12 @@ class DashboardController extends Controller
 
         return view('admin.dashboard', [
             'businessPulse' => $this->crmMetrics->pulse(),
-            'marketingHealth' => $this->marketingHealthData($siteSettings),
+            'marketingHealth' => $this->marketingHealth->snapshot($siteSettings),
             'contentOps' => $this->contentOpsData($siteSettings, $latestFailedImport),
             'quickActions' => $this->quickActions(),
             'recentInquiries' => Inquiry::query()->latest()->limit(5)->get(),
             'recentImports' => ImportRun::query()->latest()->limit(5)->get(),
         ]);
-    }
-
-    /**
-     * @return array{signals: array<int, array{label: string, value: string, description: string, tone: string}>, seoCoverage: array<int, array{label: string, value: string, context: string}>, attribution: array<int, array{label: string, meta: string}>}
-     */
-    private function marketingHealthData(SiteSetting $siteSettings): array
-    {
-        $seoCoverage = $this->seoCoverageBreakdown();
-
-        $signals = [
-            [
-                'label' => 'Organic Traffic',
-                'value' => 'Not connected',
-                'description' => 'Connect Search Console in Settings to populate impressions and clicks.',
-                'tone' => 'neutral',
-            ],
-            [
-                'label' => 'GA4 Analytics',
-                'value' => $siteSettings->analyticsIsConfigured() ? 'Connected' : 'Missing',
-                'description' => $siteSettings->analyticsIsConfigured()
-                    ? 'Measurement ID '.$siteSettings->analyticsMeasurementId().' is tracking site visits.'
-                    : 'Add a GA4 measurement ID in Settings to start tracking.',
-                'tone' => $siteSettings->analyticsIsConfigured() ? 'positive' : 'warning',
-            ],
-            [
-                'label' => 'Sitemap',
-                'value' => 'Published',
-                'description' => 'Generated from published pages, stories, and journal posts at /sitemap.xml.',
-                'tone' => 'positive',
-            ],
-            [
-                'label' => 'Broken Links',
-                'value' => '—',
-                'description' => 'Surface internal 404s once a link auditor is in place.',
-                'tone' => 'neutral',
-            ],
-        ];
-
-        $attribution = Inquiry::query()
-            ->whereNotNull('utm_source')
-            ->where('utm_source', '!=', '')
-            ->where('created_at', '>=', now()->subDays(90))
-            ->selectRaw('utm_source, count(*) as total')
-            ->groupBy('utm_source')
-            ->orderByDesc('total')
-            ->limit(4)
-            ->get()
-            ->map(fn ($row) => [
-                'label' => str($row->utm_source)->headline()->toString(),
-                'meta' => $row->total.' tagged inquiries in the last 90 days.',
-            ])
-            ->all();
-
-        return [
-            'signals' => $signals,
-            'seoCoverage' => $seoCoverage,
-            'attribution' => $attribution,
-        ];
-    }
-
-    /**
-     * @return array<int, array{label: string, value: string, context: string}>
-     */
-    private function seoCoverageBreakdown(): array
-    {
-        $types = [
-            'Pages' => Page::query(),
-            'Wedding Stories' => WeddingStory::query(),
-            'Journal Posts' => JournalPost::query(),
-        ];
-
-        $rows = [];
-
-        foreach ($types as $label => $query) {
-            $total = (clone $query)->count();
-            $withMeta = (clone $query)
-                ->whereNotNull('seo_title')
-                ->where('seo_title', '!=', '')
-                ->whereNotNull('seo_description')
-                ->where('seo_description', '!=', '')
-                ->count();
-
-            $coverage = $total > 0 ? round(($withMeta / $total) * 100) : 0;
-
-            $rows[] = [
-                'label' => $label,
-                'value' => $coverage.'%',
-                'context' => $withMeta.' of '.$total.' records have title and description.',
-            ];
-        }
-
-        return $rows;
     }
 
     /**
