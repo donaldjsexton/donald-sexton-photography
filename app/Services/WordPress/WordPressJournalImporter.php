@@ -642,7 +642,7 @@ class WordPressJournalImporter
             return null;
         }
 
-        return ltrim(rawurldecode($path), '/');
+        return ltrim($path, '/');
     }
 
     private function downloadLegacyUpload(string $url, string $relativePath, ?string $sourceDir = null): void
