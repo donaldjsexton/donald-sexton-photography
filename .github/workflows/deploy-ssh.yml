@@ -45,6 +45,14 @@ jobs:
           ref: ${{ env.DEPLOY_SHA }}
           fetch-depth: 1
 
+      - name: Create release archive
+        run: |
+          tar \
+            --exclude=.git \
+            --exclude=node_modules \
+            --exclude=vendor \
+            -czf "/tmp/dsp-release-$DEPLOY_SHA.tgz" .
+
       - name: Validate deploy configuration
         run: |
           test -n "$SSH_HOST" || { echo "Missing PRODUCTION_SSH_HOST"; exit 1; }
@@ -71,19 +79,23 @@ jobs:
 
           chmod 600 ~/.ssh/known_hosts
 
-      - name: Upload deploy script
+      - name: Upload deploy artifacts
         run: |
-          scp -P "$SSH_PORT" scripts/deploy-cpx11.sh "$SSH_USER@$SSH_HOST:/tmp/dsp-deploy-$DEPLOY_SHA.sh"
+          scp -P "$SSH_PORT" \
+            scripts/deploy-cpx11.sh \
+            "/tmp/dsp-release-$DEPLOY_SHA.tgz" \
+            "$SSH_USER@$SSH_HOST:/tmp/"
 
       - name: Run remote deploy
         run: |
           ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" \
-            "chmod +x /tmp/dsp-deploy-$DEPLOY_SHA.sh && \
+            "chmod +x /tmp/deploy-cpx11.sh && \
             APP_DIR='$APP_DIR' \
             DEPLOY_BRANCH='$DEPLOY_BRANCH' \
             DEPLOY_COMMIT='$DEPLOY_SHA' \
+            SOURCE_ARCHIVE='/tmp/dsp-release-$DEPLOY_SHA.tgz' \
             PHP_BIN='$PHP_BIN' \
             COMPOSER_BIN='$COMPOSER_BIN' \
             NPM_BIN='$NPM_BIN' \
-            /tmp/dsp-deploy-$DEPLOY_SHA.sh && \
-            rm -f /tmp/dsp-deploy-$DEPLOY_SHA.sh"
+            /tmp/deploy-cpx11.sh && \
+            rm -f /tmp/deploy-cpx11.sh"

@@ -45,7 +45,8 @@ Typical values:
 
 - `PRODUCTION_SSH_PORT=22`
 - `PRODUCTION_SSH_USER=deploy` or whatever user owns the app
-- `PRODUCTION_APP_DIR=/var/www/donald-sexton-photography`
+- `PRODUCTION_APP_DIR=/srv/dsp` for a release layout with `current`, `releases`, and `shared`
+- `PRODUCTION_APP_DIR=/var/www/donald-sexton-photography` for a single in-place checkout
 - `PRODUCTION_PHP_BIN=php`
 - `PRODUCTION_COMPOSER_BIN=composer`
 - `PRODUCTION_NPM_BIN=npm`
@@ -56,24 +57,32 @@ The remote deploy script lives at [scripts/deploy-cpx11.sh](/Users/ninjaexilemki
 
 It is written specifically for a smaller `CPX11` box:
 
-- single in-place deploy directory
+- supports either a single in-place checkout or a release layout like `/srv/dsp/current`, `/srv/dsp/releases`, and `/srv/dsp/shared`
 - `flock` lock to prevent overlapping deploys
-- fast-forward only Git updates
+- release deploys unpack a source archive from GitHub Actions into a new release directory
+- in-place deploys still support fast-forward only Git updates
 - production Composer install without dev dependencies
 - `NODE_OPTIONS=--max-old-space-size=512` to reduce Vite build memory pressure
 - Laravel cache rebuild and migrations
 
-The workflow uploads the current version of that script to `/tmp` on the server and executes it there, so the deploy logic always matches the commit that triggered the deploy.
+The workflow uploads the current version of that script and a source archive to `/tmp` on the server, so the deploy logic always matches the commit that triggered the deploy.
 
 ## Expected App Directory State
 
 The app directory set in `PRODUCTION_APP_DIR` should already:
 
-- be a git clone of this repository
-- be able to `git fetch origin` as the deploy user
-- have the production `.env` present on the server
+- be either:
+  - an in-place git checkout of this repository, or
+  - a release root like `/srv/dsp` that contains `current`, `releases`, and `shared`
+- have the production environment available:
+  - in `.env` for in-place deployments
+  - in `shared/.env` for release-based deployments
 - have write access for `storage/` and `bootstrap/cache/`
 - have working `php`, `composer`, `node`, and `npm` on the server user’s path
+
+For the release layout you showed on the server, set:
+
+- `PRODUCTION_APP_DIR=/srv/dsp`
 
 ## Deploy Flow
 
