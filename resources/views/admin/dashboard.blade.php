@@ -3,111 +3,179 @@
 @section('title', 'Admin Dashboard')
 @section('eyebrow', 'Admin')
 @section('heading', 'Overview')
-@section('subheading', 'Review content, leads, imports, and recent activity.')
+@section('subheading', 'Pipeline, marketing, and content operations in a single observability view.')
 @section('content')
-    <section class="admin-dashboard-top">
-        <article class="admin-card admin-dashboard-overview">
-            <p class="eyebrow">At a glance</p>
-            <h3 class="feature-title">Content and client work in one place.</h3>
-            <p class="section-copy">Use this page to move between publishing work, lead management, and operational tasks without treating inquiries like an afterthought.</p>
+    <section class="admin-dashboard-row">
+        <x-admin.section-header
+            eyebrow="Business Pulse"
+            title="Lead pipeline &amp; conversion"
+            description="How the inquiry funnel is moving this week, which stages are holding leads, and where the best sources are coming from."
+        />
 
-            <div class="admin-dashboard-feature-grid">
-                <article class="admin-dashboard-feature-card">
-                    <p class="eyebrow">Homepage</p>
-                    <h4>{{ $homepageSetting?->hero_heading ?: 'Homepage is still using fallback copy.' }}</h4>
-                    <p class="meta">Curated stories, testimonials, and hero messaging are controlled from the homepage editor.</p>
-                    <a class="cta-secondary" href="{{ route('admin.homepage.edit') }}">Edit Homepage</a>
-                </article>
-
-                <article class="admin-dashboard-feature-card">
-                    <p class="eyebrow">Imports</p>
-                    @if ($latestFailedImport)
-                        <h4>Latest failure: {{ ucfirst($latestFailedImport->source_type) }}</h4>
-                        <p class="meta">{{ $latestFailedImport->created_at?->format('M j, Y g:i A') }} · {{ $latestFailedImport->error_log ?: 'The run failed without a saved error message.' }}</p>
-                    @else
-                        <h4>No current failures.</h4>
-                        <p class="meta">Tracked import runs are clean right now. Use Settings to launch a WordPress or Pic-Time ingestion pass.</p>
-                    @endif
-                    <a class="cta-secondary" href="{{ route('admin.settings.edit', ['tab' => 'imports']) }}#import-settings">Open Import Tools</a>
-                </article>
-            </div>
-        </article>
-
-        <div class="admin-dashboard-status-grid">
-            @foreach ($systemPanels as $panel)
-                <article class="admin-signal-card admin-signal-card--{{ $panel['tone'] }}">
-                    <p class="eyebrow">{{ $panel['label'] }}</p>
-                    <strong>{{ $panel['value'] }}</strong>
-                    <span class="meta">{{ $panel['description'] }}</span>
-                </article>
+        <div class="admin-stat-grid">
+            @foreach ($businessPulse['stats'] as $stat)
+                <x-admin.stat
+                    :label="$stat['label']"
+                    :value="$stat['value']"
+                    :meta="$stat['meta']"
+                />
             @endforeach
+        </div>
+
+        <div class="admin-grid admin-grid--two">
+            <x-admin.panel eyebrow="Inquiry funnel">
+                <x-admin.list>
+                    @foreach ($businessPulse['funnel'] as $stage)
+                        <x-admin.list-item
+                            :title="$stage['label'].' · '.$stage['value']"
+                            :meta="$stage['context']"
+                        />
+                    @endforeach
+                </x-admin.list>
+            </x-admin.panel>
+
+            <x-admin.panel eyebrow="Top sources (all time)">
+                <x-admin.list>
+                    @forelse ($businessPulse['topSources'] as $source)
+                        <x-admin.list-item
+                            :title="$source['label']"
+                            :meta="$source['meta']"
+                        />
+                    @empty
+                        <p class="meta">No source data captured yet. Tag inquiry forms with a source to populate this panel.</p>
+                    @endforelse
+                </x-admin.list>
+            </x-admin.panel>
         </div>
     </section>
 
-    <section class="admin-stat-grid">
-        @foreach ($primaryStats as $stat)
-            <article class="admin-card admin-card--metric">
-                <p class="eyebrow">{{ $stat['label'] }}</p>
-                <p class="admin-stat">{{ $stat['value'] }}</p>
-                <p class="meta">{{ $stat['meta'] }}</p>
-            </article>
-        @endforeach
+    <section class="admin-dashboard-row">
+        <x-admin.section-header
+            eyebrow="Marketing &amp; SEO"
+            title="Discovery, coverage, and attribution"
+            description="Signals across analytics, SEO metadata, and UTM-tagged traffic. Stubs remain where a live service is not yet connected."
+        />
+
+        <div class="admin-stat-grid">
+            @foreach ($marketingHealth['signals'] as $signal)
+                <x-admin.signal-card
+                    :tone="$signal['tone']"
+                    :label="$signal['label']"
+                    :value="$signal['value']"
+                    :description="$signal['description']"
+                />
+            @endforeach
+        </div>
+
+        <div class="admin-grid admin-grid--two">
+            <x-admin.panel eyebrow="SEO metadata coverage">
+                <x-admin.list>
+                    @foreach ($marketingHealth['seoCoverage'] as $row)
+                        <x-admin.list-item
+                            :title="$row['label'].' · '.$row['value']"
+                            :meta="$row['context']"
+                        />
+                    @endforeach
+                </x-admin.list>
+            </x-admin.panel>
+
+            <x-admin.panel eyebrow="UTM attribution (last 90 days)">
+                <x-admin.list>
+                    @forelse ($marketingHealth['attribution'] as $row)
+                        <x-admin.list-item
+                            :title="$row['label']"
+                            :meta="$row['meta']"
+                        />
+                    @empty
+                        <p class="meta">No UTM-tagged inquiries in the last 90 days. Tag outbound links with utm_source to start attributing traffic.</p>
+                    @endforelse
+                </x-admin.list>
+            </x-admin.panel>
+        </div>
     </section>
 
-    <section class="admin-grid admin-grid--two">
-        <article class="admin-card">
-            <p class="eyebrow">Drafts and publishing</p>
-            <div class="admin-list">
-                @foreach ($contentRadar as $item)
-                    <div class="admin-list__item">
-                        <strong>{{ $item['label'] }} · {{ $item['value'] }}</strong>
-                        <span class="meta">{{ $item['context'] }}</span>
-                    </div>
-                @endforeach
-            </div>
-        </article>
+    <section class="admin-dashboard-row">
+        <x-admin.section-header
+            eyebrow="Content Operations"
+            title="Publishing, drafts, and system status"
+            description="What's live, what's queued, and how the CMS and import systems are behaving right now."
+        />
 
-        <article class="admin-card">
-            <p class="eyebrow">Quick Actions</p>
+        <div class="admin-stat-grid">
+            @foreach ($contentOps['stats'] as $stat)
+                <x-admin.stat
+                    :label="$stat['label']"
+                    :value="$stat['value']"
+                    :meta="$stat['meta']"
+                />
+            @endforeach
+        </div>
+
+        <div class="admin-grid admin-grid--two">
+            <x-admin.panel eyebrow="System status">
+                <div class="admin-inline-grid">
+                    @foreach ($contentOps['systemPanels'] as $panel)
+                        <x-admin.signal-card
+                            :tone="$panel['tone']"
+                            :label="$panel['label']"
+                            :value="$panel['value']"
+                            :description="$panel['description']"
+                        />
+                    @endforeach
+                </div>
+            </x-admin.panel>
+
+            <x-admin.panel eyebrow="Drafts &amp; publishing radar">
+                <x-admin.list>
+                    @foreach ($contentOps['radar'] as $item)
+                        <x-admin.list-item
+                            :title="$item['label'].' · '.$item['value']"
+                            :meta="$item['context']"
+                        />
+                    @endforeach
+                </x-admin.list>
+            </x-admin.panel>
+        </div>
+
+        <div class="admin-grid admin-grid--two">
+            <x-admin.panel eyebrow="Recent inquiries">
+                <x-admin.list>
+                    @forelse ($recentInquiries as $inquiry)
+                        <x-admin.list-item
+                            :title="$inquiry->primary_name"
+                            :meta="$inquiry->email.' · '.str($inquiry->status)->replace('_', ' ')->headline()"
+                        />
+                    @empty
+                        <p class="meta">No inquiries have been recorded yet.</p>
+                    @endforelse
+                </x-admin.list>
+                <a class="cta-secondary" href="{{ route('admin.inquiries.index') }}">Open Inquiries</a>
+            </x-admin.panel>
+
+            <x-admin.panel eyebrow="Recent imports">
+                <x-admin.list>
+                    @forelse ($recentImports as $import)
+                        <x-admin.list-item
+                            :title="ucfirst($import->source_type)"
+                            :meta="$import->status.' · '.$import->created_at?->format('M j, Y g:i A')"
+                        />
+                    @empty
+                        <p class="meta">No import runs have been recorded yet.</p>
+                    @endforelse
+                </x-admin.list>
+            </x-admin.panel>
+        </div>
+
+        <x-admin.panel eyebrow="Quick actions">
             <div class="admin-action-list">
                 @foreach ($quickActions as $action)
-                    <a class="admin-action-card" href="{{ $action['href'] }}">
-                        <strong>{{ $action['label'] }}</strong>
-                        <span class="meta">{{ $action['description'] }}</span>
-                    </a>
+                    <x-admin.action-card
+                        :href="$action['href']"
+                        :label="$action['label']"
+                        :description="$action['description']"
+                    />
                 @endforeach
             </div>
-        </article>
-    </section>
-
-    <section class="admin-grid admin-grid--two">
-        <article class="admin-card">
-            <p class="eyebrow">Recent Inquiries</p>
-            <div class="admin-list">
-                @forelse ($recentInquiries as $inquiry)
-                    <div class="admin-list__item">
-                        <strong>{{ $inquiry->primary_name }}</strong>
-                        <span class="meta">{{ $inquiry->email }} · {{ str($inquiry->status)->replace('_', ' ')->headline() }}</span>
-                    </div>
-                @empty
-                    <p class="meta">No inquiries have been recorded yet.</p>
-                @endforelse
-            </div>
-            <a class="cta-secondary" href="{{ route('admin.inquiries.index') }}">Open Inquiries</a>
-        </article>
-
-        <article class="admin-card">
-            <p class="eyebrow">Recent Imports</p>
-            <div class="admin-list">
-                @forelse ($recentImports as $import)
-                    <div class="admin-list__item">
-                        <strong>{{ ucfirst($import->source_type) }}</strong>
-                        <span class="meta">{{ $import->status }} · {{ $import->created_at?->format('M j, Y g:i A') }}</span>
-                    </div>
-                @empty
-                    <p class="meta">No import runs have been recorded yet.</p>
-                @endforelse
-            </div>
-        </article>
+        </x-admin.panel>
     </section>
 @endsection

@@ -800,6 +800,36 @@ img {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.admin-dashboard-row {
+    display: grid;
+    gap: 1rem;
+    padding-top: 0.25rem;
+}
+
+.admin-dashboard-row + .admin-dashboard-row {
+    margin-top: 0.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--admin-line);
+}
+
+.admin-section-header {
+    display: grid;
+    gap: 0.3rem;
+    align-content: start;
+}
+
+.admin-section-header__title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.35rem, 2.2vw, 1.7rem);
+    line-height: 1.1;
+}
+
+.admin-section-header__description {
+    margin: 0;
+    max-width: 68ch;
+}
+
 .admin-card,
 .admin-form,
 .admin-table-wrap,
