@@ -1188,6 +1188,20 @@ Artisan::command('launch:check', function () {
         $failures[] = "Missing `public/storage`. Run `php artisan storage:link` to expose {$storageTarget}.";
     }
 
+    $legacyUploadReferences = JournalPost::published()
+        ->where('body', 'like', '%wp-content/uploads%')
+        ->count()
+        + WeddingStory::published()
+            ->where('body', 'like', '%wp-content/uploads%')
+            ->count();
+    $legacyUploadsPath = public_path('wp-content/uploads');
+    $hasLegacyUploads = File::isDirectory($legacyUploadsPath) || is_link($legacyUploadsPath);
+    $legacyUploadsOk = $legacyUploadReferences === 0 || $hasLegacyUploads;
+    $report("Legacy WordPress uploads path is available when needed ({$legacyUploadReferences} records)", $legacyUploadsOk);
+    if (! $legacyUploadsOk) {
+        $failures[] = 'Missing `public/wp-content/uploads` while imported legacy WordPress records still reference old uploads. Link the shared legacy uploads directory before launch.';
+    }
+
     $defaultDisk = config('filesystems.default');
     $diskOk = $defaultDisk === 'public' || $defaultDisk === 's3';
     $report("Filesystem default disk is deploy-safe (`{$defaultDisk}`)", $diskOk);

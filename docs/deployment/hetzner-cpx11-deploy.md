@@ -65,6 +65,7 @@ It is written specifically for a smaller `CPX11` box:
 - production Composer install without dev dependencies
 - server-side Node is only needed as a fallback if the release does not already contain `public/build/manifest.json`
 - Laravel cache rebuild and migrations
+- automatic legacy WordPress uploads symlink when `shared/legacy/wp-content/uploads` exists
 
 The workflow uploads the current version of that script and a source archive to `/tmp` on the server, so the deploy logic always matches the commit that triggered the deploy.
 
@@ -85,6 +86,18 @@ The app directory set in `PRODUCTION_APP_DIR` should already:
 For the release layout you showed on the server, set:
 
 - `PRODUCTION_APP_DIR=/srv/dsp`
+
+If the site still serves imported legacy WordPress body images, keep the uploads backup at:
+
+- `/srv/dsp/shared/legacy/wp-content/uploads`
+
+The deploy script will automatically link that directory to:
+
+- `/srv/dsp/current/public/wp-content/uploads`
+
+You can override the source path with:
+
+- `LEGACY_WORDPRESS_UPLOADS_PATH=/absolute/path/to/wp-content/uploads`
 
 ## Deploy Flow
 

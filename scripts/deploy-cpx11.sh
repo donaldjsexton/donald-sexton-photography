@@ -12,6 +12,7 @@ NPM_BIN="${NPM_BIN:-npm}"
 LOCK_FILE="${LOCK_FILE:-/tmp/donald-sexton-photography-deploy.lock}"
 NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=512}"
 RELEASES_TO_KEEP="${RELEASES_TO_KEEP:-5}"
+LEGACY_WORDPRESS_UPLOADS_PATH="${LEGACY_WORDPRESS_UPLOADS_PATH:-}"
 
 DEPLOY_MODE=""
 DEPLOY_ROOT=""
@@ -104,6 +105,46 @@ link_shared_paths() {
     mkdir -p "$RELEASE_DIR/bootstrap/cache"
 }
 
+resolve_legacy_uploads_source() {
+    if [[ -n "$LEGACY_WORDPRESS_UPLOADS_PATH" ]]; then
+        printf '%s\n' "$LEGACY_WORDPRESS_UPLOADS_PATH"
+        return
+    fi
+
+    if [[ "$DEPLOY_MODE" == "releases" ]]; then
+        printf '%s\n' "$DEPLOY_ROOT/shared/legacy/wp-content/uploads"
+        return
+    fi
+
+    if [[ -d "$APP_DIR/shared/legacy/wp-content/uploads" ]]; then
+        printf '%s\n' "$APP_DIR/shared/legacy/wp-content/uploads"
+        return
+    fi
+
+    printf '%s\n' ""
+}
+
+link_legacy_wordpress_uploads() {
+    local legacy_source
+    local legacy_target
+
+    legacy_source="$(resolve_legacy_uploads_source)"
+    [[ -n "$legacy_source" ]] || return
+
+    if [[ ! -d "$legacy_source" ]]; then
+        log "Skipping legacy WordPress uploads link; source not found at $legacy_source"
+        return
+    fi
+
+    legacy_target="$PWD/public/wp-content/uploads"
+
+    mkdir -p "$PWD/public/wp-content"
+    rm -rf "$legacy_target"
+    ln -sfn "$legacy_source" "$legacy_target"
+
+    log "Linked legacy WordPress uploads from $legacy_source"
+}
+
 build_release() {
     local target_dir="$1"
 
@@ -131,6 +172,8 @@ build_release() {
 
     log "Creating public storage symlink"
     "$PHP_BIN" artisan storage:link || true
+
+    link_legacy_wordpress_uploads
 
     log "Refreshing Laravel caches"
     "$PHP_BIN" artisan optimize:clear

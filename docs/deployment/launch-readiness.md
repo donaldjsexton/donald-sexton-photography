@@ -25,6 +25,8 @@
 
 - Run `php artisan storage:link` on any environment that serves media from the `public` disk.
 - Keep `storage/` persistent across deploys if uploaded assets are stored locally.
+- If imported legacy WordPress posts still reference `wp-content/uploads`, keep a persistent legacy uploads directory available and expose it at `public/wp-content/uploads`.
+- The deploy script will automatically symlink `public/wp-content/uploads` from `LEGACY_WORDPRESS_UPLOADS_PATH` when set, or from `shared/legacy/wp-content/uploads` on the release layout.
 - Confirm that uploaded media records have the correct `disk` value. The frontend resolves URLs from that field first.
 - Verify that `APP_URL` matches the public domain before generating sitemap and canonical URLs.
 
