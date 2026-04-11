@@ -170,6 +170,9 @@ build_release() {
     log "Running database migrations"
     "$PHP_BIN" artisan migrate --force
 
+    log "Ensuring launch-required CMS pages (about, collections)"
+    "$PHP_BIN" artisan launch:ensure-pages
+
     log "Creating public storage symlink"
     "$PHP_BIN" artisan storage:link || true
 

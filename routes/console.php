@@ -1167,6 +1167,80 @@ Artisan::command('pictime:sync-owners', function () {
     return 0;
 })->purpose('Move imported Pic-Time media and content onto the published public owners');
 
+Artisan::command('launch:ensure-pages', function () {
+    $aboutBody = <<<'HTML'
+<p>I am Donald Sexton, a wedding photographer based in Clearwater and working across Tampa, the Gulf Coast, and beyond.</p>
+<p>My goal is simple. I want your photos to feel honest, calm, and full of life. I pay attention to people first, then to light, timing, and the small moments that give the day its shape.</p>
+<p>Some couples want big portraits. Some want gentle direction and room to breathe. Most want both. The work is built to hold all of that without making the day feel staged or heavy.</p>
+<p>If you want photographs that feel easy to live with for years, the next step is to reach out and share the date, the place, and what matters most to you.</p>
+HTML;
+
+    $definitions = [
+        'about' => [
+            'title' => 'About',
+            'excerpt' => 'I photograph weddings with a calm, simple approach so you can stay in the day and still come away with images that feel true to you.',
+            'body' => $aboutBody,
+        ],
+        'collections' => [
+            'title' => 'Collections',
+            'excerpt' => 'Start with the coverage that fits your day, then add what matters most.',
+            'body' => null,
+        ],
+    ];
+
+    foreach ($definitions as $slug => $fields) {
+        $page = Page::query()->where('slug', $slug)->first();
+
+        if ($page === null) {
+            Page::create(array_merge($fields, [
+                'slug' => $slug,
+                'template' => 'custom',
+                'status' => 'published',
+                'published_at' => now(),
+            ]));
+            $this->components->info("Created published page `{$slug}`.");
+
+            continue;
+        }
+
+        $isPublished = $page->status === 'published'
+            && ($page->published_at === null || $page->published_at->lte(now()));
+
+        if ($isPublished) {
+            $this->line("- `{$slug}` is already published.");
+
+            continue;
+        }
+
+        $page->status = 'published';
+
+        if ($page->published_at === null || $page->published_at->isFuture()) {
+            $page->published_at = now();
+        }
+
+        foreach ($fields as $key => $value) {
+            if ($value === null) {
+                continue;
+            }
+
+            $current = $page->getAttribute($key);
+
+            if ($current === null || $current === '') {
+                $page->setAttribute($key, $value);
+            }
+        }
+
+        $page->save();
+
+        $this->components->info("Published existing page `{$slug}`.");
+    }
+
+    $this->newLine();
+    $this->components->info('Required launch pages are in place. Run `php artisan launch:check` to verify.');
+
+    return 0;
+})->purpose('Create or publish the `about` and `collections` pages expected by `launch:check`');
+
 Artisan::command('launch:check', function () {
     $kernel = app(\Illuminate\Contracts\Http\Kernel::class);
 
