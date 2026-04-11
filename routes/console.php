@@ -4,12 +4,14 @@ use App\Models\Page;
 use App\Models\Redirect;
 use App\Models\User;
 use App\Models\Media;
+use App\Models\ImportMapping;
 use App\Models\JournalPost;
 use App\Models\WeddingStory;
 use App\Services\Media\MediaDuplicateAuditor;
 use App\Services\Media\MediaOptimizer;
 use App\Services\PicTime\PicTimeImporter;
 use App\Services\WordPress\WordPressJournalImporter;
+use App\Services\WordPress\WordPressPostClassifier;
 use App\Services\WordPress\RealWeddingPromoter;
 use App\Support\PicTimeContent;
 use Illuminate\Foundation\Inspiring;
@@ -322,6 +324,270 @@ Artisan::command('wordpress:promote-real-weddings', function (RealWeddingPromote
 
     return 0;
 })->purpose('Promote imported real wedding journal posts into wedding stories');
+
+Artisan::command('wordpress:repair-classification {--dry-run}', function (WordPressPostClassifier $classifier, RealWeddingPromoter $promoter) {
+    $dryRun = (bool) $this->option('dry-run');
+    $posts = JournalPost::query()
+        ->whereNotNull('original_wp_post_id')
+        ->with(['categories', 'tags', 'media'])
+        ->orderBy('id')
+        ->get();
+
+    $summary = [
+        'posts_checked' => 0,
+        'post_types_updated' => 0,
+        'stories_promoted' => 0,
+        'stories_archived' => 0,
+        'journal_posts_restored' => 0,
+    ];
+
+    foreach ($posts as $post) {
+        $summary['posts_checked']++;
+        $resolvedType = $classifier->classifyJournalPost($post);
+        $originalType = $post->post_type;
+        $stories = WeddingStory::query()
+            ->where('original_wp_post_id', $post->original_wp_post_id)
+            ->orderBy('id')
+            ->get();
+        $activeStories = $stories->where('status', '!=', 'archived')->values();
+
+        if ($originalType !== $resolvedType) {
+            $summary['post_types_updated']++;
+
+            if (! $dryRun) {
+                $post->post_type = $resolvedType;
+                $post->save();
+            }
+
+            $this->line("- {$post->slug}: post_type {$originalType} -> {$resolvedType}");
+        }
+
+        if ($resolvedType === 'real_wedding') {
+            if ($activeStories->isEmpty() && $post->status === 'published') {
+                $summary['stories_promoted']++;
+
+                if (! $dryRun) {
+                    $promoter->promote($post->fresh(['tags', 'media']));
+                }
+            }
+
+            continue;
+        }
+
+        if ($activeStories->isEmpty()) {
+            continue;
+        }
+
+        if ($post->status === 'archived') {
+            $summary['journal_posts_restored']++;
+        }
+
+        if ($dryRun) {
+            foreach ($activeStories as $story) {
+                $summary['stories_archived']++;
+                $this->line("- {$story->slug}: archive wedding story and restore /journal/{$post->slug}");
+            }
+
+            continue;
+        }
+
+        $activeHeroStory = $activeStories->firstWhere('hero_media_id', '!=', null);
+
+        if (! $post->hero_media_id && $activeHeroStory?->hero_media_id) {
+            $post->hero_media_id = $activeHeroStory->hero_media_id;
+        }
+
+        if ($post->status === 'archived') {
+            $post->status = 'published';
+        }
+
+        $post->save();
+
+        foreach ($activeStories as $story) {
+            $summary['stories_archived']++;
+
+            $story->status = 'archived';
+            $story->save();
+
+            Redirect::query()->where([
+                'from_path' => '/journal/'.$post->slug,
+                'to_path' => '/weddings/'.$story->slug,
+            ])->delete();
+
+            Redirect::query()->updateOrCreate(
+                ['from_path' => '/weddings/'.$story->slug],
+                [
+                    'to_path' => '/journal/'.$post->slug,
+                    'status_code' => 301,
+                    'source' => 'wp_import',
+                ]
+            );
+        }
+
+        if ($post->original_wp_url) {
+            $fromPath = parse_url($post->original_wp_url, PHP_URL_PATH);
+
+            if (is_string($fromPath) && trim($fromPath) !== '') {
+                Redirect::query()->updateOrCreate(
+                    ['from_path' => '/'.ltrim($fromPath, '/')],
+                    [
+                        'to_path' => '/journal/'.$post->slug,
+                        'status_code' => 301,
+                        'source' => 'wp_import',
+                    ]
+                );
+            }
+        }
+
+        ImportMapping::query()
+            ->where('source_table', 'wp_posts')
+            ->where('source_id', $post->original_wp_post_id)
+            ->update([
+                'target_type' => $post->getMorphClass(),
+                'target_id' => $post->id,
+            ]);
+    }
+
+    $this->components->info('WordPress classification repair complete.');
+    $this->line("- posts checked: {$summary['posts_checked']}");
+    $this->line("- post types updated: {$summary['post_types_updated']}");
+    $this->line("- stories promoted: {$summary['stories_promoted']}");
+    $this->line("- stories archived: {$summary['stories_archived']}");
+    $this->line("- journal posts restored: {$summary['journal_posts_restored']}");
+
+    return 0;
+})->purpose('Reclassify imported WordPress posts and repair misrouted wedding-story promotions');
+
+Artisan::command('legacy:audit-media {--include-archived} {--limit=0}', function (WordPressJournalImporter $importer) {
+    $includeArchived = (bool) $this->option('include-archived');
+    $limit = max(0, (int) $this->option('limit'));
+
+    $auditModel = function (string $modelClass, string $routePrefix) use ($includeArchived, $limit, $importer): array {
+        $query = $modelClass::query()
+            ->whereNotNull('original_wp_post_id')
+            ->where('body', 'like', '%wp-content/uploads%')
+            ->orderBy('slug');
+
+        if (! $includeArchived) {
+            $query->published();
+        }
+
+        if ($limit > 0) {
+            $query->limit($limit);
+        }
+
+        $records = $query->get(['id', 'slug', 'title', 'body']);
+        $items = $records->map(function ($record) use ($routePrefix, $importer) {
+            $inspection = $importer->inspectLegacyMediaForRecord($record);
+
+            return [
+                'slug' => $record->slug,
+                'title' => $record->title,
+                'route' => $routePrefix.'/'.$record->slug,
+                'found' => (int) $inspection['found'],
+                'present' => (int) $inspection['present'],
+                'missing' => (int) $inspection['missing'],
+            ];
+        })->values();
+
+        return [
+            'total' => $items->count(),
+            'fully_mirrored' => $items->filter(fn ($item) => $item['found'] > 0 && $item['missing'] === 0)->count(),
+            'missing_assets' => $items->filter(fn ($item) => $item['missing'] > 0)->count(),
+            'items' => $items->filter(fn ($item) => $item['missing'] > 0)->values()->all(),
+        ];
+    };
+
+    $stories = $auditModel(WeddingStory::class, '/weddings');
+    $posts = $auditModel(JournalPost::class, '/journal');
+
+    $this->components->info('Legacy WordPress media audit complete.');
+    $this->line("- stories with legacy body media: {$stories['total']}");
+    $this->line("- stories fully mirrored: {$stories['fully_mirrored']}");
+    $this->line("- stories missing mirrored assets: {$stories['missing_assets']}");
+    $this->line("- posts with legacy body media: {$posts['total']}");
+    $this->line("- posts fully mirrored: {$posts['fully_mirrored']}");
+    $this->line("- posts missing mirrored assets: {$posts['missing_assets']}");
+
+    if ($stories['items'] !== []) {
+        $this->line('Story routes missing mirrored assets:');
+
+        foreach ($stories['items'] as $item) {
+            $this->line("- {$item['route']} ({$item['present']}/{$item['found']} local) {$item['title']}");
+        }
+    }
+
+    if ($posts['items'] !== []) {
+        $this->line('Post routes missing mirrored assets:');
+
+        foreach ($posts['items'] as $item) {
+            $this->line("- {$item['route']} ({$item['present']}/{$item['found']} local) {$item['title']}");
+        }
+    }
+
+    return 0;
+})->purpose('Audit mirrored legacy WordPress upload assets referenced by imported body content');
+
+Artisan::command('legacy:repair-media {--slug=*} {--include-archived} {--source-dir=}', function (WordPressJournalImporter $importer) {
+    $slugs = collect((array) $this->option('slug'))
+        ->map(fn ($slug) => trim((string) $slug))
+        ->filter()
+        ->values();
+    $includeArchived = (bool) $this->option('include-archived');
+    $sourceDir = trim((string) $this->option('source-dir')) ?: null;
+
+    $queryModels = function (string $modelClass) use ($slugs, $includeArchived) {
+        return $modelClass::query()
+            ->whereNotNull('original_wp_post_id')
+            ->where('body', 'like', '%wp-content/uploads%')
+            ->when($slugs->isNotEmpty(), fn ($query) => $query->whereIn('slug', $slugs->all()))
+            ->when(! $includeArchived, fn ($query) => $query->published())
+            ->orderBy('slug')
+            ->get();
+    };
+
+    $records = $queryModels(WeddingStory::class)->concat($queryModels(JournalPost::class));
+
+    if ($records->isEmpty()) {
+        $this->components->warn('No legacy WordPress records matched the current filters.');
+
+        return 1;
+    }
+
+    $summary = [
+        'records_seen' => 0,
+        'records_updated' => 0,
+        'images_found' => 0,
+        'images_imported' => 0,
+        'images_reused' => 0,
+        'images_failed' => 0,
+    ];
+
+    foreach ($records as $record) {
+        $summary['records_seen']++;
+        $result = $importer->repairLegacyMediaForRecord($record, $sourceDir);
+        $summary['images_found'] += (int) ($result['found'] ?? 0);
+        $summary['images_imported'] += (int) ($result['imported'] ?? 0);
+        $summary['images_reused'] += (int) ($result['reused'] ?? 0);
+        $summary['images_failed'] += (int) ($result['failed'] ?? 0);
+
+        if (($result['imported'] ?? 0) > 0 || ($result['reused'] ?? 0) > 0) {
+            $summary['records_updated']++;
+        }
+
+        $this->line('- '.class_basename($record)."/{$record->slug}: found {$result['found']}, imported {$result['imported']}, reused {$result['reused']}, failed {$result['failed']}");
+    }
+
+    $this->components->info('Legacy WordPress media repair complete.');
+    $this->line("- records seen: {$summary['records_seen']}");
+    $this->line("- records updated: {$summary['records_updated']}");
+    $this->line("- images found: {$summary['images_found']}");
+    $this->line("- images imported: {$summary['images_imported']}");
+    $this->line("- images reused: {$summary['images_reused']}");
+    $this->line("- images failed: {$summary['images_failed']}");
+
+    return 0;
+})->purpose('Mirror legacy WordPress upload images referenced in imported body content');
 
 Artisan::command('pictime:import {sources*} {--target=auto}', function (PicTimeImporter $importer) {
     $sources = (array) $this->argument('sources');

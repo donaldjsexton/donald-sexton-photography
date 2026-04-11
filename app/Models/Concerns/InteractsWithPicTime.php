@@ -176,7 +176,9 @@ trait InteractsWithPicTime
         $body = (string) ($this->sanitizedBody() ?? '');
 
         if ($body !== '' && preg_match('/<img[^>]+src=["\']([^"\']+)["\']/i', $body, $matches) === 1) {
-            return html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            $src = html_entity_decode($matches[1], ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+            return $this->localLegacyWordPressAssetUrl($src) ?: $src;
         }
 
         return null;
@@ -209,6 +211,19 @@ trait InteractsWithPicTime
                 return $html;
             }
 
+            foreach (iterator_to_array($root->getElementsByTagName('a')) as $anchor) {
+                if (! $anchor instanceof \DOMElement || ! $anchor->hasAttribute('href')) {
+                    continue;
+                }
+
+                $href = html_entity_decode($anchor->getAttribute('href'), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+                $localHref = $this->localLegacyWordPressAssetUrl($href);
+
+                if ($localHref !== null) {
+                    $anchor->setAttribute('href', $localHref);
+                }
+            }
+
             foreach (iterator_to_array($root->getElementsByTagName('img')) as $image) {
                 if (! $image instanceof \DOMElement) {
                     continue;
@@ -220,6 +235,14 @@ trait InteractsWithPicTime
                     $this->removeNodeAndEmptyAncestors($image, $root);
 
                     continue;
+                }
+
+                $localSrc = $this->localLegacyWordPressAssetUrl($src);
+
+                if ($localSrc !== null) {
+                    $image->setAttribute('src', $localSrc);
+                    $image->removeAttribute('srcset');
+                    $image->removeAttribute('sizes');
                 }
 
                 if (! $image->hasAttribute('loading')) {
@@ -282,6 +305,23 @@ trait InteractsWithPicTime
     protected function isLegacyWordPressUploadUrl(string $url): bool
     {
         return str_contains(Str::lower($url), '/wp-content/uploads/');
+    }
+
+    protected function localLegacyWordPressAssetUrl(?string $url): ?string
+    {
+        $url = trim((string) $url);
+
+        if ($url === '' || ! $this->isLegacyWordPressUploadUrl($url)) {
+            return null;
+        }
+
+        $path = '/'.ltrim((string) (parse_url($url, PHP_URL_PATH) ?: $url), '/');
+
+        if (! $this->hasLocalPublicAsset($path)) {
+            return null;
+        }
+
+        return $path;
     }
 
     protected function isCurrentAppHost(string $host): bool

@@ -114,17 +114,21 @@ HTML,
                 'body' => <<<'HTML'
 <p>Lead paragraph.</p>
 <figure class="wp-import-gallery">
-    <figure class="wp-import-image"><img src="https://donaldsextonphotography.com/wp-content/uploads/tests/legacy-image-scaled.jpg" alt=""></figure>
+    <a href="https://donaldsextonphotography.com/wp-content/uploads/tests/legacy-image-scaled.jpg">
+        <figure class="wp-import-image"><img src="https://donaldsextonphotography.com/wp-content/uploads/tests/legacy-image-scaled.jpg" srcset="https://donaldsextonphotography.com/wp-content/uploads/tests/legacy-image-scaled.jpg 1200w" sizes="100vw" alt=""></figure>
+    </a>
 </figure>
 HTML,
                 'original_wp_post_id' => 40434,
             ]);
 
             $this->assertSame(
-                'https://donaldsextonphotography.com/wp-content/uploads/tests/legacy-image-scaled.jpg',
+                '/wp-content/uploads/tests/legacy-image-scaled.jpg',
                 $story->featuredImageUrl()
             );
             $this->assertStringContainsString('/wp-content/uploads/tests/legacy-image-scaled.jpg', (string) $story->sanitizedBody());
+            $this->assertStringNotContainsString('https://donaldsextonphotography.com/wp-content/uploads/tests/legacy-image-scaled.jpg', (string) $story->sanitizedBody());
+            $this->assertStringNotContainsString('srcset=', (string) $story->sanitizedBody());
         } finally {
             File::delete($absolutePath);
         }

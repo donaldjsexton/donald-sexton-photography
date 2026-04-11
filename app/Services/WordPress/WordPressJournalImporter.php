@@ -14,15 +14,18 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Symfony\Component\Process\Process;
 use Throwable;
 
 class WordPressJournalImporter
 {
     public function __construct(
         private readonly RealWeddingPromoter $realWeddingPromoter,
+        private readonly WordPressPostClassifier $postClassifier,
     ) {
     }
 
@@ -54,6 +57,8 @@ class WordPressJournalImporter
                     'tags_synced' => 0,
                     'featured_images_imported' => 0,
                     'featured_images_reused' => 0,
+                    'body_images_imported' => 0,
+                    'body_images_reused' => 0,
                     'redirects_synced' => 0,
                 ];
                 $attachmentsByParent = $this->attachmentMapFromItems($items, $namespaces);
@@ -115,6 +120,9 @@ class WordPressJournalImporter
                     );
                     $summary['featured_images_imported'] += $featuredImageSummary['imported'];
                     $summary['featured_images_reused'] += $featuredImageSummary['reused'];
+                    $bodyImageSummary = $this->repairLegacyMediaForRecord($post);
+                    $summary['body_images_imported'] += $bodyImageSummary['imported'];
+                    $summary['body_images_reused'] += $bodyImageSummary['reused'];
                     $post->refresh();
 
                     if ($resolvedPostType === 'real_wedding') {
@@ -164,6 +172,67 @@ class WordPressJournalImporter
         }
 
         return $run->fresh();
+    }
+
+    public function inspectLegacyMediaForRecord(JournalPost|WeddingStory $record): array
+    {
+        $urls = $this->extractLegacyUploadUrls((string) ($record->body ?? ''));
+        $present = 0;
+        $missing = [];
+
+        foreach ($urls as $url) {
+            $relativePath = $this->legacyUploadRelativePath($url);
+
+            if ($relativePath !== null && File::exists(public_path($relativePath))) {
+                $present++;
+                continue;
+            }
+
+            $missing[] = $url;
+        }
+
+        return [
+            'found' => count($urls),
+            'present' => $present,
+            'missing' => count($missing),
+            'missing_urls' => $missing,
+        ];
+    }
+
+    public function repairLegacyMediaForRecord(JournalPost|WeddingStory $record, ?string $sourceDir = null): array
+    {
+        $urls = $this->extractLegacyUploadUrls((string) ($record->body ?? ''));
+
+        if ($urls === []) {
+            return ['found' => 0, 'imported' => 0, 'reused' => 0, 'failed' => 0];
+        }
+
+        $imported = 0;
+        $reused = 0;
+        $failed = 0;
+
+        foreach ($urls as $url) {
+            $relativePath = $this->legacyUploadRelativePath($url);
+
+            if ($relativePath === null) {
+                $failed++;
+                continue;
+            }
+
+            if (File::exists(public_path($relativePath))) {
+                $reused++;
+                continue;
+            }
+
+            try {
+                $this->downloadLegacyUpload($url, $relativePath, $sourceDir);
+                $imported++;
+            } catch (Throwable) {
+                $failed++;
+            }
+        }
+
+        return ['found' => count($urls), 'imported' => $imported, 'reused' => $reused, 'failed' => $failed];
     }
 
     private function loadXml(string $path): \SimpleXMLElement
@@ -263,35 +332,7 @@ class WordPressJournalImporter
 
     private function resolvePostType(\SimpleXMLElement $item): string
     {
-        $terms = collect($item->category ?? [])->map(function ($term) {
-            return Str::slug(trim((string) $term));
-        })->filter();
-
-        if ($terms->contains(fn (string $term) => str_contains($term, 'engagement'))) {
-            return 'engagement';
-        }
-
-        if ($terms->contains(fn (string $term) => str_contains($term, 'advice') || str_contains($term, 'planning'))) {
-            return 'advice';
-        }
-
-        if ($terms->contains(fn (string $term) => str_contains($term, 'venue'))) {
-            return 'venue';
-        }
-
-        if ($terms->contains(fn (string $term) => in_array($term, ['real-wedding', 'real-weddings', 'wedding', 'weddings'], true))) {
-            return 'real_wedding';
-        }
-
-        if ($terms->contains(fn (string $term) => str_contains($term, 'announcement'))) {
-            return 'announcement';
-        }
-
-        if ($terms->contains(fn (string $term) => str_contains($term, 'brand'))) {
-            return 'brand';
-        }
-
-        return 'advice';
+        return $this->postClassifier->classifyImportItem($item);
     }
 
     private function syncTaxonomies(JournalPost $post, \SimpleXMLElement $item): array
@@ -521,6 +562,118 @@ class WordPressJournalImporter
         $content = preg_replace('/(<\/figure>)\s*(<figure\b)/i', "$1\n$2", $content) ?? $content;
 
         return trim($content);
+    }
+
+    private function extractLegacyUploadUrls(string $html): array
+    {
+        if (trim($html) === '') {
+            return [];
+        }
+
+        preg_match_all('~(?:https?:)?//[^"\'\s>]+/wp-content/uploads/[^"\'\s>]+|/wp-content/uploads/[^"\'\s>]+~i', $html, $matches);
+
+        return collect($matches[0] ?? [])
+            ->map(fn (string $url) => $this->normalizeLegacyUploadUrl($url))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function normalizeLegacyUploadUrl(string $url): ?string
+    {
+        $url = html_entity_decode(trim($url), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        if ($url === '' || ! str_contains(Str::lower($url), '/wp-content/uploads/')) {
+            return null;
+        }
+
+        if (Str::startsWith($url, '//')) {
+            return 'https:'.$url;
+        }
+
+        if (Str::startsWith($url, '/wp-content/uploads/')) {
+            return 'https://donaldsextonphotography.com'.$url;
+        }
+
+        return $url;
+    }
+
+    private function legacyUploadRelativePath(string $url): ?string
+    {
+        $url = $this->normalizeLegacyUploadUrl($url);
+
+        if ($url === null) {
+            return null;
+        }
+
+        $path = parse_url($url, PHP_URL_PATH);
+
+        if (! is_string($path) || ! str_contains(Str::lower($path), '/wp-content/uploads/')) {
+            return null;
+        }
+
+        return ltrim($path, '/');
+    }
+
+    private function downloadLegacyUpload(string $url, string $relativePath, ?string $sourceDir = null): void
+    {
+        $absolutePath = public_path($relativePath);
+        File::ensureDirectoryExists(dirname($absolutePath));
+
+        $sourceDir = is_string($sourceDir) ? rtrim($sourceDir, '/') : null;
+        $uploadsSuffix = preg_replace('~^wp-content/uploads/?~i', '', $relativePath) ?? $relativePath;
+
+        if ($sourceDir) {
+            $candidate = $sourceDir.'/'.$uploadsSuffix;
+
+            if (File::exists($candidate)) {
+                File::copy($candidate, $absolutePath);
+
+                return;
+            }
+
+            $candidate = $sourceDir.'/wp-content/uploads/'.$uploadsSuffix;
+
+            if (File::exists($candidate)) {
+                File::copy($candidate, $absolutePath);
+
+                return;
+            }
+        }
+
+        $temporaryPath = tempnam(sys_get_temp_dir(), 'wp-upload-');
+
+        if ($temporaryPath === false) {
+            throw new \RuntimeException('A temporary file could not be created for legacy media download.');
+        }
+
+        try {
+            try {
+                $response = Http::timeout(60)
+                    ->withHeaders(['User-Agent' => 'DonaldSextonImporter/1.0'])
+                    ->withOptions(['sink' => $temporaryPath])
+                    ->get($url);
+
+                $response->throw();
+            } catch (Throwable) {
+                $process = new Process([
+                    'curl',
+                    '-fSL',
+                    '-A',
+                    'Mozilla/5.0',
+                    $url,
+                    '-o',
+                    $temporaryPath,
+                ]);
+                $process->setTimeout(60);
+                $process->mustRun();
+            }
+
+            File::copy($temporaryPath, $absolutePath);
+        } finally {
+            @unlink($temporaryPath);
+        }
     }
 
     private function resolveExtension(string $imageUrl, Response $response): string

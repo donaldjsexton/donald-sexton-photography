@@ -2,13 +2,16 @@
 
 namespace Tests\Feature;
 
+use App\Models\Category;
 use App\Models\HomepageSetting;
+use App\Models\ImportMapping;
 use App\Models\ImportRun;
 use App\Models\Inquiry;
 use App\Models\JournalPost;
 use App\Models\Media;
 use App\Models\Redirect;
 use App\Models\SiteSetting;
+use App\Models\Tag;
 use App\Models\User;
 use App\Models\WeddingStory;
 use Illuminate\Support\Facades\Artisan;
@@ -410,6 +413,162 @@ XML;
         $this->assertNotNull($media);
         $this->assertSame(8801, $media->original_wp_attachment_id);
         Storage::disk('public')->assertExists($media->path);
+    }
+
+    public function test_wordpress_import_keeps_advice_posts_out_of_wedding_stories_even_with_wedding_tags(): void
+    {
+        $xml = <<<'XML'
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0"
+    xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+    xmlns:content="http://purl.org/rss/1.0/modules/content/"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:wp="http://wordpress.org/export/1.2/">
+    <channel>
+        <item>
+            <title>Wedding Advice Import</title>
+            <link>https://oldsite.test/wedding-advice-import/</link>
+            <pubDate>Fri, 03 May 2024 12:00:00 +0000</pubDate>
+            <dc:creator><![CDATA[Donald]]></dc:creator>
+            <category domain="category" nicename="wedding-advice"><![CDATA[Wedding Advice]]></category>
+            <category domain="post_tag" nicename="wedding"><![CDATA[Wedding]]></category>
+            <category domain="post_tag" nicename="tips"><![CDATA[Tips]]></category>
+            <content:encoded><![CDATA[<p>Advice body.</p>]]></content:encoded>
+            <excerpt:encoded><![CDATA[Advice excerpt.]]></excerpt:encoded>
+            <wp:post_id>4242</wp:post_id>
+            <wp:post_date>2024-05-03 12:00:00</wp:post_date>
+            <wp:post_date_gmt>2024-05-03 12:00:00</wp:post_date_gmt>
+            <wp:post_name>wedding-advice-import</wp:post_name>
+            <wp:status>publish</wp:status>
+            <wp:post_type>post</wp:post_type>
+        </item>
+    </channel>
+</rss>
+XML;
+
+        $path = storage_path('app/private/test-wordpress-advice.xml');
+        if (! is_dir(dirname($path))) {
+            mkdir(dirname($path), 0777, true);
+        }
+        file_put_contents($path, $xml);
+
+        Artisan::call('wordpress:import', ['path' => $path]);
+
+        $this->assertDatabaseHas('journal_posts', [
+            'original_wp_post_id' => 4242,
+            'post_type' => 'advice',
+            'status' => 'published',
+        ]);
+
+        $this->assertDatabaseMissing('wedding_stories', [
+            'original_wp_post_id' => 4242,
+        ]);
+    }
+
+    public function test_wordpress_classification_repair_restores_misclassified_advice_posts_to_journal(): void
+    {
+        $category = Category::query()->create([
+            'name' => 'Wedding Advice',
+            'slug' => 'wedding-advice',
+        ]);
+
+        $tag = Tag::query()->create([
+            'name' => 'Wedding',
+            'slug' => 'wedding',
+        ]);
+
+        $post = JournalPost::query()->create([
+            'title' => '25 Must-Have Photos for your wedding',
+            'slug' => '25-must-have-photos-for-your-wedding',
+            'status' => 'archived',
+            'post_type' => 'real_wedding',
+            'excerpt' => 'Advice excerpt.',
+            'body' => '<p>Advice body.</p>',
+            'original_wp_post_id' => 3777,
+            'original_wp_url' => 'https://oldsite.test/25-must-have-photos-for-your-wedding/',
+            'published_at' => now()->subDay(),
+        ]);
+        $post->categories()->sync([$category->id]);
+        $post->tags()->sync([$tag->id]);
+
+        $story = WeddingStory::query()->create([
+            'title' => '25 Must-Have Photos for your wedding',
+            'slug' => '25-must-have-photos-for-your-wedding',
+            'status' => 'published',
+            'story_type' => 'wedding',
+            'headline' => '25 Must-Have Photos for your wedding',
+            'excerpt' => 'Advice excerpt.',
+            'body' => '<p>Advice body.</p>',
+            'original_wp_post_id' => 3777,
+            'original_wp_url' => 'https://oldsite.test/25-must-have-photos-for-your-wedding/',
+            'published_at' => now()->subDay(),
+        ]);
+
+        WeddingStory::query()->create([
+            'title' => '25 Must-Have Photos for your wedding',
+            'slug' => '25-must-have-photos-for-your-wedding-archived-legacy',
+            'status' => 'archived',
+            'story_type' => 'wedding',
+            'headline' => '25 Must-Have Photos for your wedding',
+            'excerpt' => 'Advice excerpt.',
+            'body' => '<p>Advice body.</p>',
+            'original_wp_post_id' => 3777,
+            'original_wp_url' => 'https://oldsite.test/25-must-have-photos-for-your-wedding/',
+            'published_at' => now()->subDays(2),
+        ]);
+
+        Redirect::query()->create([
+            'from_path' => '/journal/25-must-have-photos-for-your-wedding',
+            'to_path' => '/weddings/25-must-have-photos-for-your-wedding',
+            'status_code' => 301,
+            'source' => 'wp_import',
+        ]);
+
+        ImportMapping::query()->create([
+            'import_run_id' => ImportRun::query()->create([
+                'source_type' => 'wordpress',
+                'status' => 'completed',
+                'started_at' => now()->subMinute(),
+                'finished_at' => now(),
+            ])->id,
+            'source_table' => 'wp_posts',
+            'source_id' => 3777,
+            'target_type' => $story->getMorphClass(),
+            'target_id' => $story->id,
+            'source_url' => 'https://oldsite.test/25-must-have-photos-for-your-wedding/',
+        ]);
+
+        Artisan::call('wordpress:repair-classification');
+
+        $this->assertDatabaseHas('journal_posts', [
+            'id' => $post->id,
+            'post_type' => 'advice',
+            'status' => 'published',
+        ]);
+
+        $this->assertDatabaseHas('wedding_stories', [
+            'id' => $story->id,
+            'status' => 'archived',
+        ]);
+
+        $this->assertDatabaseHas('redirects', [
+            'from_path' => '/weddings/25-must-have-photos-for-your-wedding',
+            'to_path' => '/journal/25-must-have-photos-for-your-wedding',
+            'status_code' => 301,
+            'source' => 'wp_import',
+        ]);
+
+        $this->assertDatabaseMissing('redirects', [
+            'from_path' => '/journal/25-must-have-photos-for-your-wedding',
+            'to_path' => '/weddings/25-must-have-photos-for-your-wedding',
+        ]);
+
+        $this->assertDatabaseHas('import_mappings', [
+            'source_table' => 'wp_posts',
+            'source_id' => 3777,
+            'target_type' => $post->getMorphClass(),
+            'target_id' => $post->id,
+        ]);
     }
 
     public function test_pictime_import_command_ingests_story_text_and_images(): void

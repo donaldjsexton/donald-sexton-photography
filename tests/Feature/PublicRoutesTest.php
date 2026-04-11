@@ -481,6 +481,18 @@ HTML,
         $this->get('/old-post')->assertRedirect('/journal/new-post');
     }
 
+    public function test_wedding_routes_honor_stored_redirects_when_story_slug_is_missing(): void
+    {
+        Redirect::create([
+            'from_path' => '/weddings/legacy-story',
+            'to_path' => '/journal/current-post',
+            'status_code' => 301,
+            'source' => 'wp_import',
+        ]);
+
+        $this->get('/weddings/legacy-story')->assertRedirect('/journal/current-post');
+    }
+
     public function test_public_pages_render_cleanly_without_media_placeholders(): void
     {
         $story = WeddingStory::create([

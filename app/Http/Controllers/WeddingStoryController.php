@@ -2,8 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Redirect;
 use App\Models\WeddingStory;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class WeddingStoryController extends Controller
 {
@@ -19,12 +22,25 @@ class WeddingStoryController extends Controller
         ]);
     }
 
-    public function show(string $slug): View
+    public function show(string $slug): View|RedirectResponse
     {
         $story = WeddingStory::published()
             ->with(['heroMedia', 'venue', 'storyBlocks', 'tags', 'media'])
             ->where('slug', $slug)
-            ->firstOrFail();
+            ->first();
+
+        if (! $story) {
+            $redirect = Redirect::query()->whereIn('from_path', [
+                '/weddings/'.$slug,
+                '/weddings/'.$slug.'/',
+            ])->first();
+
+            if ($redirect) {
+                return redirect()->to($redirect->to_path, $redirect->status_code);
+            }
+
+            throw new NotFoundHttpException();
+        }
 
         return view('weddings.show', [
             'story' => $story,
