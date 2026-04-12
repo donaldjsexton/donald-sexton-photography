@@ -71,11 +71,11 @@
             <button
                 class="site-nav__toggle"
                 type="button"
+                aria-label="Menu"
                 aria-expanded="false"
                 aria-controls="site-nav"
                 data-nav-toggle
             >
-                <span class="site-nav__toggle-label">Menu</span>
                 <span class="site-nav__toggle-lines" aria-hidden="true">
                     <span></span>
                     <span></span>
