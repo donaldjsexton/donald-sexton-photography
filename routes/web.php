@@ -39,6 +39,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/inquiries', [AdminInquiryController::class, 'index'])->name('inquiries.index');
         Route::get('/inquiries/{inquiry}/edit', [AdminInquiryController::class, 'edit'])->name('inquiries.edit');
         Route::put('/inquiries/{inquiry}', [AdminInquiryController::class, 'update'])->name('inquiries.update');
+        Route::post('/inquiries/{inquiry}/reply', [AdminInquiryController::class, 'reply'])->name('inquiries.reply');
 
         Route::get('/media', [AdminMediaController::class, 'index'])->name('media.index');
         Route::get('/media/create', [AdminMediaController::class, 'create'])->name('media.create');

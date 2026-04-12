@@ -75,11 +75,7 @@ class CrmMetrics
                     ? $conversionRate.'% conversion rate on '.$totalYtd.' live leads.'
                     : 'No inquiries captured this year yet.',
             ],
-            [
-                'label' => 'Avg Response Time',
-                'value' => '—',
-                'meta' => 'Needs a first_contacted_at column on inquiries to compute.',
-            ],
+            $this->avgResponseTimeStat(),
         ];
     }
 
@@ -133,5 +129,41 @@ class CrmMetrics
                 'meta' => $row->total.' inquiries tracked.',
             ])
             ->all();
+    }
+
+    /**
+     * @return array{label: string, value: string, meta: string}
+     */
+    private function avgResponseTimeStat(): array
+    {
+        $responded = Inquiry::query()
+            ->whereNotNull('first_responded_at')
+            ->where('created_at', '>=', now()->subDays(90))
+            ->get(['created_at', 'first_responded_at']);
+
+        if ($responded->isEmpty()) {
+            return [
+                'label' => 'Avg Response Time',
+                'value' => '—',
+                'meta' => 'No replies tracked yet.',
+            ];
+        }
+
+        $totalMinutes = $responded->sum(fn ($inquiry) => $inquiry->created_at->diffInMinutes($inquiry->first_responded_at));
+        $avgMinutes = (int) round($totalMinutes / $responded->count());
+
+        if ($avgMinutes < 60) {
+            $display = $avgMinutes.'m';
+        } elseif ($avgMinutes < 1440) {
+            $display = round($avgMinutes / 60, 1).'h';
+        } else {
+            $display = round($avgMinutes / 1440, 1).'d';
+        }
+
+        return [
+            'label' => 'Avg Response Time',
+            'value' => $display,
+            'meta' => 'Across '.$responded->count().' replies in the last 90 days.',
+        ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\InquiryAcknowledgment;
 use App\Mail\InquiryReceived;
 use App\Models\Inquiry;
 use App\Models\Venue;
@@ -49,6 +50,7 @@ class InquiryController extends Controller
         ]);
 
         $this->notifyStudio($inquiry);
+        $this->acknowledgeClient($inquiry);
 
         return redirect()->route('inquiry.thank-you');
     }
@@ -68,6 +70,16 @@ class InquiryController extends Controller
 
         try {
             Mail::to($recipient)->send(new InquiryReceived($inquiry->loadMissing('venue')));
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    private function acknowledgeClient(Inquiry $inquiry): void
+    {
+        try {
+            Mail::to($inquiry->email, $inquiry->primary_name)
+                ->send(new InquiryAcknowledgment($inquiry));
         } catch (\Throwable $exception) {
             report($exception);
         }

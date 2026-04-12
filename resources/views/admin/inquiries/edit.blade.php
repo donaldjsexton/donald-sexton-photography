@@ -8,6 +8,10 @@
     <a class="cta-secondary" href="{{ route('admin.inquiries.index') }}">Back to Inquiries</a>
 @endsection
 @section('content')
+    @if (session('error'))
+        <div class="admin-flash admin-flash--error" style="margin-bottom:1.5rem;">{{ session('error') }}</div>
+    @endif
+
     <section class="admin-grid admin-grid--two">
         <article class="admin-card">
             <p class="eyebrow">Lead Details</p>
@@ -120,12 +124,52 @@
                     <strong>Submitted</strong>
                     <span class="meta">{{ $inquiry->created_at?->format('F j, Y g:i A') }}</span>
                 </div>
+                @if ($inquiry->first_responded_at)
+                    <div class="admin-detail-list__item">
+                        <strong>First response</strong>
+                        <span class="meta">{{ $inquiry->first_responded_at->format('F j, Y g:i A') }} ({{ $inquiry->first_responded_at->diffForHumans($inquiry->created_at, \Carbon\CarbonInterface::DIFF_ABSOLUTE) }})</span>
+                    </div>
+                @endif
             </div>
         </article>
     </section>
 
     <section class="admin-card">
-        <p class="eyebrow">Message</p>
-        <p class="section-copy">{{ $inquiry->message ?: 'No message was included with this inquiry.' }}</p>
+        <p class="eyebrow">Conversation</p>
+
+        <div class="inquiry-timeline">
+            <div class="inquiry-timeline__entry inquiry-timeline__entry--inbound">
+                <div class="inquiry-timeline__meta">
+                    <strong>{{ $inquiry->primary_name }}</strong>
+                    <span class="meta">{{ $inquiry->created_at?->format('M j, Y g:i A') }} · Initial inquiry</span>
+                </div>
+                <div class="inquiry-timeline__body">{{ $inquiry->message ?: 'No message was included.' }}</div>
+            </div>
+
+            @foreach ($inquiry->messages as $msg)
+                <div class="inquiry-timeline__entry inquiry-timeline__entry--{{ $msg->direction }}">
+                    <div class="inquiry-timeline__meta">
+                        <strong>{{ $msg->direction === 'outbound' ? ($msg->sender_name ?: 'Studio') : $inquiry->primary_name }}</strong>
+                        <span class="meta">{{ $msg->created_at->format('M j, Y g:i A') }}</span>
+                    </div>
+                    <div class="inquiry-timeline__body">{{ $msg->body }}</div>
+                </div>
+            @endforeach
+        </div>
+
+        <form method="POST" action="{{ route('admin.inquiries.reply', $inquiry) }}" class="admin-form inquiry-reply-form">
+            @csrf
+            <label>
+                Reply to {{ $inquiry->primary_name }}
+                <textarea name="body" rows="4" required placeholder="Write your reply...">{{ old('body') }}</textarea>
+            </label>
+            @error('body')
+                <p class="admin-form__error">{{ $message }}</p>
+            @enderror
+            <div class="inquiry-reply-form__actions">
+                <button class="cta" type="submit" style="border: 0; cursor: pointer;">Send Reply</button>
+                <span class="meta">Sends to {{ $inquiry->email }}</span>
+            </div>
+        </form>
     </section>
 @endsection

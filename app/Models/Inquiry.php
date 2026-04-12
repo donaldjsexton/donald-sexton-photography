@@ -2,10 +2,11 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Inquiry extends Model
 {
@@ -32,6 +33,7 @@ class Inquiry extends Model
         'utm_source',
         'utm_medium',
         'utm_campaign',
+        'first_responded_at',
     ];
 
     protected function casts(): array
@@ -39,6 +41,7 @@ class Inquiry extends Model
         return [
             'event_date' => 'date',
             'coverage_interest' => 'array',
+            'first_responded_at' => 'datetime',
         ];
     }
 
@@ -72,5 +75,10 @@ class Inquiry extends Model
     public function venue(): BelongsTo
     {
         return $this->belongsTo(Venue::class);
+    }
+
+    public function messages(): HasMany
+    {
+        return $this->hasMany(InquiryMessage::class)->orderBy('created_at');
     }
 }
