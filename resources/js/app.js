@@ -1,5 +1,23 @@
 import './bootstrap';
 
+const siteHeader = document.querySelector('.site-header');
+
+if (siteHeader) {
+    let condensed = false;
+
+    const checkCondensed = () => {
+        const shouldCondense = window.scrollY > 60;
+
+        if (shouldCondense !== condensed) {
+            condensed = shouldCondense;
+            siteHeader.classList.toggle('is-condensed', condensed);
+        }
+    };
+
+    window.addEventListener('scroll', checkCondensed, { passive: true });
+    checkCondensed();
+}
+
 const navRoot = document.querySelector('[data-nav-root]');
 
 if (navRoot) {
