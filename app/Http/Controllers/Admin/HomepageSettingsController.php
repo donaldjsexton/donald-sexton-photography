@@ -17,11 +17,11 @@ class HomepageSettingsController extends Controller
     public function edit(): View
     {
         return view('admin.homepage.edit', [
-            'settings' => HomepageSetting::query()->first() ?? new HomepageSetting(),
-            'mediaItems' => Media::query()->latest()->limit(250)->get(),
-            'stories' => WeddingStory::query()->latest()->limit(250)->get(),
-            'journalPosts' => JournalPost::query()->latest()->limit(250)->get(),
-            'testimonials' => Testimonial::query()->orderByDesc('is_featured')->orderBy('sort_order')->get(),
+            'settings' => HomepageSetting::query()->first() ?? new HomepageSetting,
+            'mediaItems' => Media::query()->latest()->limit(250)->get(['id', 'filename']),
+            'stories' => WeddingStory::query()->latest()->limit(250)->get(['id', 'title']),
+            'journalPosts' => JournalPost::query()->latest()->limit(250)->get(['id', 'title']),
+            'testimonials' => Testimonial::query()->orderByDesc('is_featured')->orderBy('sort_order')->get(['id', 'name', 'is_featured', 'sort_order']),
         ]);
     }
 
@@ -42,7 +42,7 @@ class HomepageSettingsController extends Controller
             'final_cta_body' => ['nullable', 'string'],
         ]);
 
-        $settings = HomepageSetting::query()->first() ?? new HomepageSetting();
+        $settings = HomepageSetting::query()->first() ?? new HomepageSetting;
         $settings->fill($validated);
         $settings->save();
 
