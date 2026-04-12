@@ -6,6 +6,7 @@ use App\Mail\InquiryAcknowledgment;
 use App\Mail\InquiryReceived;
 use App\Models\Inquiry;
 use App\Models\Venue;
+use App\Services\WebPushService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -51,6 +52,7 @@ class InquiryController extends Controller
 
         $this->notifyStudio($inquiry);
         $this->acknowledgeClient($inquiry);
+        $this->pushNotify($inquiry);
 
         return redirect()->route('inquiry.thank-you');
     }
@@ -80,6 +82,21 @@ class InquiryController extends Controller
         try {
             Mail::to($inquiry->email, $inquiry->primary_name)
                 ->send(new InquiryAcknowledgment($inquiry));
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
+    }
+
+    private function pushNotify(Inquiry $inquiry): void
+    {
+        try {
+            app(WebPushService::class)->notify(
+                'New inquiry from '.$inquiry->primary_name,
+                $inquiry->event_date
+                    ? $inquiry->event_date->format('F j, Y').' · '.$inquiry->email
+                    : $inquiry->email,
+                route('admin.inquiries.edit', $inquiry),
+            );
         } catch (\Throwable $exception) {
             report($exception);
         }

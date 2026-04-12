@@ -3,6 +3,12 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#2d1d15">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="vapid-public-key" content="{{ config('services.webpush.public_key') }}">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Admin')</title>
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
         @vite(['resources/css/app.css', 'resources/js/app.js'])
@@ -50,6 +56,12 @@
                     <p class="eyebrow">Site Status</p>
                     <strong>{{ $analyticsMeasurementId ? 'Analytics connected' : 'Analytics not set' }}</strong>
                     <span class="meta">{{ $analyticsMeasurementId ?: 'Add a GA4 measurement ID in Settings.' }}</span>
+                </div>
+
+                <div class="admin-sidebar__status" id="push-status">
+                    <button type="button" id="push-toggle" class="push-toggle" disabled>
+                        <span id="push-label">Checking notifications…</span>
+                    </button>
                 </div>
 
                 @foreach ($navigationGroups as $group)
@@ -101,5 +113,93 @@
             </main>
         </div>
     </div>
+
+    <script>
+    (function () {
+        var toggle = document.getElementById('push-toggle');
+        var label = document.getElementById('push-label');
+
+        if (!toggle || !('serviceWorker' in navigator) || !('PushManager' in window)) {
+            if (label) label.textContent = 'Push not supported';
+            return;
+        }
+
+        var vapidKey = document.querySelector('meta[name="vapid-public-key"]');
+        var csrfToken = document.querySelector('meta[name="csrf-token"]');
+        if (!vapidKey || !vapidKey.content || !csrfToken) {
+            label.textContent = 'Push not configured';
+            return;
+        }
+
+        function urlBase64ToUint8Array(base64String) {
+            var padding = '='.repeat((4 - base64String.length % 4) % 4);
+            var base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+            var rawData = atob(base64);
+            var outputArray = new Uint8Array(rawData.length);
+            for (var i = 0; i < rawData.length; ++i) {
+                outputArray[i] = rawData.charCodeAt(i);
+            }
+            return outputArray;
+        }
+
+        function updateUI(subscribed) {
+            label.textContent = subscribed ? 'Notifications on' : 'Enable notifications';
+            toggle.classList.toggle('is-subscribed', subscribed);
+            toggle.disabled = false;
+        }
+
+        navigator.serviceWorker.register('/sw.js').then(function (reg) {
+            reg.pushManager.getSubscription().then(function (sub) {
+                updateUI(!!sub);
+            });
+        });
+
+        toggle.addEventListener('click', function () {
+            toggle.disabled = true;
+            navigator.serviceWorker.ready.then(function (reg) {
+                reg.pushManager.getSubscription().then(function (sub) {
+                    if (sub) {
+                        fetch('/admin/push/unsubscribe', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken.content,
+                            },
+                            body: JSON.stringify({ endpoint: sub.endpoint }),
+                        }).then(function () {
+                            return sub.unsubscribe();
+                        }).then(function () {
+                            updateUI(false);
+                        });
+                    } else {
+                        reg.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(vapidKey.content),
+                        }).then(function (newSub) {
+                            var key = newSub.getKey('p256dh');
+                            var auth = newSub.getKey('auth');
+                            return fetch('/admin/push/subscribe', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': csrfToken.content,
+                                },
+                                body: JSON.stringify({
+                                    endpoint: newSub.endpoint,
+                                    keys: {
+                                        p256dh: btoa(String.fromCharCode.apply(null, new Uint8Array(key))),
+                                        auth: btoa(String.fromCharCode.apply(null, new Uint8Array(auth))),
+                                    },
+                                }),
+                            });
+                        }).then(function () {
+                            updateUI(true);
+                        });
+                    }
+                });
+            });
+        });
+    })();
+    </script>
 </body>
 </html>

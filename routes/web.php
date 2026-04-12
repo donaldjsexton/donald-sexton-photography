@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\JournalPostController as AdminJournalPostControll
 use App\Http\Controllers\Admin\MediaController as AdminMediaController;
 use App\Http\Controllers\Admin\PageController as AdminPageController;
 use App\Http\Controllers\Admin\PicTimeImportController as AdminPicTimeImportController;
+use App\Http\Controllers\Admin\PushSubscriptionController as AdminPushSubscriptionController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\WeddingStoryController as AdminWeddingStoryController;
 use App\Http\Controllers\Admin\WordPressImportController as AdminWordPressImportController;
@@ -40,6 +41,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/inquiries/{inquiry}/edit', [AdminInquiryController::class, 'edit'])->name('inquiries.edit');
         Route::put('/inquiries/{inquiry}', [AdminInquiryController::class, 'update'])->name('inquiries.update');
         Route::post('/inquiries/{inquiry}/reply', [AdminInquiryController::class, 'reply'])->name('inquiries.reply');
+
+        Route::post('/push/subscribe', [AdminPushSubscriptionController::class, 'store'])->name('push.subscribe');
+        Route::post('/push/unsubscribe', [AdminPushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
 
         Route::get('/media', [AdminMediaController::class, 'index'])->name('media.index');
         Route::get('/media/create', [AdminMediaController::class, 'create'])->name('media.create');

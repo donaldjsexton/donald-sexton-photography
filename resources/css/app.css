@@ -1273,6 +1273,31 @@ img {
     margin-top: 0.5rem;
 }
 
+.push-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.6rem 0.85rem;
+    border: 1px solid var(--admin-line);
+    border-radius: 0.8rem;
+    background: rgba(255, 255, 255, 0.6);
+    color: var(--admin-ink);
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+}
+
+.push-toggle:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+
+.push-toggle.is-subscribed {
+    border-color: rgba(21, 127, 77, 0.3);
+    background: rgba(234, 247, 239, 0.6);
+}
+
 .admin-page .feature-title {
     font-size: clamp(1.45rem, 2vw, 2rem);
     line-height: 0.98;
