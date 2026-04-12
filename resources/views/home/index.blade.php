@@ -171,8 +171,8 @@
                     <x-editorial.story-feature
                         class="home-portfolio__feature"
                         :story="$story"
-                        :reverse="$loop->even"
-                        ratio="{{ $loop->odd ? 'landscape' : 'cinema' }}"
+                        :reverse="$loop->odd"
+                        ratio="{{ $loop->even ? 'landscape' : 'cinema' }}"
                     />
                 @endforeach
 

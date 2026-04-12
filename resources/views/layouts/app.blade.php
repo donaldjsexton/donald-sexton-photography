@@ -95,10 +95,22 @@
     </main>
 
     <footer class="site-footer">
+        <nav class="shell site-footer__nav" aria-label="Footer">
+            <a href="{{ route('weddings.index') }}">Weddings</a>
+            <a href="{{ route('collections.index') }}">Collections</a>
+            <a href="{{ route('journal.index') }}">Journal</a>
+            <a href="{{ route('inquiry.create') }}">Inquire</a>
+        </nav>
         <div class="shell site-footer__bar">
             <p>Donald Sexton Photography</p>
             <p>Calm wedding photography for Clearwater, Tampa, and wherever your people gather.</p>
         </div>
     </footer>
+
+    @unless (request()->routeIs('inquiry.create', 'inquiry.thank-you'))
+        <div class="sticky-cta" data-sticky-cta>
+            <a class="sticky-cta__link" href="{{ route('inquiry.create') }}">Check Availability</a>
+        </div>
+    @endunless
 </body>
 </html>

@@ -277,6 +277,45 @@ if (lightboxTriggers.length > 0) {
     });
 }
 
+const stickyCta = document.querySelector('[data-sticky-cta]');
+
+if (stickyCta && 'IntersectionObserver' in window) {
+    const mobileView = window.matchMedia('(max-width: 980px)');
+    const pageClosing = document.querySelector('.page-closing');
+    let pastHero = false;
+    let closingVisible = false;
+
+    const update = () => {
+        if (!mobileView.matches) {
+            stickyCta.classList.remove('is-visible');
+            return;
+        }
+
+        stickyCta.classList.toggle('is-visible', pastHero && !closingVisible);
+    };
+
+    if (pageClosing) {
+        const closingObserver = new IntersectionObserver((entries) => {
+            closingVisible = entries[0].isIntersecting;
+            update();
+        }, { threshold: 0.05 });
+
+        closingObserver.observe(pageClosing);
+    }
+
+    const onScroll = () => {
+        pastHero = window.scrollY > window.innerHeight * 0.5;
+        update();
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+
+    if (typeof mobileView.addEventListener === 'function') {
+        mobileView.addEventListener('change', update);
+    }
+}
+
 const focalPickers = document.querySelectorAll('[data-focal-picker]');
 
 if (focalPickers.length > 0) {
