@@ -16,7 +16,7 @@
                     <img src="{{ $url }}" alt="{{ $media->alt_text ?: $media->filename }}" loading="lazy">
                 @endif
                 <div class="admin-media-card__body">
-                    <strong>{{ $media->filename }}</strong>
+                    <strong>{{ Str::limit($media->filename, 15) }}</strong>
                     <p class="meta">#{{ $media->id }} · {{ strtoupper($media->disk ?? 'public') }}</p>
                     <a class="cta-secondary" href="{{ route('admin.media.edit', $media) }}">Edit</a>
                 </div>

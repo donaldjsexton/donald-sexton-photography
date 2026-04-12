@@ -18,20 +18,20 @@
     @php
         $navigationGroups = [
             [
-                'label' => 'Content',
+                'label' => 'Studio',
                 'items' => [
                     ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'patterns' => ['admin.dashboard']],
-                    ['label' => 'Homepage', 'href' => route('admin.homepage.edit'), 'patterns' => ['admin.homepage.*']],
-                    ['label' => 'Pages', 'href' => route('admin.pages.index'), 'patterns' => ['admin.pages.*']],
-                    ['label' => 'Wedding Stories', 'href' => route('admin.wedding-stories.index'), 'patterns' => ['admin.wedding-stories.*']],
-                    ['label' => 'Journal Posts', 'href' => route('admin.journal-posts.index'), 'patterns' => ['admin.journal-posts.*']],
-                    ['label' => 'Media', 'href' => route('admin.media.index'), 'patterns' => ['admin.media.*']],
+                    ['label' => 'Inquiries', 'href' => route('admin.inquiries.index'), 'patterns' => ['admin.inquiries.*']],
                 ],
             ],
             [
-                'label' => 'Leads',
+                'label' => 'Content',
                 'items' => [
-                    ['label' => 'Inquiries', 'href' => route('admin.inquiries.index'), 'patterns' => ['admin.inquiries.*']],
+                    ['label' => 'Homepage', 'href' => route('admin.homepage.edit'), 'patterns' => ['admin.homepage.*']],
+                    ['label' => 'Wedding Stories', 'href' => route('admin.wedding-stories.index'), 'patterns' => ['admin.wedding-stories.*']],
+                    ['label' => 'Journal Posts', 'href' => route('admin.journal-posts.index'), 'patterns' => ['admin.journal-posts.*']],
+                    ['label' => 'Pages', 'href' => route('admin.pages.index'), 'patterns' => ['admin.pages.*']],
+                    ['label' => 'Media', 'href' => route('admin.media.index'), 'patterns' => ['admin.media.*']],
                 ],
             ],
             [

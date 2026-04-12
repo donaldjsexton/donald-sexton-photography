@@ -51,21 +51,44 @@
 
     <section class="admin-dashboard-row">
         <x-admin.section-header
+            eyebrow="Quick Actions"
+            title="Common next steps"
+        />
+
+        <div class="admin-action-list">
+            @foreach ($quickActions as $action)
+                <x-admin.action-card
+                    :href="$action['href']"
+                    :label="$action['label']"
+                    :description="$action['description']"
+                />
+            @endforeach
+        </div>
+    </section>
+
+    <section class="admin-dashboard-row">
+        <x-admin.section-header
             eyebrow="Marketing &amp; SEO"
             title="Discovery, coverage, and attribution"
             description="Signals across analytics, SEO metadata, and UTM-tagged traffic. Stubs remain where a live service is not yet connected."
         />
 
-        <div class="admin-stat-grid">
-            @foreach ($marketingHealth['signals'] as $signal)
-                <x-admin.signal-card
-                    :tone="$signal['tone']"
-                    :label="$signal['label']"
-                    :value="$signal['value']"
-                    :description="$signal['description']"
-                />
-            @endforeach
-        </div>
+        @php
+            $activeSignals = collect($marketingHealth['signals'])->reject(fn ($s) => $s['tone'] === 'neutral');
+        @endphp
+
+        @if ($activeSignals->isNotEmpty())
+            <div class="admin-stat-grid">
+                @foreach ($activeSignals as $signal)
+                    <x-admin.signal-card
+                        :tone="$signal['tone']"
+                        :label="$signal['label']"
+                        :value="$signal['value']"
+                        :description="$signal['description']"
+                    />
+                @endforeach
+            </div>
+        @endif
 
         <div class="admin-grid admin-grid--two">
             <x-admin.panel eyebrow="SEO metadata coverage">
@@ -166,16 +189,5 @@
             </x-admin.panel>
         </div>
 
-        <x-admin.panel eyebrow="Quick actions">
-            <div class="admin-action-list">
-                @foreach ($quickActions as $action)
-                    <x-admin.action-card
-                        :href="$action['href']"
-                        :label="$action['label']"
-                        :description="$action['description']"
-                    />
-                @endforeach
-            </div>
-        </x-admin.panel>
     </section>
 @endsection

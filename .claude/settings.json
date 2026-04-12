@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -r \"picture\\\\|srcset\\\\|sizes\\\\|width=\" /Users/ninjaexilemkiii/Documents/Dev/donald-sexton-photography/resources/views/components/editorial/*.blade.php)",
+      "Bash(grep -n \"decoding=\" /Users/ninjaexilemkiii/Documents/Dev/donald-sexton-photography/resources/views/components/editorial/*.blade.php)"
+    ]
+  }
+}
