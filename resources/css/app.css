@@ -2461,6 +2461,7 @@ textarea {
         width: min(100%, calc(100% - 1.75rem));
         padding-top: 1rem;
         padding-bottom: 1rem;
+        padding-inline: 4rem;
     }
 
     .site-header.is-condensed .site-header__bar {
@@ -2474,15 +2475,44 @@ textarea {
     }
 
     .brand-mark {
+        font-size: clamp(1.15rem, 4.2vw, 1.45rem);
         transform-origin: center center;
     }
 
     .site-nav__toggle {
         display: inline-flex;
         position: absolute;
-        right: clamp(1rem, 3vw, 2.75rem);
+        right: clamp(0.5rem, 2vw, 1.5rem);
         top: 50%;
         transform: translateY(-50%);
+    }
+
+    .section-header {
+        justify-items: center;
+        text-align: center;
+    }
+
+    .story-feature__copy {
+        text-align: center;
+        justify-items: center;
+    }
+
+    .story-feature__action {
+        justify-content: center;
+    }
+
+    .archive-card {
+        text-align: center;
+        justify-items: center;
+    }
+
+    .home-discover__type {
+        text-align: center;
+        justify-items: center;
+    }
+
+    .home-discover__copy {
+        margin-inline: auto;
     }
 
     .site-nav {
@@ -2621,7 +2651,7 @@ textarea {
 
     .site-header__bar {
         width: min(100%, calc(100% - 1rem));
-        padding-inline: 1rem;
+        padding-inline: 3.5rem;
     }
 
     .brand-note {
