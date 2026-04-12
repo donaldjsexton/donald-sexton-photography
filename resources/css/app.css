@@ -2555,8 +2555,14 @@ textarea {
         width: min(100%, calc(100% - 1.5rem));
     }
 
+    .site-footer__nav {
+        justify-content: center;
+    }
+
     .site-footer__bar {
         flex-direction: column;
+        align-items: center;
+        text-align: center;
     }
 
     .site-header__bar {
