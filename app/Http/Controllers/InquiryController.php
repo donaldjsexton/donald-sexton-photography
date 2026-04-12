@@ -42,13 +42,39 @@ class InquiryController extends Controller
             'message' => ['nullable', 'string'],
         ]);
 
-        $inquiry = Inquiry::create($validated + [
-            'status' => 'new',
-            'source' => 'site_form',
+        $utm = [
             'utm_source' => $request->string('utm_source')->toString() ?: null,
             'utm_medium' => $request->string('utm_medium')->toString() ?: null,
             'utm_campaign' => $request->string('utm_campaign')->toString() ?: null,
-        ]);
+        ];
+
+        // Upsert by email: if this address already has an open inquiry, append
+        // the new submission as an inbound message rather than creating a duplicate.
+        $existing = Inquiry::query()
+            ->where('email', $validated['email'])
+            ->whereNotIn('status', ['archived', 'booked'])
+            ->latest()
+            ->first();
+
+        if ($existing) {
+            $existing->messages()->create([
+                'direction' => 'inbound',
+                'body' => $validated['message'] ?? '(No message — re-submitted via inquiry form.)',
+                'sender_name' => $validated['primary_name'],
+                'sender_email' => $validated['email'],
+                'sent_at' => now(),
+            ]);
+
+            $this->notifyStudio($existing);
+            $this->pushNotify($existing);
+
+            return redirect()->route('inquiry.thank-you');
+        }
+
+        $inquiry = Inquiry::create($validated + [
+            'status' => 'new',
+            'source' => 'site_form',
+        ] + $utm);
 
         $this->notifyStudio($inquiry);
         $this->acknowledgeClient($inquiry);

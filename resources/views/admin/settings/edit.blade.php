@@ -18,9 +18,14 @@
         </ul>
     @endif
 
+    @if (session('status_error'))
+        <div class="admin-flash admin-flash--error">{{ session('status_error') }}</div>
+    @endif
+
     <nav class="admin-section-nav" aria-label="Settings sections">
         <a class="{{ $currentTab === 'overview' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'overview']) }}#settings-overview">Overview</a>
         <a class="{{ $currentTab === 'analytics' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'analytics']) }}#analytics-settings">Analytics</a>
+        <a class="{{ $currentTab === 'integrations' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'integrations']) }}#integrations-settings">Integrations</a>
         <a class="{{ $currentTab === 'imports' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'imports']) }}#import-settings">Imports</a>
     </nav>
 
@@ -95,6 +100,52 @@
                     <span class="meta">Verify traffic in GA4 realtime after deployment and confirm the production domain is added to your stream.</span>
                 </div>
             </div>
+        </article>
+    </section>
+
+    <section class="admin-grid admin-grid--two" id="integrations-settings">
+        <article class="admin-card admin-card--feature">
+            <p class="eyebrow">Google Account</p>
+            <h3 class="feature-title">{{ $googleConnected ? 'Connected' : 'Connect Google' }}</h3>
+            <p class="section-copy">
+                One OAuth connection enables Gmail for outbound email, Search Console for organic traffic, Google Business Profile for reputation, and Google Calendar for booking events.
+            </p>
+
+            @if ($googleConnected)
+                <div class="admin-list" style="margin-bottom: 1.5rem;">
+                    <div class="admin-list__item">
+                        <strong>Signed in as</strong>
+                        <span class="meta">{{ $siteSettings->google_connected_email }}</span>
+                    </div>
+                </div>
+
+                <form method="POST" action="{{ route('admin.settings.google.disconnect') }}">
+                    @csrf
+                    <button class="cta-secondary" type="submit" style="cursor: pointer; border: 0;">Disconnect Google</button>
+                </form>
+            @else
+                <a class="cta" href="{{ route('admin.settings.google.connect') }}">Connect Google Account</a>
+            @endif
+        </article>
+
+        <article class="admin-card">
+            <p class="eyebrow">Granted Permissions</p>
+            <div class="admin-list">
+                @foreach ($googleScopes as $entry)
+                    <div class="admin-list__item">
+                        <strong>{{ $entry['label'] }}</strong>
+                        @if ($googleConnected && $siteSettings->googleHasScope($entry['scope']))
+                            <span class="meta" style="color: var(--color-success, #2e7d32);">Active</span>
+                        @else
+                            <span class="meta">{{ $googleConnected ? 'Not granted' : 'Not connected' }}</span>
+                        @endif
+                    </div>
+                @endforeach
+            </div>
+
+            @if ($googleConnected)
+                <p class="meta" style="margin-top: 1rem;">To grant additional permissions, disconnect and reconnect so Google shows the full consent screen.</p>
+            @endif
         </article>
     </section>
 

@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
 use App\Http\Controllers\Admin\InquiryController as AdminInquiryController;
 use App\Http\Controllers\Admin\JournalPostController as AdminJournalPostController;
@@ -37,6 +38,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/homepage', [AdminHomepageSettingsController::class, 'update'])->name('homepage.update');
         Route::get('/settings', [AdminSettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [AdminSettingsController::class, 'update'])->name('settings.update');
+        Route::get('/settings/google/connect', [AdminGoogleOAuthController::class, 'redirect'])->name('settings.google.connect');
+        Route::get('/settings/google/callback', [AdminGoogleOAuthController::class, 'callback'])->name('settings.google.callback');
+        Route::post('/settings/google/disconnect', [AdminGoogleOAuthController::class, 'disconnect'])->name('settings.google.disconnect');
         Route::get('/inquiries', [AdminInquiryController::class, 'index'])->name('inquiries.index');
         Route::get('/inquiries/{inquiry}/edit', [AdminInquiryController::class, 'edit'])->name('inquiries.edit');
         Route::put('/inquiries/{inquiry}', [AdminInquiryController::class, 'update'])->name('inquiries.update');

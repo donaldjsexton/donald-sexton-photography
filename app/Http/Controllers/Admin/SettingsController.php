@@ -18,6 +18,13 @@ class SettingsController extends Controller
         return view('admin.settings.edit', [
             'siteSettings' => $siteSettings,
             'resolvedAnalyticsMeasurementId' => $siteSettings->analyticsMeasurementId(),
+            'googleConnected' => $siteSettings->googleIsConnected(),
+            'googleScopes' => [
+                ['label' => 'Gmail (send email)', 'scope' => 'https://www.googleapis.com/auth/gmail.send'],
+                ['label' => 'Search Console (organic traffic)', 'scope' => 'https://www.googleapis.com/auth/webmasters.readonly'],
+                ['label' => 'Business Profile (reviews & rating)', 'scope' => 'https://www.googleapis.com/auth/business.manage'],
+                ['label' => 'Calendar (booking events)', 'scope' => 'https://www.googleapis.com/auth/calendar'],
+            ],
             'recentImportRuns' => ImportRun::query()->latest()->limit(12)->get(),
             'wordpressImportRuns' => ImportRun::query()
                 ->where('source_type', 'wordpress')
@@ -40,7 +47,7 @@ class SettingsController extends Controller
             'google_analytics_measurement_id.regex' => 'Use a valid GA4 measurement ID like G-ABC123XYZ.',
         ]);
 
-        $siteSettings = SiteSetting::query()->first() ?? new SiteSetting();
+        $siteSettings = SiteSetting::query()->first() ?? new SiteSetting;
         $siteSettings->google_analytics_measurement_id = filled($validated['google_analytics_measurement_id'] ?? null)
             ? strtoupper(trim((string) $validated['google_analytics_measurement_id']))
             : null;

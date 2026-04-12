@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Mail\InquiryReply;
 use App\Models\Inquiry;
+use App\Services\GoogleCalendar;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -13,6 +14,8 @@ use Illuminate\View\View;
 
 class InquiryController extends Controller
 {
+    public function __construct(private readonly GoogleCalendar $calendar) {}
+
     public function index(Request $request): View
     {
         $currentStatus = $request->string('status')->toString() ?: 'all';
@@ -92,7 +95,13 @@ class InquiryController extends Controller
             'status' => ['required', Rule::in(array_keys(Inquiry::statusOptions()))],
         ]);
 
+        $wasBooked = $inquiry->status !== 'booked' && ($validated['status'] ?? '') === 'booked';
+
         $inquiry->update($validated);
+
+        if ($wasBooked) {
+            $this->calendar->upsertBookingEvent($inquiry);
+        }
 
         return redirect()
             ->route('admin.inquiries.edit', $inquiry)

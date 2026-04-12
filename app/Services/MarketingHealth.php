@@ -10,6 +10,11 @@ use App\Models\WeddingStory;
 
 class MarketingHealth
 {
+    public function __construct(
+        private readonly GoogleSearchConsole $searchConsole,
+        private readonly GoogleBusinessProfile $businessProfile,
+    ) {}
+
     /**
      * @return array{signals: array<int, array{label: string, value: string, description: string, tone: string}>, seoCoverage: array<int, array{label: string, value: string, context: string}>, attribution: array<int, array{label: string, meta: string}>}
      */
@@ -28,14 +33,22 @@ class MarketingHealth
     private function signals(SiteSetting $siteSettings): array
     {
         $analyticsConfigured = $siteSettings->analyticsIsConfigured();
+        $googleConnected = $siteSettings->googleIsConnected();
+
+        // Search Console
+        $scData = null;
+        if ($googleConnected && $siteSettings->googleHasScope('https://www.googleapis.com/auth/webmasters.readonly')) {
+            $scData = $this->searchConsole->snapshot(rtrim((string) config('app.url'), '/'));
+        }
+
+        // Google Business Profile
+        $gbpData = null;
+        if ($googleConnected) {
+            $gbpData = $this->businessProfile->snapshot();
+        }
 
         return [
-            [
-                'label' => 'Organic Traffic',
-                'value' => 'Not connected',
-                'description' => 'Connect Search Console in Settings to populate impressions and clicks.',
-                'tone' => 'neutral',
-            ],
+            $this->organicTrafficSignal($googleConnected, $scData),
             [
                 'label' => 'GA4 Analytics',
                 'value' => $analyticsConfigured ? 'Connected' : 'Missing',
@@ -50,12 +63,76 @@ class MarketingHealth
                 'description' => 'Generated from published pages, stories, and journal posts at /sitemap.xml.',
                 'tone' => 'positive',
             ],
-            [
+            $this->reputationSignal($googleConnected, $gbpData),
+        ];
+    }
+
+    /**
+     * @param  array{impressions: int, clicks: int, position: float, topQueries: array<int, array{query: string, clicks: int, impressions: int}>}|null  $data
+     * @return array{label: string, value: string, description: string, tone: string}
+     */
+    private function organicTrafficSignal(bool $googleConnected, ?array $data): array
+    {
+        if (! $googleConnected) {
+            return [
+                'label' => 'Organic Traffic',
+                'value' => 'Not connected',
+                'description' => 'Connect Google in Settings to populate impressions and clicks.',
+                'tone' => 'neutral',
+            ];
+        }
+
+        if ($data === null) {
+            return [
+                'label' => 'Organic Traffic',
+                'value' => 'No data yet',
+                'description' => 'Search Console is connected but returned no data. Verify the site is verified in GSC.',
+                'tone' => 'warning',
+            ];
+        }
+
+        $impressions = number_format($data['impressions']);
+        $clicks = number_format($data['clicks']);
+
+        return [
+            'label' => 'Organic Traffic',
+            'value' => $clicks.' clicks',
+            'description' => $impressions.' impressions · avg position '.$data['position'].' (last 28 days)',
+            'tone' => $data['clicks'] > 0 ? 'positive' : 'warning',
+        ];
+    }
+
+    /**
+     * @param  array{rating: float, reviewCount: int, recentReviews: array<int, array{author: string, rating: int, excerpt: string, date: string}>}|null  $data
+     * @return array{label: string, value: string, description: string, tone: string}
+     */
+    private function reputationSignal(bool $googleConnected, ?array $data): array
+    {
+        if (! $googleConnected) {
+            return [
                 'label' => 'Reputation',
                 'value' => 'Not connected',
-                'description' => 'Link Google Business Profile in Settings to surface rating and review activity.',
+                'description' => 'Connect Google in Settings to surface rating and review activity.',
                 'tone' => 'neutral',
-            ],
+            ];
+        }
+
+        if ($data === null) {
+            return [
+                'label' => 'Reputation',
+                'value' => 'No listing found',
+                'description' => 'Connected but no Google Business Profile listing was found for this account.',
+                'tone' => 'warning',
+            ];
+        }
+
+        $stars = number_format($data['rating'], 1);
+
+        return [
+            'label' => 'Reputation',
+            'value' => $stars.' ★',
+            'description' => $data['reviewCount'].' reviews on Google Business Profile.',
+            'tone' => $data['rating'] >= 4.0 ? 'positive' : 'warning',
         ];
     }
 

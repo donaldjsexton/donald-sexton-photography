@@ -34,6 +34,7 @@ class Inquiry extends Model
         'utm_medium',
         'utm_campaign',
         'first_responded_at',
+        'calendar_event_id',
     ];
 
     protected function casts(): array
