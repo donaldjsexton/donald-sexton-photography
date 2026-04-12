@@ -80,6 +80,7 @@ body::before {
     }
 
     .site-header__bar,
+    .brand-lockup,
     .brand-mark,
     .brand-note {
         transition: none;
@@ -131,13 +132,16 @@ img {
     align-items: center;
     width: min(1320px, calc(100% - 3rem));
     margin-inline: auto;
-    padding: 1.4rem clamp(1.35rem, 3vw, 2.75rem);
+    padding: 1rem clamp(1.35rem, 3vw, 2.75rem);
+    transition: padding 360ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .brand-lockup {
     display: grid;
+    gap: 0.3rem;
     min-width: 0;
     padding-inline: 0.2rem;
+    transition: gap 360ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .brand-mark {
@@ -146,9 +150,7 @@ img {
     font-weight: 500;
     letter-spacing: 0.22em;
     text-transform: uppercase;
-    transform-origin: left center;
-    transition: transform 340ms cubic-bezier(0.22, 0.61, 0.36, 1);
-    will-change: transform;
+    transition: font-size 360ms cubic-bezier(0.22, 0.61, 0.36, 1);
 }
 
 .brand-mark a {
@@ -157,21 +159,32 @@ img {
 
 .brand-note {
     max-width: 31rem;
-    margin-top: 0.3rem;
+    max-height: 1.8rem;
+    overflow: hidden;
     color: var(--muted);
     font-size: 0.86rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    transition: opacity 240ms ease;
+    transition: max-height 360ms cubic-bezier(0.22, 0.61, 0.36, 1),
+                opacity 260ms ease;
+}
+
+.site-header.is-condensed .site-header__bar {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+}
+
+.site-header.is-condensed .brand-lockup {
+    gap: 0;
 }
 
 .site-header.is-condensed .brand-mark {
-    transform: scale(0.78);
+    font-size: clamp(1.1rem, 1.6vw, 1.4rem);
 }
 
 .site-header.is-condensed .brand-note {
+    max-height: 0;
     opacity: 0;
-    pointer-events: none;
 }
 
 .site-nav__toggle {
@@ -2469,7 +2482,6 @@ textarea {
 
     .brand-mark {
         font-size: clamp(1.15rem, 4.2vw, 1.45rem);
-        transform-origin: center center;
     }
 
     .site-nav__toggle {
