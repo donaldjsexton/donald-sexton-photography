@@ -9,7 +9,7 @@
         <p style="margin:0 0 4px; font-size:11px; letter-spacing:0.2em; text-transform:uppercase; color:#7a6555;">Donald Sexton Photography</p>
         <h1 style="margin:0 0 24px; font-size:22px; line-height:1.2; font-weight:400;">{{ $inquiry->primary_name }},</h1>
 
-        <div style="margin:0 0 24px; color:#4a3f36; white-space:pre-line;">{{ $message->body }}</div>
+        <div style="margin:0 0 24px; color:#4a3f36; white-space:pre-line;">{{ $reply->body }}</div>
 
         <div style="border-top:1px solid #efe3d7; padding-top:20px; margin-top:8px;">
             <p style="margin:0; font-size:14px; color:#7a6555;">Donald Sexton</p>

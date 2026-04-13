@@ -99,6 +99,13 @@
 
                 <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Inquiry</button>
             </form>
+
+            <form method="POST" action="{{ route('admin.inquiries.destroy', $inquiry) }}" class="admin-form" style="margin-top:1.5rem; border-top:1px solid #efe3d7; padding-top:1.5rem;" onsubmit="return confirm('Delete this inquiry permanently? This cannot be undone.');">
+                @csrf
+                @method('DELETE')
+                <p class="meta">Delete this lead if it arrived as spam or in error. This removes the inquiry and all its messages.</p>
+                <button class="cta-secondary" type="submit" style="border: 0; cursor: pointer; color:#a03030;">Delete Inquiry</button>
+            </form>
         </article>
 
         <article class="admin-card">

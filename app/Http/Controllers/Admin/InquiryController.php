@@ -108,6 +108,15 @@ class InquiryController extends Controller
             ->with('status', 'Inquiry updated.');
     }
 
+    public function destroy(Inquiry $inquiry): RedirectResponse
+    {
+        $inquiry->delete();
+
+        return redirect()
+            ->route('admin.inquiries.index')
+            ->with('status', 'Inquiry deleted.');
+    }
+
     public function reply(Request $request, Inquiry $inquiry): RedirectResponse
     {
         $validated = $request->validate([

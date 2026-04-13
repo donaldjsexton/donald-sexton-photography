@@ -122,6 +122,24 @@ class InquiryCommunicationTest extends TestCase
         $response->assertSessionHasErrors('body');
     }
 
+    public function test_admin_can_delete_inquiry(): void
+    {
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->create();
+        $inquiry->messages()->create([
+            'direction' => 'inbound',
+            'body' => 'Spam content',
+            'sender_name' => 'Spammer',
+            'sent_at' => now(),
+        ]);
+
+        $response = $this->actingAs($user)->delete(route('admin.inquiries.destroy', $inquiry));
+
+        $response->assertRedirect(route('admin.inquiries.index'));
+        $this->assertDatabaseMissing('inquiries', ['id' => $inquiry->id]);
+        $this->assertDatabaseMissing('inquiry_messages', ['inquiry_id' => $inquiry->id]);
+    }
+
     public function test_edit_view_shows_message_timeline(): void
     {
         $user = User::factory()->create();

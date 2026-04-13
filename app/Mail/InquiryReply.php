@@ -33,7 +33,7 @@ class InquiryReply extends Mailable
             view: 'emails.inquiries.reply',
             with: [
                 'inquiry' => $this->inquiry,
-                'message' => $this->message,
+                'reply' => $this->message,
             ],
         );
     }
