@@ -21,7 +21,7 @@ class HomepageSettingsController extends Controller
             'mediaItems' => Media::query()->latest()->limit(250)->get(['id', 'filename']),
             'stories' => WeddingStory::query()->latest()->limit(250)->get(['id', 'title']),
             'journalPosts' => JournalPost::query()->latest()->limit(250)->get(['id', 'title']),
-            'testimonials' => Testimonial::query()->orderByDesc('is_featured')->orderBy('sort_order')->get(['id', 'name', 'is_featured', 'sort_order']),
+            'testimonials' => Testimonial::query()->orderByDesc('is_featured')->orderBy('sort_order')->get(['id', 'author_name', 'is_featured', 'sort_order']),
         ]);
     }
 
