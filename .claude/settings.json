@@ -6,7 +6,10 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({**d.get\\('require',{}\\), **d.get\\('require-dev',{}\\)}, indent=2\\)\\)\")",
       "Bash(composer show:*)",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" https://donaldsextonphotography.com/admin/homepage)",
-      "Bash(curl -s -w \"\\\\n%{http_code}\" https://donaldsextonphotography.com/admin/homepage -L -c /tmp/dsp_cookies.txt)"
+      "Bash(curl -s -w \"\\\\n%{http_code}\" https://donaldsextonphotography.com/admin/homepage -L -c /tmp/dsp_cookies.txt)",
+      "mcp__laravel-boost__last-error",
+      "mcp__laravel-boost__read-log-entries",
+      "mcp__laravel-boost__database-schema"
     ]
   }
 }

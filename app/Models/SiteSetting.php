@@ -17,10 +17,13 @@ class SiteSetting extends Model
         'google_refresh_token',
         'google_token_expires_at',
         'google_granted_scopes',
+        'gmail_last_history_id',
+        'gmail_last_synced_at',
     ];
 
     protected $casts = [
         'google_granted_scopes' => 'array',
+        'gmail_last_synced_at' => 'datetime',
     ];
 
     protected $hidden = [
@@ -72,6 +75,7 @@ class SiteSetting extends Model
             'https://www.googleapis.com/auth/business.manage',
             'https://www.googleapis.com/auth/calendar',
             'https://www.googleapis.com/auth/gmail.send',
+            'https://www.googleapis.com/auth/gmail.readonly',
         ];
     }
 }

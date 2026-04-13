@@ -17,6 +17,7 @@ class InquiryMessage extends Model
         'sender_name',
         'sender_email',
         'sent_at',
+        'gmail_message_id',
     ];
 
     protected function casts(): array

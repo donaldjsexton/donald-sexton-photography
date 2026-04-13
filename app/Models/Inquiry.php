@@ -35,6 +35,7 @@ class Inquiry extends Model
         'utm_campaign',
         'first_responded_at',
         'calendar_event_id',
+        'gmail_thread_id',
     ];
 
     protected function casts(): array

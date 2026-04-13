@@ -1,19 +1,20 @@
 <?php
 
+use App\Models\ImportMapping;
+use App\Models\JournalPost;
+use App\Models\Media;
 use App\Models\Page;
 use App\Models\Redirect;
 use App\Models\User;
-use App\Models\Media;
-use App\Models\ImportMapping;
-use App\Models\JournalPost;
 use App\Models\WeddingStory;
 use App\Services\Media\MediaDuplicateAuditor;
 use App\Services\Media\MediaOptimizer;
 use App\Services\PicTime\PicTimeImporter;
+use App\Services\WordPress\RealWeddingPromoter;
 use App\Services\WordPress\WordPressJournalImporter;
 use App\Services\WordPress\WordPressPostClassifier;
-use App\Services\WordPress\RealWeddingPromoter;
 use App\Support\PicTimeContent;
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -265,7 +267,7 @@ Artisan::command('wordpress:import {path}', function (WordPressJournalImporter $
 
     if ($run->summary_json) {
         foreach ($run->summary_json as $key => $value) {
-            $this->line("- ".str_replace('_', ' ', $key).": {$value}");
+            $this->line('- '.str_replace('_', ' ', $key).": {$value}");
         }
     }
 
@@ -294,7 +296,7 @@ Artisan::command('legacy:import {path}', function (WordPressJournalImporter $imp
 
     if ($run->summary_json) {
         foreach ($run->summary_json as $key => $value) {
-            $this->line("- ".str_replace('_', ' ', $key).": {$value}");
+            $this->line('- '.str_replace('_', ' ', $key).": {$value}");
         }
     }
 
@@ -1242,7 +1244,7 @@ HTML;
 })->purpose('Create or publish the `about` and `collections` pages expected by `launch:check`');
 
 Artisan::command('launch:check', function () {
-    $kernel = app(\Illuminate\Contracts\Http\Kernel::class);
+    $kernel = app(Kernel::class);
 
     $failures = [];
     $warnings = [];
@@ -1337,6 +1339,7 @@ Artisan::command('launch:check', function () {
 
         if (! $exists) {
             $failures[] = "The published `{$slug}` page is missing. Run `php artisan launch:ensure-pages` to create it.";
+
             continue;
         }
 
@@ -1377,3 +1380,8 @@ Artisan::command('launch:check', function () {
 
     return 0;
 })->purpose('Run deploy-oriented checks for assets, storage, and public routes');
+
+Schedule::command('gmail:sync')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();

@@ -15,6 +15,25 @@ class GoogleClient
 
     public function __construct(private readonly SiteSetting $settings) {}
 
+    public function connectedEmail(): ?string
+    {
+        return $this->settings->google_connected_email;
+    }
+
+    /**
+     * @param  array<int, string>  $scopes
+     */
+    public function hasAnyScope(array $scopes): bool
+    {
+        foreach ($scopes as $scope) {
+            if ($this->settings->googleHasScope($scope)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Return a configured, token-refreshed Google client, or null if not connected.
      */
