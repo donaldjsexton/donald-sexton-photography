@@ -149,6 +149,54 @@
         </article>
     </section>
 
+    @if ($googleConnected && $siteSettings->googleHasScope('https://www.googleapis.com/auth/business.manage'))
+        <section class="admin-grid admin-grid--two">
+            <article class="admin-card">
+                <p class="eyebrow">Business Profile Listing</p>
+                <h3 class="feature-title">Select the listing to display</h3>
+                <p class="section-copy">
+                    Choose which Business Profile location powers the reputation widget on the dashboard. Leave blank to hide the widget.
+                </p>
+
+                @if (count($gbpListing) === 0)
+                    <p class="meta">Google returned no accounts or locations for this login. Confirm that the connected Google account is an owner or manager on a listing at <a href="https://business.google.com" target="_blank" rel="noopener">business.google.com</a>, then reload this page.</p>
+                @else
+                    @php
+                        $currentSelection = $siteSettings->gbp_account_name && $siteSettings->gbp_location_name
+                            ? $siteSettings->gbp_account_name.'|'.$siteSettings->gbp_location_name
+                            : '';
+                    @endphp
+
+                    <form method="POST" action="{{ route('admin.settings.gbp.update') }}" class="admin-form">
+                        @csrf
+
+                        <label>
+                            Listing
+                            <select name="gbp_selection">
+                                <option value="">— None (hide reputation widget) —</option>
+                                @foreach ($gbpListing as $account)
+                                    <optgroup label="{{ $account['account_label'] }}">
+                                        @foreach ($account['locations'] as $location)
+                                            @php $value = $account['account_name'].'|'.$location['name']; @endphp
+                                            <option value="{{ $value }}" @selected($currentSelection === $value)>
+                                                {{ $location['title'] }}@if ($location['address']) — {{ $location['address'] }}@endif
+                                            </option>
+                                        @endforeach
+                                        @if (count($account['locations']) === 0)
+                                            <option value="" disabled>(no locations in this account)</option>
+                                        @endif
+                                    </optgroup>
+                                @endforeach
+                            </select>
+                        </label>
+
+                        <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Listing</button>
+                    </form>
+                @endif
+            </article>
+        </section>
+    @endif
+
     <section class="admin-grid admin-grid--two" id="import-settings">
         <article class="admin-card admin-card--feature" id="wordpress-import">
             <p class="eyebrow">Legacy Blog Import</p>

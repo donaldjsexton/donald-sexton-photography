@@ -5,18 +5,26 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ImportRun;
 use App\Models\SiteSetting;
+use App\Services\GoogleBusinessProfile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class SettingsController extends Controller
 {
-    public function edit(): View
+    public function edit(GoogleBusinessProfile $businessProfile): View
     {
         $siteSettings = SiteSetting::current();
 
+        $gbpListing = [];
+
+        if ($siteSettings->googleIsConnected() && $siteSettings->googleHasScope('https://www.googleapis.com/auth/business.manage')) {
+            $gbpListing = $businessProfile->listAccountsAndLocations();
+        }
+
         return view('admin.settings.edit', [
             'siteSettings' => $siteSettings,
+            'gbpListing' => $gbpListing,
             'resolvedAnalyticsMeasurementId' => $siteSettings->analyticsMeasurementId(),
             'googleConnected' => $siteSettings->googleIsConnected(),
             'googleScopes' => [
@@ -56,5 +64,40 @@ class SettingsController extends Controller
         return redirect()
             ->route('admin.settings.edit', ['tab' => 'analytics'])
             ->with('status', 'Platform settings updated.');
+    }
+
+    public function updateBusinessProfile(Request $request, GoogleBusinessProfile $businessProfile): RedirectResponse
+    {
+        $validated = $request->validate([
+            'gbp_selection' => ['nullable', 'string'],
+        ]);
+
+        $selection = trim((string) ($validated['gbp_selection'] ?? ''));
+
+        $siteSettings = SiteSetting::query()->first() ?? new SiteSetting;
+
+        if ($selection === '') {
+            $siteSettings->gbp_account_name = null;
+            $siteSettings->gbp_location_name = null;
+        } else {
+            // Value is "accountName|locationName".
+            [$accountName, $locationName] = array_pad(explode('|', $selection, 2), 2, null);
+
+            if (! $accountName || ! $locationName) {
+                return redirect()
+                    ->route('admin.settings.edit', ['tab' => 'integrations'])
+                    ->with('status_error', 'Invalid Business Profile selection.');
+            }
+
+            $siteSettings->gbp_account_name = $accountName;
+            $siteSettings->gbp_location_name = $locationName;
+        }
+
+        $siteSettings->save();
+        $businessProfile->forgetCaches();
+
+        return redirect()
+            ->route('admin.settings.edit', ['tab' => 'integrations'])
+            ->with('status', $selection === '' ? 'Business Profile selection cleared.' : 'Business Profile listing saved.');
     }
 }

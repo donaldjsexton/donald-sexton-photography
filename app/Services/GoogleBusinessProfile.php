@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\SiteSetting;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -12,91 +13,133 @@ class GoogleBusinessProfile
     public function __construct(private readonly GoogleClient $googleClient) {}
 
     /**
+     * List every account + location the connected Google user can manage,
+     * so an admin can pick the right listing when multiples exist.
+     *
+     * @return array<int, array{account_name: string, account_label: string, locations: array<int, array{name: string, title: string, address: ?string}>}>
+     */
+    public function listAccountsAndLocations(): array
+    {
+        $token = $this->accessToken();
+
+        if ($token === null) {
+            return [];
+        }
+
+        return Cache::remember('gbp_accounts_and_locations', now()->addMinutes(5), function () use ($token) {
+            try {
+                $accountsResponse = Http::withToken($token)
+                    ->get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts');
+
+                if ($accountsResponse->failed()) {
+                    Log::warning('GBP accounts list failed: '.$accountsResponse->body());
+
+                    return [];
+                }
+
+                $results = [];
+
+                foreach ($accountsResponse->json('accounts', []) as $account) {
+                    $accountName = $account['name'] ?? null;
+
+                    if (! $accountName) {
+                        continue;
+                    }
+
+                    $locationsResponse = Http::withToken($token)
+                        ->get("https://mybusinessbusinessinformation.googleapis.com/v1/{$accountName}/locations", [
+                            'readMask' => 'name,title,storefrontAddress',
+                            'pageSize' => 100,
+                        ]);
+
+                    if ($locationsResponse->failed()) {
+                        Log::warning("GBP locations list failed for {$accountName}: ".$locationsResponse->body());
+
+                        continue;
+                    }
+
+                    $locations = collect($locationsResponse->json('locations', []))
+                        ->map(fn ($loc) => [
+                            'name' => $loc['name'] ?? '',
+                            'title' => $loc['title'] ?? '(untitled)',
+                            'address' => $this->formatAddress($loc['storefrontAddress'] ?? null),
+                        ])
+                        ->filter(fn ($loc) => $loc['name'] !== '')
+                        ->values()
+                        ->all();
+
+                    $results[] = [
+                        'account_name' => $accountName,
+                        'account_label' => $account['accountName'] ?? $account['name'],
+                        'locations' => $locations,
+                    ];
+                }
+
+                return $results;
+            } catch (\Throwable $e) {
+                Log::warning('Google Business Profile listing error: '.$e->getMessage());
+
+                return [];
+            }
+        });
+    }
+
+    /**
      * Return rating, review count, and recent reviews.
-     * Returns null when GBP is not connected or no location is found.
+     * Returns null when GBP is not connected, no selection is stored, or the listing is inaccessible.
      *
      * @return array{rating: float, reviewCount: int, recentReviews: array<int, array{author: string, rating: int, excerpt: string, date: string}>}|null
      */
     public function snapshot(): ?array
     {
-        $client = $this->googleClient->client();
+        $token = $this->accessToken();
 
-        if ($client === null) {
+        if ($token === null) {
             return null;
         }
 
-        return Cache::remember('google_business_profile_snapshot', now()->addHours(6), function () use ($client) {
+        $settings = SiteSetting::current();
+        $accountName = $settings->gbp_account_name;
+        $locationName = $settings->gbp_location_name;
+
+        if (! $accountName || ! $locationName) {
+            // Backwards-compat: if nothing picked, fall through to auto-detect first location.
+            [$accountName, $locationName] = $this->autoDetectFirstLocation($token);
+
+            if (! $accountName || ! $locationName) {
+                return null;
+            }
+        }
+
+        $cacheKey = 'google_business_profile_snapshot:'.md5($locationName);
+
+        return Cache::remember($cacheKey, now()->addHours(6), function () use ($token, $locationName) {
             try {
-                $accessToken = $client->getAccessToken()['access_token'] ?? null;
-
-                if (! $accessToken) {
-                    return null;
-                }
-
-                // Discover accounts
-                $accountsResponse = Http::withToken($accessToken)
-                    ->get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts');
-
-                if ($accountsResponse->failed()) {
-                    return null;
-                }
-
-                $accounts = $accountsResponse->json('accounts', []);
-
-                if (empty($accounts)) {
-                    return null;
-                }
-
-                $accountName = $accounts[0]['name'];
-
-                // Discover locations
-                $locationsResponse = Http::withToken($accessToken)
-                    ->get("https://mybusinessbusinessinformation.googleapis.com/v1/{$accountName}/locations", [
-                        'readMask' => 'name,title,metadata',
-                    ]);
-
-                if ($locationsResponse->failed()) {
-                    return null;
-                }
-
-                $locations = $locationsResponse->json('locations', []);
-
-                if (empty($locations)) {
-                    return null;
-                }
-
-                $locationName = $locations[0]['name'];
-
-                // Fetch reviews
-                $reviewsResponse = Http::withToken($accessToken)
+                $reviewsResponse = Http::withToken($token)
                     ->get("https://mybusiness.googleapis.com/v4/{$locationName}/reviews", [
                         'pageSize' => 5,
                         'orderBy' => 'updateTime desc',
                     ]);
 
                 if ($reviewsResponse->failed()) {
+                    Log::warning("GBP reviews fetch failed for {$locationName}: ".$reviewsResponse->body());
+
                     return null;
                 }
 
                 $reviewData = $reviewsResponse->json();
-                $avgRating = (float) ($reviewData['averageRating'] ?? 0);
-                $totalCount = (int) ($reviewData['totalReviewCount'] ?? 0);
-
-                $recentReviews = collect($reviewData['reviews'] ?? [])
-                    ->map(fn ($r) => [
-                        'author' => $r['reviewer']['displayName'] ?? 'Anonymous',
-                        'rating' => $this->starRatingToInt($r['starRating'] ?? 'ZERO'),
-                        'excerpt' => str($r['comment'] ?? '')->limit(120)->toString(),
-                        'date' => isset($r['updateTime'])
-                            ? Carbon::parse($r['updateTime'])->format('M j, Y')
-                            : '',
-                    ])
-                    ->all();
 
                 return [
-                    'rating' => $avgRating,
-                    'reviewCount' => $totalCount,
-                    'recentReviews' => $recentReviews,
+                    'rating' => (float) ($reviewData['averageRating'] ?? 0),
+                    'reviewCount' => (int) ($reviewData['totalReviewCount'] ?? 0),
+                    'recentReviews' => collect($reviewData['reviews'] ?? [])
+                        ->map(fn ($r) => [
+                            'author' => $r['reviewer']['displayName'] ?? 'Anonymous',
+                            'rating' => $this->starRatingToInt($r['starRating'] ?? 'ZERO'),
+                            'excerpt' => str($r['comment'] ?? '')->limit(120)->toString(),
+                            'date' => isset($r['updateTime']) ? Carbon::parse($r['updateTime'])->format('M j, Y') : '',
+                        ])
+                        ->all(),
                 ];
             } catch (\Throwable $e) {
                 Log::warning('Google Business Profile API error: '.$e->getMessage());
@@ -104,6 +147,57 @@ class GoogleBusinessProfile
                 return null;
             }
         });
+    }
+
+    public function forgetCaches(): void
+    {
+        Cache::forget('gbp_accounts_and_locations');
+
+        // Snapshot cache is keyed by location, so forget any stored one.
+        $settings = SiteSetting::current();
+
+        if ($settings->gbp_location_name) {
+            Cache::forget('google_business_profile_snapshot:'.md5($settings->gbp_location_name));
+        }
+
+        // Also the legacy unkeyed snapshot from the prior implementation.
+        Cache::forget('google_business_profile_snapshot');
+    }
+
+    private function accessToken(): ?string
+    {
+        $client = $this->googleClient->client();
+
+        return $client?->getAccessToken()['access_token'] ?? null;
+    }
+
+    /**
+     * @return array{0: ?string, 1: ?string}
+     */
+    private function autoDetectFirstLocation(string $token): array
+    {
+        $listing = $this->listAccountsAndLocations();
+
+        foreach ($listing as $account) {
+            foreach ($account['locations'] as $loc) {
+                return [$account['account_name'], $loc['name']];
+            }
+        }
+
+        return [null, null];
+    }
+
+    private function formatAddress(?array $address): ?string
+    {
+        if (! $address) {
+            return null;
+        }
+
+        return trim(implode(', ', array_filter([
+            implode(' ', $address['addressLines'] ?? []),
+            $address['locality'] ?? null,
+            $address['administrativeArea'] ?? null,
+        ]))) ?: null;
     }
 
     private function starRatingToInt(string $rating): int

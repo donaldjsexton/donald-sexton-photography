@@ -19,6 +19,8 @@ class SiteSetting extends Model
         'google_granted_scopes',
         'gmail_last_history_id',
         'gmail_last_synced_at',
+        'gbp_account_name',
+        'gbp_location_name',
     ];
 
     protected $casts = [

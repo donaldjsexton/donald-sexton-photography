@@ -41,6 +41,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/settings/google/connect', [AdminGoogleOAuthController::class, 'redirect'])->name('settings.google.connect');
         Route::get('/settings/google/callback', [AdminGoogleOAuthController::class, 'callback'])->name('settings.google.callback');
         Route::post('/settings/google/disconnect', [AdminGoogleOAuthController::class, 'disconnect'])->name('settings.google.disconnect');
+        Route::post('/settings/google/business-profile', [AdminSettingsController::class, 'updateBusinessProfile'])->name('settings.gbp.update');
         Route::get('/inquiries', [AdminInquiryController::class, 'index'])->name('inquiries.index');
         Route::get('/inquiries/{inquiry}/edit', [AdminInquiryController::class, 'edit'])->name('inquiries.edit');
         Route::put('/inquiries/{inquiry}', [AdminInquiryController::class, 'update'])->name('inquiries.update');
