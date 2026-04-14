@@ -9,11 +9,10 @@
         .q-field { margin-bottom:1.25rem; }
         .q-field > label { display:block; }
         .q-label { display:block; margin:0 0 .4rem; font-weight:600; }
-        .q-options { display:flex; flex-direction:column; gap:.5rem; align-items:flex-start; }
-        .q-options--grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap:.5rem .75rem; }
-        .q-options--grid > .q-option { min-width:0; }
-        .q-option { display:flex; align-items:flex-start; gap:.5rem; margin:0; font-weight:400; line-height:1.35; }
-        .q-option input { margin:.2rem 0 0; flex:none; }
+        .q-options { display:flex; flex-direction:column; gap:.5rem; align-items:stretch; }
+        .q-option { display:flex; align-items:flex-start; justify-content:flex-start; gap:.6rem; margin:0; font-weight:400; line-height:1.35; text-align:left; }
+        .q-option input { margin:.2rem 0 0; flex:none; width:16px; height:16px; }
+        .q-option span { flex:1; }
     </style>
 
     <x-editorial.page-hero
@@ -72,7 +71,7 @@
                                         @php $values = is_array($value) ? $value : []; @endphp
                                         <div class="q-field">
                                             <span class="q-label">{{ $field['label'] }}</span>
-                                            <div class="q-options q-options--grid">
+                                            <div class="q-options">
                                                 @foreach ($field['options'] as $option)
                                                     <label class="q-option">
                                                         <input type="checkbox" name="{{ $field['key'] }}[]" value="{{ $option }}" @checked(in_array($option, $values, true))>
