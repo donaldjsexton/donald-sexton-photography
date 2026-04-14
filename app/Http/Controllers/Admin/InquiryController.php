@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Mail\InquiryReply;
 use App\Models\Inquiry;
+use App\Models\Venue;
 use App\Services\GoogleCalendar;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -84,9 +85,56 @@ class InquiryController extends Controller
     public function edit(Inquiry $inquiry): View
     {
         return view('admin.inquiries.edit', [
-            'inquiry' => $inquiry->loadMissing(['venue', 'messages']),
+            'inquiry' => $inquiry->loadMissing(['venue', 'messages', 'questionnaire']),
             'statusOptions' => Inquiry::statusOptions(),
         ]);
+    }
+
+    public function create(): View
+    {
+        return view('admin.inquiries.create', [
+            'venues' => Venue::query()->orderBy('name')->get(['id', 'name']),
+            'statusOptions' => Inquiry::statusOptions(),
+        ]);
+    }
+
+    public function store(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'primary_name' => ['required', 'string', 'max:255'],
+            'partner_name' => ['nullable', 'string', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:255'],
+            'instagram_handle' => ['nullable', 'string', 'max:255'],
+            'event_type' => ['required', 'string', 'max:100'],
+            'event_date' => ['nullable', 'date'],
+            'venue_name' => ['nullable', 'string', 'max:255'],
+            'venue_id' => ['nullable', 'integer', 'exists:venues,id'],
+            'location_city' => ['nullable', 'string', 'max:255'],
+            'guest_count_range' => ['nullable', 'string', 'max:255'],
+            'budget_range' => ['nullable', 'string', 'max:255'],
+            'heard_about' => ['nullable', 'string', 'max:255'],
+            'message' => ['nullable', 'string'],
+            'status' => ['nullable', Rule::in(array_keys(Inquiry::statusOptions()))],
+        ]);
+
+        $inquiry = Inquiry::create($validated + [
+            'status' => $validated['status'] ?? 'new',
+            'source' => 'admin',
+        ]);
+
+        return redirect()
+            ->route('admin.inquiries.edit', $inquiry)
+            ->with('status', 'Lead created.');
+    }
+
+    public function generateQuestionnaire(Inquiry $inquiry): RedirectResponse
+    {
+        $inquiry->ensureQuestionnaire();
+
+        return redirect()
+            ->route('admin.inquiries.edit', $inquiry)
+            ->with('status', 'Questionnaire link ready.');
     }
 
     public function update(Request $request, Inquiry $inquiry): RedirectResponse

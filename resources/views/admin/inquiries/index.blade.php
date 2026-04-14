@@ -4,6 +4,9 @@
 @section('eyebrow', 'Leads')
 @section('heading', 'Inquiries')
 @section('subheading', 'Review new leads, sort the pipeline, and keep inquiry records current.')
+@section('header_actions')
+    <a class="cta" href="{{ route('admin.inquiries.create') }}">New Lead</a>
+@endsection
 @section('content')
     @php($filterParams = $search !== '' ? ['search' => $search] : [])
 

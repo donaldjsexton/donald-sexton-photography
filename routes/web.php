@@ -19,6 +19,7 @@ use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\JournalController;
 use App\Http\Controllers\LegacyRedirectController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\QuestionnaireController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\VenueController;
 use App\Http\Controllers\WeddingStoryController;
@@ -43,6 +44,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/settings/google/disconnect', [AdminGoogleOAuthController::class, 'disconnect'])->name('settings.google.disconnect');
         Route::post('/settings/google/business-profile', [AdminSettingsController::class, 'updateBusinessProfile'])->name('settings.gbp.update');
         Route::get('/inquiries', [AdminInquiryController::class, 'index'])->name('inquiries.index');
+        Route::get('/inquiries/create', [AdminInquiryController::class, 'create'])->name('inquiries.create');
+        Route::post('/inquiries', [AdminInquiryController::class, 'store'])->name('inquiries.store');
+        Route::post('/inquiries/{inquiry}/questionnaire', [AdminInquiryController::class, 'generateQuestionnaire'])->name('inquiries.questionnaire.generate');
         Route::get('/inquiries/{inquiry}/edit', [AdminInquiryController::class, 'edit'])->name('inquiries.edit');
         Route::put('/inquiries/{inquiry}', [AdminInquiryController::class, 'update'])->name('inquiries.update');
         Route::post('/inquiries/{inquiry}/reply', [AdminInquiryController::class, 'reply'])->name('inquiries.reply');
@@ -102,6 +106,10 @@ Route::get('/locations/{slug}', [PageController::class, 'location'])->name('page
 Route::get('/inquire', [InquiryController::class, 'create'])->name('inquiry.create');
 Route::post('/inquire', [InquiryController::class, 'store'])->name('inquiry.store');
 Route::get('/thank-you', [InquiryController::class, 'thankYou'])->name('inquiry.thank-you');
+
+Route::get('/questionnaire/thank-you', [QuestionnaireController::class, 'thankYou'])->name('questionnaire.thank-you');
+Route::get('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'show'])->name('questionnaire.show');
+Route::put('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'update'])->name('questionnaire.update');
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 

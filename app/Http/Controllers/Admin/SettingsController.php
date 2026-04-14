@@ -70,17 +70,29 @@ class SettingsController extends Controller
     {
         $validated = $request->validate([
             'gbp_selection' => ['nullable', 'string'],
+            'gbp_manual_location' => ['nullable', 'string', 'max:255'],
         ]);
 
         $selection = trim((string) ($validated['gbp_selection'] ?? ''));
+        $manual = trim((string) ($validated['gbp_manual_location'] ?? ''));
 
         $siteSettings = SiteSetting::query()->first() ?? new SiteSetting;
 
-        if ($selection === '') {
+        if ($manual !== '') {
+            // Expected format: accounts/{id}/locations/{id}
+            if (! preg_match('#^accounts/[^/]+/locations/[^/]+$#', $manual)) {
+                return redirect()
+                    ->route('admin.settings.edit', ['tab' => 'integrations'])
+                    ->with('status_error', 'Manual resource name must look like accounts/123/locations/456.');
+            }
+
+            [, $accountPart, , $locationPart] = explode('/', $manual);
+            $siteSettings->gbp_account_name = 'accounts/'.$accountPart;
+            $siteSettings->gbp_location_name = $manual;
+        } elseif ($selection === '') {
             $siteSettings->gbp_account_name = null;
             $siteSettings->gbp_location_name = null;
         } else {
-            // Value is "accountName|locationName".
             [$accountName, $locationName] = array_pad(explode('|', $selection, 2), 2, null);
 
             if (! $accountName || ! $locationName) {

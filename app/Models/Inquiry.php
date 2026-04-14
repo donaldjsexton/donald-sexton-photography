@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Str;
 
 class Inquiry extends Model
 {
@@ -82,5 +84,17 @@ class Inquiry extends Model
     public function messages(): HasMany
     {
         return $this->hasMany(InquiryMessage::class)->orderBy('created_at');
+    }
+
+    public function questionnaire(): HasOne
+    {
+        return $this->hasOne(WeddingQuestionnaire::class);
+    }
+
+    public function ensureQuestionnaire(): WeddingQuestionnaire
+    {
+        return $this->questionnaire()->firstOrCreate([], [
+            'token' => Str::random(40),
+        ]);
     }
 }

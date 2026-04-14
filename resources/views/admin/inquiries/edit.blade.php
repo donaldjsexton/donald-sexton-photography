@@ -142,6 +142,47 @@
     </section>
 
     <section class="admin-card">
+        <p class="eyebrow">Wedding Questionnaire</p>
+
+        @if ($inquiry->questionnaire)
+            @php $q = $inquiry->questionnaire; @endphp
+            <div class="admin-detail-list">
+                <div class="admin-detail-list__item">
+                    <strong>Status</strong>
+                    <span class="meta">{{ $q->isSubmitted() ? 'Submitted '.$q->submitted_at->format('F j, Y g:i A') : 'Link generated — awaiting response' }}</span>
+                </div>
+                <div class="admin-detail-list__item">
+                    <strong>Shareable link</strong>
+                    <span class="meta" style="word-break:break-all;"><a href="{{ $q->publicUrl() }}" target="_blank" rel="noopener">{{ $q->publicUrl() }}</a></span>
+                </div>
+            </div>
+
+            @if ($q->isSubmitted())
+                <details style="margin-top:1rem;">
+                    <summary style="cursor:pointer; font-weight:600;">View responses</summary>
+                    <div class="admin-detail-list" style="margin-top:1rem;">
+                        @foreach (\App\Models\WeddingQuestionnaire::fieldLabels() as $key => $label)
+                            @php $value = $q->response($key); @endphp
+                            @if ($value !== null && $value !== '' && $value !== [])
+                                <div class="admin-detail-list__item">
+                                    <strong>{{ $label }}</strong>
+                                    <span class="meta">{{ is_array($value) ? implode(', ', $value) : $value }}</span>
+                                </div>
+                            @endif
+                        @endforeach
+                    </div>
+                </details>
+            @endif
+        @else
+            <p class="meta">No questionnaire has been sent yet. Generate a link to share with the couple.</p>
+            <form method="POST" action="{{ route('admin.inquiries.questionnaire.generate', $inquiry) }}" class="admin-form" style="margin-top:1rem;">
+                @csrf
+                <button class="cta" type="submit" style="border:0; cursor:pointer;">Generate Questionnaire Link</button>
+            </form>
+        @endif
+    </section>
+
+    <section class="admin-card">
         <p class="eyebrow">Conversation</p>
 
         <div class="inquiry-timeline">

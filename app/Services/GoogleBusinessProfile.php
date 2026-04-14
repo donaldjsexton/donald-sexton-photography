@@ -26,7 +26,7 @@ class GoogleBusinessProfile
             return [];
         }
 
-        return Cache::remember('gbp_accounts_and_locations', now()->addMinutes(5), function () use ($token) {
+        return Cache::remember('gbp_accounts_and_locations', now()->addHour(), function () use ($token) {
             try {
                 $accountsResponse = Http::withToken($token)
                     ->get('https://mybusinessaccountmanagement.googleapis.com/v1/accounts');
@@ -34,6 +34,7 @@ class GoogleBusinessProfile
                 if ($accountsResponse->failed()) {
                     Log::warning('GBP accounts list failed: '.$accountsResponse->body());
 
+                    // Cache the empty result for the full hour so we don't hammer the dead endpoint.
                     return [];
                 }
 
@@ -102,13 +103,10 @@ class GoogleBusinessProfile
         $accountName = $settings->gbp_account_name;
         $locationName = $settings->gbp_location_name;
 
+        // Without an explicit selection, do not call the accounts discovery endpoint —
+        // it requires GBP API access approval and hammering it wastes quota.
         if (! $accountName || ! $locationName) {
-            // Backwards-compat: if nothing picked, fall through to auto-detect first location.
-            [$accountName, $locationName] = $this->autoDetectFirstLocation($token);
-
-            if (! $accountName || ! $locationName) {
-                return null;
-            }
+            return null;
         }
 
         $cacheKey = 'google_business_profile_snapshot:'.md5($locationName);
@@ -169,22 +167,6 @@ class GoogleBusinessProfile
         $client = $this->googleClient->client();
 
         return $client?->getAccessToken()['access_token'] ?? null;
-    }
-
-    /**
-     * @return array{0: ?string, 1: ?string}
-     */
-    private function autoDetectFirstLocation(string $token): array
-    {
-        $listing = $this->listAccountsAndLocations();
-
-        foreach ($listing as $account) {
-            foreach ($account['locations'] as $loc) {
-                return [$account['account_name'], $loc['name']];
-            }
-        }
-
-        return [null, null];
     }
 
     private function formatAddress(?array $address): ?string

@@ -159,7 +159,19 @@
                 </p>
 
                 @if (count($gbpListing) === 0)
-                    <p class="meta">Google returned no accounts or locations for this login. Confirm that the connected Google account is an owner or manager on a listing at <a href="https://business.google.com" target="_blank" rel="noopener">business.google.com</a>, then reload this page.</p>
+                    <p class="meta" style="margin-bottom: 1rem;">
+                        Google returned no accounts or locations for this login. This usually means the Business Profile API is not yet approved for the OAuth project. See <a href="https://developers.google.com/my-business/content/prereqs" target="_blank" rel="noopener">Google's access request form</a>. Until then, you can still paste the listing resource name manually below if you know it.
+                    </p>
+
+                    <form method="POST" action="{{ route('admin.settings.gbp.update') }}" class="admin-form">
+                        @csrf
+                        <label>
+                            Location resource name
+                            <input type="text" name="gbp_manual_location" placeholder="accounts/123/locations/456" value="{{ old('gbp_manual_location', $siteSettings->gbp_location_name) }}">
+                        </label>
+                        <p class="meta">Find this at <a href="https://business.google.com" target="_blank" rel="noopener">business.google.com</a> in the URL after selecting a listing, or leave blank to clear.</p>
+                        <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Listing</button>
+                    </form>
                 @else
                     @php
                         $currentSelection = $siteSettings->gbp_account_name && $siteSettings->gbp_location_name
