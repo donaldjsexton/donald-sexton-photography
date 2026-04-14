@@ -4,15 +4,16 @@
 
 @section('content')
     <style>
-        .q-section { border:1px solid #efe3d7; padding:1.25rem 1.5rem 1.5rem; margin-bottom:2rem; }
+        .q-section { border:1px solid #efe3d7; padding:1.25rem 1.5rem 1.5rem; margin-bottom:2rem; min-width:0; }
         .q-section legend { padding:0 .5rem; }
-        .q-field { margin-bottom:1.25rem; }
+        .q-field { margin-bottom:1.25rem; min-width:0; }
         .q-field > label { display:block; }
         .q-label { display:block; margin:0 0 .4rem; font-weight:600; }
-        .q-options { display:flex; flex-direction:column; gap:.4rem; align-items:flex-start; }
-        .q-options--grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:.4rem .75rem; }
-        .q-option { display:flex; align-items:center; gap:.5rem; margin:0; font-weight:400; line-height:1.3; }
-        .q-option input { margin:0; flex:none; }
+        .q-options { display:flex; flex-direction:column; gap:.5rem; align-items:flex-start; width:100%; }
+        .q-options--grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap:.5rem .75rem; width:100%; }
+        .q-option { display:flex; align-items:flex-start; gap:.5rem; margin:0; font-weight:400; line-height:1.35; min-width:0; }
+        .q-option input { margin:.15rem 0 0; flex:none; }
+        .q-option span { min-width:0; overflow-wrap:anywhere; }
     </style>
 
     <x-editorial.page-hero
