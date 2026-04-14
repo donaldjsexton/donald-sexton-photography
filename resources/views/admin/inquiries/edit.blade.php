@@ -158,20 +158,9 @@
             </div>
 
             @if ($q->isSubmitted())
-                <details style="margin-top:1rem;">
-                    <summary style="cursor:pointer; font-weight:600;">View responses</summary>
-                    <div class="admin-detail-list" style="margin-top:1rem;">
-                        @foreach (\App\Models\WeddingQuestionnaire::fieldLabels() as $key => $label)
-                            @php $value = $q->response($key); @endphp
-                            @if ($value !== null && $value !== '' && $value !== [])
-                                <div class="admin-detail-list__item">
-                                    <strong>{{ $label }}</strong>
-                                    <span class="meta">{{ is_array($value) ? implode(', ', $value) : $value }}</span>
-                                </div>
-                            @endif
-                        @endforeach
-                    </div>
-                </details>
+                <div style="margin-top:1rem;">
+                    <a class="cta" href="{{ route('admin.inquiries.questionnaire.show', $inquiry) }}">View Responses</a>
+                </div>
             @endif
         @else
             <p class="meta">No questionnaire has been sent yet. Generate a link to share with the couple.</p>

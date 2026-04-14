@@ -47,6 +47,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/inquiries/create', [AdminInquiryController::class, 'create'])->name('inquiries.create');
         Route::post('/inquiries', [AdminInquiryController::class, 'store'])->name('inquiries.store');
         Route::post('/inquiries/{inquiry}/questionnaire', [AdminInquiryController::class, 'generateQuestionnaire'])->name('inquiries.questionnaire.generate');
+        Route::get('/inquiries/{inquiry}/questionnaire', [AdminInquiryController::class, 'showQuestionnaire'])->name('inquiries.questionnaire.show');
         Route::get('/inquiries/{inquiry}/edit', [AdminInquiryController::class, 'edit'])->name('inquiries.edit');
         Route::put('/inquiries/{inquiry}', [AdminInquiryController::class, 'update'])->name('inquiries.update');
         Route::post('/inquiries/{inquiry}/reply', [AdminInquiryController::class, 'reply'])->name('inquiries.reply');

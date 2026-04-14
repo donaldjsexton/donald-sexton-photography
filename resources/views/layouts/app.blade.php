@@ -107,7 +107,7 @@
         </div>
     </footer>
 
-    @unless (request()->routeIs('inquiry.create', 'inquiry.thank-you'))
+    @unless (request()->routeIs('inquiry.create', 'inquiry.thank-you', 'questionnaire.*'))
         <div class="sticky-cta" data-sticky-cta>
             <a class="sticky-cta__link" href="{{ route('inquiry.create') }}">Check Availability</a>
         </div>

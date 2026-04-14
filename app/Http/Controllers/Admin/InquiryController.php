@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Mail\InquiryReply;
 use App\Models\Inquiry;
 use App\Models\Venue;
+use App\Models\WeddingQuestionnaire;
 use App\Services\GoogleCalendar;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -135,6 +136,17 @@ class InquiryController extends Controller
         return redirect()
             ->route('admin.inquiries.edit', $inquiry)
             ->with('status', 'Questionnaire link ready.');
+    }
+
+    public function showQuestionnaire(Inquiry $inquiry): View
+    {
+        $questionnaire = $inquiry->questionnaire ?? abort(404);
+
+        return view('admin.inquiries.questionnaire', [
+            'inquiry' => $inquiry,
+            'questionnaire' => $questionnaire,
+            'schema' => WeddingQuestionnaire::schema(),
+        ]);
     }
 
     public function update(Request $request, Inquiry $inquiry): RedirectResponse

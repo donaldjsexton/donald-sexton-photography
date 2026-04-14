@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\WeddingQuestionnaireReceived;
 use App\Models\WeddingQuestionnaire;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 class QuestionnaireController extends Controller
@@ -47,11 +49,28 @@ class QuestionnaireController extends Controller
             'submitted_at' => now(),
         ]);
 
+        $this->notifyStudio($questionnaire->fresh()->load('inquiry'));
+
         return redirect()->route('questionnaire.thank-you');
     }
 
     public function thankYou(): View
     {
         return view('questionnaires.thank-you');
+    }
+
+    private function notifyStudio(WeddingQuestionnaire $questionnaire): void
+    {
+        $recipient = trim((string) config('mail.inquiry_to'));
+
+        if ($recipient === '') {
+            return;
+        }
+
+        try {
+            Mail::to($recipient)->send(new WeddingQuestionnaireReceived($questionnaire));
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
     }
 }

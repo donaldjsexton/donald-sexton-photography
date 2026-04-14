@@ -3,6 +3,18 @@
 @section('title', 'Wedding Questionnaire')
 
 @section('content')
+    <style>
+        .q-section { border:1px solid #efe3d7; padding:1.25rem 1.5rem 1.5rem; margin-bottom:2rem; }
+        .q-section legend { padding:0 .5rem; }
+        .q-field { margin-bottom:1.25rem; }
+        .q-field > label { display:block; }
+        .q-label { display:block; margin:0 0 .4rem; font-weight:600; }
+        .q-options { display:flex; flex-direction:column; gap:.4rem; align-items:flex-start; }
+        .q-options--grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(240px, 1fr)); gap:.4rem .75rem; }
+        .q-option { display:flex; align-items:center; gap:.5rem; margin:0; font-weight:400; line-height:1.3; }
+        .q-option input { margin:0; flex:none; }
+    </style>
+
     <x-editorial.page-hero
         eyebrow="Wedding Questionnaire"
         title="Tell me about your day."
@@ -27,8 +39,8 @@
                         @method('PUT')
 
                         @foreach ($schema as $section)
-                            <fieldset style="border:1px solid #efe3d7; padding:1.25rem 1.5rem 1.5rem; margin-bottom:2rem;">
-                                <legend class="eyebrow" style="padding:0 .5rem;">{{ $section['title'] }}</legend>
+                            <fieldset class="q-section">
+                                <legend class="eyebrow">{{ $section['title'] }}</legend>
 
                                 @foreach ($section['fields'] as $field)
                                     @php
@@ -37,40 +49,44 @@
                                     @endphp
 
                                     @if ($field['type'] === 'textarea')
-                                        <label style="display:block; margin-bottom:1rem;">
-                                            {{ $field['label'] }}
-                                            <textarea name="{{ $field['key'] }}" rows="3">{{ $value }}</textarea>
-                                        </label>
+                                        <div class="q-field">
+                                            <label>
+                                                {{ $field['label'] }}
+                                                <textarea name="{{ $field['key'] }}" rows="3">{{ $value }}</textarea>
+                                            </label>
+                                        </div>
                                     @elseif ($field['type'] === 'radio')
-                                        <div style="margin-bottom:1rem;">
-                                            <p style="margin:0 0 .35rem; font-weight:600;">{{ $field['label'] }}</p>
-                                            <div style="display:flex; flex-wrap:wrap; gap:1rem;">
+                                        <div class="q-field">
+                                            <span class="q-label">{{ $field['label'] }}</span>
+                                            <div class="q-options">
                                                 @foreach ($field['options'] as $option)
-                                                    <label style="display:inline-flex; align-items:center; gap:.4rem; font-weight:400;">
+                                                    <label class="q-option">
                                                         <input type="radio" name="{{ $field['key'] }}" value="{{ $option }}" @checked((string) $value === (string) $option)>
-                                                        {{ $option }}
+                                                        <span>{{ $option }}</span>
                                                     </label>
                                                 @endforeach
                                             </div>
                                         </div>
                                     @elseif ($field['type'] === 'checkboxes')
                                         @php $values = is_array($value) ? $value : []; @endphp
-                                        <div style="margin-bottom:1rem;">
-                                            <p style="margin:0 0 .35rem; font-weight:600;">{{ $field['label'] }}</p>
-                                            <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:.5rem;">
+                                        <div class="q-field">
+                                            <span class="q-label">{{ $field['label'] }}</span>
+                                            <div class="q-options q-options--grid">
                                                 @foreach ($field['options'] as $option)
-                                                    <label style="display:inline-flex; align-items:center; gap:.4rem; font-weight:400;">
+                                                    <label class="q-option">
                                                         <input type="checkbox" name="{{ $field['key'] }}[]" value="{{ $option }}" @checked(in_array($option, $values, true))>
-                                                        {{ $option }}
+                                                        <span>{{ $option }}</span>
                                                     </label>
                                                 @endforeach
                                             </div>
                                         </div>
                                     @else
-                                        <label style="display:block; margin-bottom:1rem;">
-                                            {{ $field['label'] }}
-                                            <input type="{{ $field['type'] }}" name="{{ $field['key'] }}" value="{{ $value }}">
-                                        </label>
+                                        <div class="q-field">
+                                            <label>
+                                                {{ $field['label'] }}
+                                                <input type="{{ $field['type'] }}" name="{{ $field['key'] }}" value="{{ $value }}">
+                                            </label>
+                                        </div>
                                     @endif
                                 @endforeach
                             </fieldset>
