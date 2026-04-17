@@ -104,6 +104,9 @@ Route::get('/venues', [VenueController::class, 'index'])->name('venues.index');
 Route::get('/venues/{slug}', [VenueController::class, 'show'])->name('venues.show');
 Route::get('/locations/{slug}', [PageController::class, 'location'])->name('pages.location');
 
+Route::get('/privacy-policy', [PageController::class, 'privacy'])->name('legal.privacy');
+Route::get('/terms-of-service', [PageController::class, 'terms'])->name('legal.terms');
+
 Route::get('/inquire', [InquiryController::class, 'create'])->name('inquiry.create');
 Route::post('/inquire', [InquiryController::class, 'store'])->name('inquiry.store');
 Route::get('/thank-you', [InquiryController::class, 'thankYou'])->name('inquiry.thank-you');

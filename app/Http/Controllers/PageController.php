@@ -29,6 +29,16 @@ HTML,
         ]);
     }
 
+    public function privacy(): View
+    {
+        return view('legal.privacy');
+    }
+
+    public function terms(): View
+    {
+        return view('legal.terms');
+    }
+
     public function location(string $slug): View
     {
         $page = Page::published()

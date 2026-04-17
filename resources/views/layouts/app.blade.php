@@ -105,6 +105,10 @@
             <p>Donald Sexton Photography</p>
             <p>Calm wedding photography for Clearwater, Tampa, and wherever your people gather.</p>
         </div>
+        <nav class="shell site-footer__legal" aria-label="Legal">
+            <a href="{{ route('legal.privacy') }}">Privacy Policy</a>
+            <a href="{{ route('legal.terms') }}">Terms of Service</a>
+        </nav>
     </footer>
 
     @unless (request()->routeIs('inquiry.create', 'inquiry.thank-you', 'questionnaire.*'))

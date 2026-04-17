@@ -40,6 +40,8 @@ class InquiryController extends Controller
             'coverage_interest.*' => ['string', 'max:255'],
             'heard_about' => ['nullable', 'string', 'max:255'],
             'message' => ['nullable', 'string'],
+            'sms_opt_in_transactional' => ['nullable', 'boolean'],
+            'sms_opt_in_marketing' => ['nullable', 'boolean'],
         ]);
 
         $utm = [
@@ -71,10 +73,18 @@ class InquiryController extends Controller
             return redirect()->route('inquiry.thank-you');
         }
 
+        $smsConsent = [];
+        if (! empty($validated['sms_opt_in_transactional']) || ! empty($validated['sms_opt_in_marketing'])) {
+            $smsConsent = [
+                'sms_consent_at' => now(),
+                'sms_consent_ip' => $request->ip(),
+            ];
+        }
+
         $inquiry = Inquiry::create($validated + [
             'status' => 'new',
             'source' => 'site_form',
-        ] + $utm);
+        ] + $utm + $smsConsent);
 
         $this->notifyStudio($inquiry);
         $this->acknowledgeClient($inquiry);

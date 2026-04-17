@@ -115,6 +115,26 @@
                         <textarea name="message" rows="6">{{ old('message') }}</textarea>
                     </label>
 
+                    <fieldset class="sms-consent-group">
+                        <legend class="sms-consent-group__heading">Text message updates <span class="meta">(optional)</span></legend>
+
+                        <label class="checkbox-label">
+                            <input type="hidden" name="sms_opt_in_transactional" value="0">
+                            <input type="checkbox" name="sms_opt_in_transactional" value="1" {{ old('sms_opt_in_transactional') ? 'checked' : '' }}>
+                            <span>I agree to receive appointment reminders, booking confirmations, and session details from Donald Sexton Photography via text message. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.</span>
+                        </label>
+
+                        <label class="checkbox-label">
+                            <input type="hidden" name="sms_opt_in_marketing" value="0">
+                            <input type="checkbox" name="sms_opt_in_marketing" value="1" {{ old('sms_opt_in_marketing') ? 'checked' : '' }}>
+                            <span>I agree to receive promotional text messages from Donald Sexton Photography, including special offers and mini-session announcements. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to unsubscribe, HELP for help. Consent is not a condition of purchase.</span>
+                        </label>
+
+                        <p class="sms-consent-group__links meta">
+                            By opting in you agree to our <a href="{{ route('legal.privacy') }}" target="_blank">Privacy Policy</a> and <a href="{{ route('legal.terms') }}" target="_blank">Terms of Service</a>.
+                        </p>
+                    </fieldset>
+
                     <button class="cta" type="submit" style="border: 0; cursor: pointer;">Send Inquiry</button>
                 </form>
             </div>

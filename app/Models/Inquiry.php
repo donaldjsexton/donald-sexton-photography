@@ -19,6 +19,10 @@ class Inquiry extends Model
         'partner_name',
         'email',
         'phone',
+        'sms_opt_in_transactional',
+        'sms_opt_in_marketing',
+        'sms_consent_at',
+        'sms_consent_ip',
         'instagram_handle',
         'event_type',
         'event_date',
@@ -46,6 +50,9 @@ class Inquiry extends Model
             'event_date' => 'date',
             'coverage_interest' => 'array',
             'first_responded_at' => 'datetime',
+            'sms_opt_in_transactional' => 'boolean',
+            'sms_opt_in_marketing' => 'boolean',
+            'sms_consent_at' => 'datetime',
         ];
     }
 

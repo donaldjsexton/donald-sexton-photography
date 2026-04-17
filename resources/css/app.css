@@ -297,6 +297,69 @@ img {
     letter-spacing: 0.14em;
 }
 
+.site-footer__legal {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem 1.2rem;
+    padding-top: 0.6rem;
+    padding-bottom: 0.4rem;
+}
+
+.site-footer__legal a {
+    color: var(--muted);
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+}
+
+.site-footer__legal a:hover {
+    color: var(--accent);
+}
+
+/* ── SMS consent checkboxes on inquiry form ── */
+.sms-consent-group {
+    border: 0;
+    padding: 0;
+    margin: 1.5rem 0 0;
+}
+
+.sms-consent-group__heading {
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--heading, #2c1f17);
+    margin-bottom: 0.75rem;
+}
+
+.checkbox-label {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    margin-bottom: 0.75rem;
+    font-size: 0.82rem;
+    line-height: 1.55;
+    color: var(--body, #5c4b3f);
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    width: auto;
+    flex-shrink: 0;
+    margin-top: 0.2rem;
+    accent-color: var(--accent);
+}
+
+.sms-consent-group__links {
+    margin-top: 0.25rem;
+    font-size: 0.76rem;
+}
+
+.sms-consent-group__links a {
+    color: var(--accent);
+}
+
 .sticky-cta {
     display: none;
 }
@@ -2735,6 +2798,10 @@ textarea {
         flex-direction: column;
         align-items: center;
         text-align: center;
+    }
+
+    .site-footer__legal {
+        justify-content: center;
     }
 
     .site-header__bar {
