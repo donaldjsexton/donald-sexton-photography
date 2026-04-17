@@ -100,6 +100,7 @@ Route::get('/journal/category/{slug}', [JournalController::class, 'category'])->
 Route::get('/journal/tag/{slug}', [JournalController::class, 'tag'])->name('journal.tag');
 Route::get('/journal/{slug}', [JournalController::class, 'show'])->name('journal.show');
 
+Route::get('/venues/search', [VenueController::class, 'search'])->name('venues.search');
 Route::get('/venues', [VenueController::class, 'index'])->name('venues.index');
 Route::get('/venues/{slug}', [VenueController::class, 'show'])->name('venues.show');
 Route::get('/locations/{slug}', [PageController::class, 'location'])->name('pages.location');
