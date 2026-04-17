@@ -24,6 +24,7 @@ class Venue extends Model
         'body',
         'hero_media_id',
         'website_url',
+        'google_places_id',
         'is_featured',
         'seo_title',
         'seo_description',
