@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Mail\InquiryAcknowledgment;
 use App\Mail\InquiryReceived;
 use App\Models\Inquiry;
-use App\Models\Venue;
 use App\Services\WebPushService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -16,9 +15,7 @@ class InquiryController extends Controller
 {
     public function create(): View
     {
-        return view('inquiries.create', [
-            'venues' => Venue::query()->orderBy('name')->get(['id', 'name']),
-        ]);
+        return view('inquiries.create');
     }
 
     public function store(Request $request): RedirectResponse

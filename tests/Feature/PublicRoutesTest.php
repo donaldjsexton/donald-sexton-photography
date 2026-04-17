@@ -605,14 +605,13 @@ HTML,
             ->assertDontSee('No journal posts are linked to this venue yet.');
     }
 
-    public function test_inquiry_form_handles_empty_venue_directory(): void
+    public function test_inquiry_form_shows_venue_autocomplete(): void
     {
         $this->get('/inquire')
             ->assertOk()
-            ->assertSee('Enter venue below')
-            ->assertSee('name="venue_id" disabled', false)
-            ->assertSee('Venue name')
-            ->assertDontSee('Venue name if not listed');
+            ->assertSee('data-venue-autocomplete', false)
+            ->assertSee('name="venue_name"', false)
+            ->assertSee('name="venue_id"', false);
     }
 
     public function test_sitemap_lists_key_public_routes_with_lastmod_metadata(): void

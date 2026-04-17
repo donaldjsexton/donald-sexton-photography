@@ -3,10 +3,6 @@
 @section('title', 'Check Availability')
 
 @section('content')
-    @php
-        $hasVenues = $venues->isNotEmpty();
-    @endphp
-
     <x-editorial.page-hero
         eyebrow="Inquiry"
         title="Check availability."
@@ -72,19 +68,19 @@
 
                     <div class="field-grid">
                         <label>
-                            Venue from the list
-                            <select name="venue_id" @disabled(! $hasVenues)>
-                                <option value="">{{ $hasVenues ? 'Select a venue' : 'Enter venue below' }}</option>
-                                @if ($hasVenues)
-                                    @foreach ($venues as $venue)
-                                        <option value="{{ $venue->id }}" @selected(old('venue_id') == $venue->id)>{{ $venue->name }}</option>
-                                    @endforeach
-                                @endif
-                            </select>
-                        </label>
-                        <label>
-                            {{ $hasVenues ? 'Venue name if it is not listed' : 'Venue name' }}
-                            <input type="text" name="venue_name" value="{{ old('venue_name') }}">
+                            Venue
+                            <div class="venue-autocomplete" data-venue-autocomplete data-venue-search-url="{{ route('venues.search') }}">
+                                <input
+                                    type="text"
+                                    name="venue_name"
+                                    value="{{ old('venue_name') }}"
+                                    placeholder="Start typing a venue name"
+                                    autocomplete="off"
+                                    data-venue-input
+                                >
+                                <input type="hidden" name="venue_id" value="{{ old('venue_id') }}" data-venue-id>
+                                <ul class="venue-autocomplete__list" data-venue-list hidden></ul>
+                            </div>
                         </label>
                     </div>
 

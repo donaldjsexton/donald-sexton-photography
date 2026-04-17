@@ -412,3 +412,138 @@ if (focalPickers.length > 0) {
         });
     });
 }
+
+// ── Venue autocomplete ──
+const venueWidget = document.querySelector('[data-venue-autocomplete]');
+
+if (venueWidget) {
+    const input = venueWidget.querySelector('[data-venue-input]');
+    const hiddenId = venueWidget.querySelector('[data-venue-id]');
+    const list = venueWidget.querySelector('[data-venue-list]');
+    const searchUrl = venueWidget.dataset.venueSearchUrl;
+
+    let debounceTimer = null;
+    let activeIndex = -1;
+    let items = [];
+
+    const render = () => {
+        list.innerHTML = '';
+        activeIndex = -1;
+
+        if (items.length === 0) {
+            list.hidden = true;
+
+            return;
+        }
+
+        items.forEach((venue, index) => {
+            const li = document.createElement('li');
+            li.className = 'venue-autocomplete__item';
+            li.dataset.index = index;
+            li.textContent = venue.name;
+
+            if (venue.city) {
+                const detail = document.createElement('span');
+                detail.className = 'venue-autocomplete__detail';
+                detail.textContent = venue.city + (venue.state ? ', ' + venue.state : '');
+                li.append(' ', detail);
+            }
+
+            li.addEventListener('pointerdown', (event) => {
+                event.preventDefault();
+                select(index);
+            });
+
+            list.appendChild(li);
+        });
+
+        list.hidden = false;
+    };
+
+    const select = (index) => {
+        const venue = items[index];
+
+        if (!venue) {
+            return;
+        }
+
+        input.value = venue.name;
+        hiddenId.value = venue.id;
+        items = [];
+        list.hidden = true;
+    };
+
+    const highlight = (index) => {
+        const children = list.children;
+        const prev = children[activeIndex];
+
+        if (prev) {
+            prev.classList.remove('is-active');
+        }
+
+        activeIndex = index;
+        const next = children[activeIndex];
+
+        if (next) {
+            next.classList.add('is-active');
+            next.scrollIntoView({ block: 'nearest' });
+        }
+    };
+
+    const fetchVenues = (query) => {
+        fetch(searchUrl + '?q=' + encodeURIComponent(query))
+            .then((response) => response.json())
+            .then((data) => {
+                items = data;
+                render();
+            })
+            .catch(() => {
+                items = [];
+                render();
+            });
+    };
+
+    input.addEventListener('input', () => {
+        hiddenId.value = '';
+
+        clearTimeout(debounceTimer);
+
+        const query = input.value.trim();
+
+        if (query.length < 2) {
+            items = [];
+            render();
+
+            return;
+        }
+
+        debounceTimer = setTimeout(() => fetchVenues(query), 200);
+    });
+
+    input.addEventListener('keydown', (event) => {
+        if (list.hidden || items.length === 0) {
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            highlight(activeIndex < items.length - 1 ? activeIndex + 1 : 0);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            highlight(activeIndex > 0 ? activeIndex - 1 : items.length - 1);
+        } else if (event.key === 'Enter' && activeIndex >= 0) {
+            event.preventDefault();
+            select(activeIndex);
+        } else if (event.key === 'Escape') {
+            items = [];
+            render();
+        }
+    });
+
+    input.addEventListener('blur', () => {
+        setTimeout(() => {
+            items = [];
+            render();
+        }, 150);
+    });
+}

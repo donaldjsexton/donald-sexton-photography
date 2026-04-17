@@ -360,6 +360,45 @@ img {
     color: var(--accent);
 }
 
+/* ── Venue autocomplete ── */
+.venue-autocomplete {
+    position: relative;
+}
+
+.venue-autocomplete__list {
+    position: absolute;
+    z-index: 50;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 14rem;
+    overflow-y: auto;
+    margin: 0;
+    padding: 0.25rem 0;
+    list-style: none;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-top: 0;
+    box-shadow: 0 6px 20px rgba(34, 23, 17, 0.1);
+}
+
+.venue-autocomplete__item {
+    padding: 0.55rem 0.75rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+    line-height: 1.4;
+}
+
+.venue-autocomplete__item:hover,
+.venue-autocomplete__item.is-active {
+    background: var(--line, #ede6dd);
+}
+
+.venue-autocomplete__detail {
+    color: var(--muted);
+    font-size: 0.76rem;
+}
+
 .sticky-cta {
     display: none;
 }
