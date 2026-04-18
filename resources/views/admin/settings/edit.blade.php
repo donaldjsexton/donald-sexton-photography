@@ -29,6 +29,7 @@
             <a class="{{ $currentTab === 'imports' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'imports']) }}#import-settings">Imports</a>
         </nav>
 
+        @if ($currentTab === 'analytics')
         <section class="admin-grid admin-grid--two admin-settings-grid" id="analytics-settings">
             <article class="admin-card admin-card--feature">
                 <p class="eyebrow">Analytics</p>
@@ -74,7 +75,9 @@
                 </div>
             </article>
         </section>
+        @endif
 
+        @if ($currentTab === 'integrations')
         <section class="admin-grid admin-grid--two admin-settings-grid" id="integrations-settings">
             <article class="admin-card admin-card--feature">
                 <p class="eyebrow">Google</p>
@@ -180,7 +183,9 @@
                 </article>
             </section>
         @endif
+        @endif
 
+        @if ($currentTab === 'imports')
         <section class="admin-grid admin-grid--two admin-settings-grid" id="import-settings">
             <article class="admin-card admin-card--feature" id="wordpress-import">
                 <p class="eyebrow">WordPress</p>
@@ -269,5 +274,6 @@
                 </div>
             </article>
         </section>
+        @endif
     </div>
 @endsection
