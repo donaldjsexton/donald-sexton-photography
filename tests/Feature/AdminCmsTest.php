@@ -99,10 +99,9 @@ class AdminCmsTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('admin-settings-page', false);
-        $response->assertSee('admin-settings-hero', false);
         $response->assertSee('admin-settings-grid', false);
         $response->assertSee('admin-settings-grid--activity', false);
-        $response->assertSee('admin-settings-activity-card', false);
+        $response->assertSee('admin-settings-toolbar', false);
         $response->assertSee(route('admin.imports.index'), false);
     }
 

@@ -3,10 +3,10 @@
 @section('title', 'Platform Settings')
 @section('eyebrow', 'Platform')
 @section('heading', 'Settings')
-@section('subheading', 'Analytics and import tools for the site.')
+@section('subheading', 'Analytics, Google access, and import tools.')
 @section('content')
     @php
-        $currentTab = request('tab', 'overview');
+        $currentTab = request('tab', 'analytics');
         $analyticsValue = old('google_analytics_measurement_id', $siteSettings->google_analytics_measurement_id ?: $resolvedAnalyticsMeasurementId);
     @endphp
 
@@ -24,45 +24,16 @@
         @endif
 
         <nav class="admin-section-nav admin-settings-nav" aria-label="Settings sections">
-            <a class="{{ $currentTab === 'overview' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'overview']) }}#settings-overview">Overview</a>
             <a class="{{ $currentTab === 'analytics' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'analytics']) }}#analytics-settings">Analytics</a>
-            <a class="{{ $currentTab === 'integrations' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'integrations']) }}#integrations-settings">Integrations</a>
+            <a class="{{ $currentTab === 'integrations' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'integrations']) }}#integrations-settings">Google</a>
             <a class="{{ $currentTab === 'imports' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'imports']) }}#import-settings">Imports</a>
         </nav>
 
-        <section class="admin-hero-panel admin-settings-hero" id="settings-overview">
-            <div class="admin-hero-panel__copy">
-                <p class="eyebrow">Overview</p>
-                <h3 class="feature-title">Manage analytics and import tools.</h3>
-                <p class="section-copy">Keep site-level settings and one-off import tasks in one place.</p>
-            </div>
-
-            <div class="admin-inline-grid">
-                <article class="admin-signal-card admin-signal-card--{{ $resolvedAnalyticsMeasurementId ? 'positive' : 'warning' }}">
-                    <p class="eyebrow">Analytics</p>
-                    <strong>{{ $resolvedAnalyticsMeasurementId ? 'Connected' : 'Pending' }}</strong>
-                    <span class="meta">{{ $resolvedAnalyticsMeasurementId ?: 'No GA4 measurement ID saved yet.' }}</span>
-                </article>
-
-                <article class="admin-signal-card admin-signal-card--neutral">
-                    <p class="eyebrow">WordPress Import</p>
-                    <strong>{{ $wordpressImportRuns->count() }}</strong>
-                    <span class="meta">Recent tracked runs available below.</span>
-                </article>
-
-                <article class="admin-signal-card admin-signal-card--neutral">
-                    <p class="eyebrow">Pic-Time Import</p>
-                    <strong>{{ $picTimeImportRuns->count() }}</strong>
-                    <span class="meta">Bridge external galleries into the CMS with audit history.</span>
-                </article>
-            </div>
-        </section>
-
         <section class="admin-grid admin-grid--two admin-settings-grid" id="analytics-settings">
             <article class="admin-card admin-card--feature">
-                <p class="eyebrow">Google Analytics</p>
-                <h3 class="feature-title">Set the GA4 measurement ID.</h3>
-                <p class="section-copy">The tracking snippet only loads when an ID is saved, so local and preview environments stay clean by default.</p>
+                <p class="eyebrow">Analytics</p>
+                <h3 class="feature-title">Google Analytics</h3>
+                <p class="section-copy">Add the GA4 ID used on the live site.</p>
 
                 <form method="POST" action="{{ route('admin.settings.update') }}" class="admin-form">
                     @csrf
@@ -79,26 +50,26 @@
                         >
                     </label>
 
-                    <p class="meta">Use a current GA4 ID in the format <code>G-XXXXXXXXXX</code>. If this field is blank, the app will fall back to <code>GOOGLE_ANALYTICS_MEASUREMENT_ID</code> when present.</p>
+                    <p class="meta">Use the format <code>G-XXXXXXXXXX</code>. Leave this blank if the site should use the server value instead.</p>
 
-                    <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Settings</button>
+                    <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Analytics</button>
                 </form>
             </article>
 
             <article class="admin-card">
-                <p class="eyebrow">Current status</p>
+                <p class="eyebrow">Current Setup</p>
                 <div class="admin-list">
                     <div class="admin-list__item">
-                        <strong>Resolved measurement ID</strong>
+                        <strong>Saved ID</strong>
                         <span class="meta">{{ $resolvedAnalyticsMeasurementId ?: 'Not configured' }}</span>
                     </div>
                     <div class="admin-list__item">
-                        <strong>Snippet behavior</strong>
-                        <span class="meta">{{ $resolvedAnalyticsMeasurementId ? 'Public pages will emit the GA4 script.' : 'No analytics script is rendered on the frontend.' }}</span>
+                        <strong>Tracking</strong>
+                        <span class="meta">{{ $resolvedAnalyticsMeasurementId ? 'Tracking is live on public pages.' : 'Tracking stays off until an ID is added.' }}</span>
                     </div>
                     <div class="admin-list__item">
-                        <strong>Recommended next step</strong>
-                        <span class="meta">Verify traffic in GA4 realtime after deployment and confirm the production domain is added to your stream.</span>
+                        <strong>After you save</strong>
+                        <span class="meta">Check GA4 after the next deploy to make sure visits are coming through.</span>
                     </div>
                 </div>
             </article>
@@ -106,10 +77,10 @@
 
         <section class="admin-grid admin-grid--two admin-settings-grid" id="integrations-settings">
             <article class="admin-card admin-card--feature">
-                <p class="eyebrow">Google Account</p>
-                <h3 class="feature-title">{{ $googleConnected ? 'Connected' : 'Connect Google' }}</h3>
+                <p class="eyebrow">Google</p>
+                <h3 class="feature-title">{{ $googleConnected ? 'Google is connected' : 'Connect Google' }}</h3>
                 <p class="section-copy">
-                    One OAuth connection enables Gmail for outbound email, Search Console for organic traffic, Google Business Profile for reputation, and Google Calendar for booking events.
+                    Use one Google login for email, Search Console, reviews, and calendar.
                 </p>
 
                 @if ($googleConnected)
@@ -130,7 +101,7 @@
             </article>
 
             <article class="admin-card">
-                <p class="eyebrow">Granted Permissions</p>
+                <p class="eyebrow">Services</p>
                 <div class="admin-list">
                     @foreach ($googleScopes as $entry)
                         <div class="admin-list__item">
@@ -145,7 +116,7 @@
                 </div>
 
                 @if ($googleConnected)
-                    <p class="meta" style="margin-top: 1rem;">To grant additional permissions, disconnect and reconnect so Google shows the full consent screen.</p>
+                    <p class="meta" style="margin-top: 1rem;">If you need another Google service, disconnect and connect again so Google can ask for it.</p>
                 @endif
             </article>
         </section>
@@ -153,15 +124,15 @@
         @if ($googleConnected && $siteSettings->googleHasScope('https://www.googleapis.com/auth/business.manage'))
             <section class="admin-grid admin-grid--two admin-settings-grid admin-settings-grid--single">
                 <article class="admin-card">
-                    <p class="eyebrow">Business Profile Listing</p>
-                    <h3 class="feature-title">Select the listing to display</h3>
+                    <p class="eyebrow">Business Profile</p>
+                    <h3 class="feature-title">Choose the listing to show</h3>
                     <p class="section-copy">
-                        Choose which Business Profile location powers the reputation widget on the dashboard. Leave blank to hide the widget.
+                        Pick the location shown in the dashboard review panel. Leave it blank to hide that panel.
                     </p>
 
                     @if (count($gbpListing) === 0)
                         <p class="meta" style="margin-bottom: 1rem;">
-                            Google returned no accounts or locations for this login. This usually means the Business Profile API is not yet approved for the OAuth project. See <a href="https://developers.google.com/my-business/content/prereqs" target="_blank" rel="noopener">Google's access request form</a>. Until then, you can still paste the listing resource name manually below if you know it.
+                            No listings came back for this login. If the Business Profile API is still waiting on approval, you can paste the location name below instead.
                         </p>
 
                         <form method="POST" action="{{ route('admin.settings.gbp.update') }}" class="admin-form">
@@ -170,7 +141,7 @@
                                 Location resource name
                                 <input type="text" name="gbp_manual_location" placeholder="accounts/123/locations/456" value="{{ old('gbp_manual_location', $siteSettings->gbp_location_name) }}">
                             </label>
-                            <p class="meta">Find this at <a href="https://business.google.com" target="_blank" rel="noopener">business.google.com</a> in the URL after selecting a listing, or leave blank to clear.</p>
+                            <p class="meta">You can copy this from the URL in <a href="https://business.google.com" target="_blank" rel="noopener">business.google.com</a>, or leave it blank to clear the current listing.</p>
                             <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Listing</button>
                         </form>
                     @else
@@ -212,9 +183,9 @@
 
         <section class="admin-grid admin-grid--two admin-settings-grid" id="import-settings">
             <article class="admin-card admin-card--feature" id="wordpress-import">
-                <p class="eyebrow">Legacy Blog Import</p>
-                <h3 class="feature-title">Import a WordPress export.</h3>
-                <p class="section-copy">This imports journal entries, featured media, redirects, and promoted real weddings where appropriate.</p>
+                <p class="eyebrow">WordPress</p>
+                <h3 class="feature-title">Import a WordPress export</h3>
+                <p class="section-copy">Upload a WXR file to bring older posts into the site.</p>
 
                 <form method="POST" action="{{ route('admin.imports.wordpress.store') }}" enctype="multipart/form-data" class="admin-form">
                     @csrf
@@ -224,16 +195,16 @@
                         <input type="file" name="wxr_file" accept=".xml,text/xml,application/xml" required>
                     </label>
 
-                    <p class="meta">For large exports, use <code>php artisan wordpress:import /absolute/path/to/export.xml</code> from the server shell.</p>
+                    <p class="meta">For larger files, run the import from the server instead.</p>
 
                     <button class="cta" type="submit" style="border: 0; cursor: pointer;">Run WordPress Import</button>
                 </form>
             </article>
 
             <article class="admin-card admin-card--feature" id="pictime-import">
-                <p class="eyebrow">Pic-Time Import</p>
-                <h3 class="feature-title">Import Pic-Time blog content.</h3>
-                <p class="section-copy">Paste one Pic-Time URL per line to extract copy, download gallery media, and classify the result into wedding stories or journal posts.</p>
+                <p class="eyebrow">Pic-Time</p>
+                <h3 class="feature-title">Import Pic-Time pages</h3>
+                <p class="section-copy">Paste one URL per line to pull in copy and gallery images.</p>
 
                 <form method="POST" action="{{ route('admin.imports.pictime.store') }}" class="admin-form">
                     @csrf
@@ -244,7 +215,7 @@
                     </label>
 
                     <label>
-                        Target
+                        Destination
                         <select name="target">
                             <option value="auto" @selected(old('target', 'auto') === 'auto')>Auto detect</option>
                             <option value="weddings" @selected(old('target') === 'weddings')>Wedding stories</option>
@@ -252,20 +223,30 @@
                         </select>
                     </label>
 
-                    <p class="meta">CLI support is available for XML exports, saved HTML pages, and larger repair passes using <code>php artisan pictime:import ... --target=auto</code>.</p>
+                    <p class="meta">For larger cleanup passes, use the command line.</p>
 
                     <button class="cta" type="submit" style="border: 0; cursor: pointer;">Run Pic-Time Import</button>
                 </form>
             </article>
         </section>
 
+        <section class="admin-toolbar admin-settings-toolbar">
+            <div class="admin-settings-toolbar__copy">
+                <p class="eyebrow">Recent Runs</p>
+                <h3 class="feature-title">Latest import checks</h3>
+                <p class="section-copy">A quick look at the most recent WordPress and Pic-Time jobs.</p>
+            </div>
+
+            <a class="cta-secondary" href="{{ route('admin.imports.index') }}">View Import History</a>
+        </section>
+
         <section class="admin-grid admin-grid--two admin-settings-grid admin-settings-grid--activity">
             <article class="admin-card">
-                <p class="eyebrow">WordPress Activity</p>
+                <p class="eyebrow">WordPress Runs</p>
                 <div class="admin-list">
                     @forelse ($wordpressImportRuns as $run)
                         <div class="admin-list__item">
-                            <strong>{{ ucfirst($run->status) }}</strong>
+                            <strong>{{ str($run->status)->headline() }}</strong>
                             <span class="meta">{{ $run->created_at?->format('M j, Y g:i A') ?: 'No timestamp recorded' }}</span>
                         </div>
                     @empty
@@ -275,11 +256,11 @@
             </article>
 
             <article class="admin-card">
-                <p class="eyebrow">Pic-Time Activity</p>
+                <p class="eyebrow">Pic-Time Runs</p>
                 <div class="admin-list">
                     @forelse ($picTimeImportRuns as $run)
                         <div class="admin-list__item">
-                            <strong>{{ ucfirst($run->status) }}</strong>
+                            <strong>{{ str($run->status)->headline() }}</strong>
                             <span class="meta">{{ $run->created_at?->format('M j, Y g:i A') ?: 'No timestamp recorded' }}</span>
                         </div>
                     @empty
@@ -287,13 +268,6 @@
                     @endforelse
                 </div>
             </article>
-        </section>
-
-        <section class="admin-card admin-settings-activity-card">
-            <p class="eyebrow">Import Activity</p>
-            <h3 class="feature-title">Open the full import log on its own screen.</h3>
-            <p class="section-copy">Long summaries and error traces now live on a dedicated page so the settings screen stays compact and readable at every breakpoint.</p>
-            <a class="cta-secondary" href="{{ route('admin.imports.index') }}">Open Import Activity</a>
         </section>
     </div>
 @endsection

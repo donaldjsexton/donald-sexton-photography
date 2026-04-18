@@ -1311,6 +1311,14 @@ img {
 
 .admin-settings-nav {
     gap: 0.55rem;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x proximity;
+}
+
+.admin-settings-nav a {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
 }
 
 .admin-settings-hero,
@@ -1359,8 +1367,29 @@ img {
     box-shadow: none;
 }
 
-.admin-settings-activity-card {
-    gap: 0.85rem;
+.admin-settings-toolbar {
+    gap: 0.9rem;
+    padding-top: 0.25rem;
+}
+
+.admin-settings-toolbar__copy {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.admin-settings-toolbar .cta-secondary {
+    min-height: 44px;
+    justify-content: center;
+}
+
+.admin-settings-page .cta,
+.admin-settings-page .cta-secondary {
+    min-height: 44px;
+    justify-content: center;
+}
+
+.admin-settings-page [id] {
+    scroll-margin-top: 1rem;
 }
 
 .admin-status-pill {
@@ -3161,6 +3190,15 @@ textarea {
     .admin-grid--stats,
     .admin-stat-grid {
         grid-template-columns: 1fr;
+    }
+
+    .admin-settings-toolbar {
+        align-items: stretch;
+    }
+
+    .admin-settings-page .cta,
+    .admin-settings-toolbar .cta-secondary {
+        width: 100%;
     }
 
     .admin-import-run__meta {
