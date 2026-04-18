@@ -3,18 +3,6 @@
 @section('title', 'Wedding Questionnaire')
 
 @section('content')
-    <style>
-        .q-section { border:1px solid #efe3d7; padding:1.25rem 1.5rem 1.5rem; margin-bottom:2rem; }
-        .q-section legend { padding:0 .5rem; }
-        .q-field { margin-bottom:1.25rem; }
-        .q-field > label { display:block; }
-        .q-label { display:block; margin:0 0 .4rem; font-weight:600; }
-        .q-options { display:flex; flex-direction:column; gap:.5rem; align-items:stretch; }
-        .q-option { display:flex; align-items:flex-start; justify-content:flex-start; gap:.6rem; margin:0; font-weight:400; line-height:1.35; text-align:left; }
-        .q-option input { margin:.2rem 0 0; flex:none; width:16px; height:16px; }
-        .q-option span { flex:1; }
-    </style>
-
     <x-editorial.page-hero
         eyebrow="Wedding Questionnaire"
         title="Tell me about your day."
@@ -32,7 +20,9 @@
 
             <div class="form-panel">
                 @if ($questionnaire->isSubmitted())
-                    <p class="meta">This questionnaire was submitted on {{ $questionnaire->submitted_at->format('F j, Y') }}. Reach out if you need to make changes.</p>
+                    <div class="q-submitted">
+                        <p class="meta">This questionnaire was submitted on {{ $questionnaire->submitted_at->format('F j, Y') }}. Reach out if you need to make changes.</p>
+                    </div>
                 @else
                     <form method="POST" action="{{ route('questionnaire.update', $questionnaire) }}">
                         @csrf
@@ -51,7 +41,7 @@
                                     @if ($field['type'] === 'textarea')
                                         <div class="q-field">
                                             <label>
-                                                {{ $field['label'] }}
+                                                <span class="q-label">{{ $field['label'] }}</span>
                                                 <textarea name="{{ $field['key'] }}" rows="3">{{ $value }}</textarea>
                                             </label>
                                         </div>
@@ -83,7 +73,7 @@
                                     @else
                                         <div class="q-field">
                                             <label>
-                                                {{ $field['label'] }}
+                                                <span class="q-label">{{ $field['label'] }}</span>
                                                 <input type="{{ $field['type'] }}" name="{{ $field['key'] }}" value="{{ $value }}">
                                             </label>
                                         </div>
@@ -92,7 +82,7 @@
                             </fieldset>
                         @endforeach
 
-                        <button class="cta" type="submit" style="border:0; cursor:pointer;">Submit Questionnaire</button>
+                        <button class="cta q-submit" type="submit">Submit Questionnaire</button>
                     </form>
                 @endif
             </div>
