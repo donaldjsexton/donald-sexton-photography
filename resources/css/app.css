@@ -818,6 +818,42 @@ img {
     top: 1.25rem;
 }
 
+.admin-drawer-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid var(--admin-line);
+    border-radius: 0.65rem;
+    background: var(--admin-panel);
+    color: var(--admin-ink);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.admin-drawer-toggle:hover,
+.admin-drawer-toggle:focus-visible {
+    border-color: var(--admin-line-strong);
+    background: var(--admin-panel-strong);
+}
+
+.admin-drawer-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: rgba(36, 25, 21, 0.45);
+    opacity: 0;
+    transition: opacity 200ms ease;
+}
+
+.admin-drawer-backdrop.is-visible {
+    display: block;
+    opacity: 1;
+}
+
 .admin-sidebar__surface {
     position: sticky;
     top: 0;
@@ -863,6 +899,15 @@ img {
 .admin-sidebar__status strong {
     font-size: 1rem;
     font-weight: 600;
+}
+
+.admin-sidebar__logout {
+    display: none;
+    padding: 0.85rem 0.95rem;
+}
+
+.admin-sidebar__logout .cta-secondary {
+    width: 100%;
 }
 
 .admin-nav-group {
@@ -1042,6 +1087,75 @@ img {
 .admin-section-header__description {
     margin: 0;
     max-width: 68ch;
+}
+
+/* ── Collapsible dashboard sections (mobile only) ── */
+
+@media (max-width: 840px) {
+    [data-collapsible] > .admin-section-header {
+        cursor: pointer;
+        position: relative;
+        padding-right: 2rem;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .collapsible-chevron {
+        position: absolute;
+        right: 0;
+        top: 0.35rem;
+        width: 1.25rem;
+        height: 1.25rem;
+        transition: transform 0.25s ease;
+    }
+
+    .collapsible-chevron::before {
+        content: '';
+        display: block;
+        width: 0.55rem;
+        height: 0.55rem;
+        border-right: 2px solid var(--admin-text-muted, #9a8578);
+        border-bottom: 2px solid var(--admin-text-muted, #9a8578);
+        transform: rotate(45deg);
+        margin: 0.2rem auto 0;
+    }
+
+    [data-collapsed="true"] .collapsible-chevron {
+        transform: rotate(-90deg);
+    }
+
+    .collapsible-body {
+        display: grid;
+        gap: 1rem;
+        overflow: hidden;
+        transition: grid-template-rows 0.3s ease, opacity 0.25s ease;
+    }
+
+    [data-collapsed="true"] > .collapsible-body {
+        grid-template-rows: 0fr;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    [data-collapsed="false"] > .collapsible-body,
+    :not([data-collapsed]) > .collapsible-body {
+        grid-template-rows: 1fr;
+        opacity: 1;
+    }
+
+    [data-collapsed="true"] > .collapsible-body > * {
+        min-height: 0;
+        overflow: hidden;
+    }
+}
+
+@media (min-width: 841px) {
+    .collapsible-chevron {
+        display: none;
+    }
+
+    .collapsible-body {
+        display: contents;
+    }
 }
 
 .admin-card,
@@ -2568,15 +2682,37 @@ textarea {
         padding: 0.85rem 0 1rem;
     }
 
+    .admin-drawer-toggle {
+        display: inline-flex;
+    }
+
     .admin-sidebar {
-        position: relative;
-        padding-bottom: 0;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        z-index: 100;
+        width: min(300px, 85vw);
+        padding: 1rem;
+        background: var(--admin-bg);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        transform: translateX(-100%);
+        transition: transform 250ms ease;
+    }
+
+    .admin-sidebar.is-open {
+        transform: translateX(0);
     }
 
     .admin-sidebar__surface {
         position: static;
         max-height: none;
         overflow: visible;
+    }
+
+    .admin-nav a {
+        min-height: 44px;
     }
 
     .page-hero--split .page-hero__inner,
@@ -2788,6 +2924,27 @@ textarea {
         padding-inline: 1rem;
     }
 
+    .admin-header {
+        padding-block: 0.75rem;
+    }
+
+    .admin-header__lede {
+        display: none;
+    }
+
+    .admin-header__actions .admin-chip,
+    .admin-header__actions > .meta {
+        display: none;
+    }
+
+    .admin-header__actions form .cta-secondary {
+        display: none;
+    }
+
+    .admin-sidebar__logout {
+        display: block;
+    }
+
     .admin-content {
         padding-bottom: 1.25rem;
     }
@@ -2906,6 +3063,71 @@ textarea {
 
     .page-hero {
         padding-top: 3rem;
+    }
+
+    /* Inquiries table → stacked cards on mobile */
+    .admin-table {
+        min-width: 0;
+    }
+
+    .admin-table thead {
+        display: none;
+    }
+
+    .admin-table tbody tr {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "lead   status"
+            "event  event"
+            "open   open";
+        gap: 0.35rem 0.75rem;
+        align-items: start;
+        padding: 1rem;
+        border: 1px solid var(--admin-line);
+        border-radius: 0.85rem;
+        margin-bottom: 0.65rem;
+    }
+
+    .admin-table tbody tr td {
+        display: block;
+        padding: 0;
+        border: 0;
+    }
+
+    .admin-table tbody tr .inquiries-col--lead {
+        grid-area: lead;
+    }
+
+    .admin-table tbody tr .inquiries-col--status {
+        grid-area: status;
+        justify-self: end;
+        align-self: center;
+    }
+
+    .admin-table tbody tr .inquiries-col--event {
+        grid-area: event;
+    }
+
+    .admin-table tbody tr .inquiries-col--submitted,
+    .admin-table tbody tr .inquiries-col--source {
+        display: none;
+    }
+
+    .admin-table tbody tr .inquiries-col--open {
+        grid-area: open;
+    }
+
+    .admin-table tbody tr .inquiries-col--open a {
+        display: block;
+        min-height: 44px;
+        line-height: 44px;
+        text-align: center;
+        border: 1px solid var(--admin-line-strong);
+        border-radius: 0.55rem;
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
     }
 }
 

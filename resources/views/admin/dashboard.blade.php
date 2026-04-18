@@ -66,7 +66,7 @@
         </div>
     </section>
 
-    <section class="admin-dashboard-row">
+    <section class="admin-dashboard-row" data-collapsible>
         <x-admin.section-header
             eyebrow="Marketing &amp; SEO"
             title="Discovery, coverage, and attribution"
@@ -117,7 +117,7 @@
         </div>
     </section>
 
-    <section class="admin-dashboard-row">
+    <section class="admin-dashboard-row" data-collapsible>
         <x-admin.section-header
             eyebrow="Content Operations"
             title="Publishing, drafts, and system status"
@@ -190,4 +190,54 @@
         </div>
 
     </section>
+
+    <script>
+        (function () {
+            const mq = window.matchMedia('(max-width: 840px)');
+            const sections = document.querySelectorAll('[data-collapsible]');
+
+            sections.forEach(function (section) {
+                const header = section.querySelector('.admin-section-header');
+                if (!header) return;
+
+                // Add chevron indicator
+                const chevron = document.createElement('span');
+                chevron.className = 'collapsible-chevron';
+                chevron.setAttribute('aria-hidden', 'true');
+                header.appendChild(chevron);
+
+                // Wrap non-header children in a container for collapsing
+                const body = document.createElement('div');
+                body.className = 'collapsible-body';
+                const children = Array.from(section.children).filter(function (el) {
+                    return el !== header;
+                });
+                children.forEach(function (child) {
+                    body.appendChild(child);
+                });
+                section.appendChild(body);
+
+                header.addEventListener('click', function () {
+                    if (!mq.matches) return;
+                    const isCollapsed = section.getAttribute('data-collapsed') === 'true';
+                    section.setAttribute('data-collapsed', isCollapsed ? 'false' : 'true');
+                });
+            });
+
+            function applyState() {
+                sections.forEach(function (section) {
+                    if (mq.matches) {
+                        if (!section.hasAttribute('data-collapsed')) {
+                            section.setAttribute('data-collapsed', 'true');
+                        }
+                    } else {
+                        section.removeAttribute('data-collapsed');
+                    }
+                });
+            }
+
+            applyState();
+            mq.addEventListener('change', applyState);
+        })();
+    </script>
 @endsection

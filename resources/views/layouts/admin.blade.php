@@ -43,8 +43,10 @@
         ];
     @endphp
 
+    <div class="admin-drawer-backdrop" id="drawer-backdrop"></div>
+
     <div class="admin-shell">
-        <aside class="admin-sidebar">
+        <aside class="admin-sidebar" id="admin-sidebar">
             <div class="admin-sidebar__surface">
                 <div class="admin-brand">
                     <p class="eyebrow">Site Admin</p>
@@ -80,11 +82,25 @@
                         </nav>
                     </div>
                 @endforeach
+
+                <div class="admin-sidebar__logout">
+                    <form method="POST" action="{{ route('admin.logout') }}">
+                        @csrf
+                        <button class="cta-secondary" type="submit">Log Out</button>
+                    </form>
+                </div>
             </div>
         </aside>
 
         <div class="admin-main">
             <header class="admin-header">
+                <button type="button" class="admin-drawer-toggle" id="drawer-toggle" aria-label="Open menu" aria-expanded="false">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                        <line x1="3" y1="6" x2="21" y2="6"/>
+                        <line x1="3" y1="12" x2="21" y2="12"/>
+                        <line x1="3" y1="18" x2="21" y2="18"/>
+                    </svg>
+                </button>
                 <div class="admin-header__copy">
                     <p class="eyebrow">@yield('eyebrow', 'Admin')</p>
                     <h2>@yield('heading', 'Overview')</h2>
@@ -113,6 +129,53 @@
             </main>
         </div>
     </div>
+
+    <script>
+    (function () {
+        var drawerToggle = document.getElementById('drawer-toggle');
+        var sidebar = document.getElementById('admin-sidebar');
+        var backdrop = document.getElementById('drawer-backdrop');
+        var mq = window.matchMedia('(max-width: 1080px)');
+
+        function openDrawer() {
+            sidebar.classList.add('is-open');
+            backdrop.classList.add('is-visible');
+            drawerToggle.setAttribute('aria-expanded', 'true');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeDrawer() {
+            sidebar.classList.remove('is-open');
+            backdrop.classList.remove('is-visible');
+            drawerToggle.setAttribute('aria-expanded', 'false');
+            document.body.style.overflow = '';
+        }
+
+        drawerToggle.addEventListener('click', function () {
+            sidebar.classList.contains('is-open') ? closeDrawer() : openDrawer();
+        });
+
+        backdrop.addEventListener('click', closeDrawer);
+
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape' && sidebar.classList.contains('is-open')) {
+                closeDrawer();
+            }
+        });
+
+        sidebar.addEventListener('click', function (e) {
+            if (mq.matches && e.target.closest('.admin-nav a')) {
+                closeDrawer();
+            }
+        });
+
+        mq.addEventListener('change', function (e) {
+            if (!e.matches) {
+                closeDrawer();
+            }
+        });
+    })();
+    </script>
 
     <script>
     (function () {

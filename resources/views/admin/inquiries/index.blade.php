@@ -74,7 +74,7 @@
             <tbody>
                 @forelse ($inquiries as $inquiry)
                     <tr>
-                        <td>
+                        <td class="inquiries-col--lead">
                             <div class="admin-table__lead">
                                 <strong>{{ $inquiry->primary_name }}</strong>
                                 <span class="meta">
@@ -88,7 +88,7 @@
                                 </span>
                             </div>
                         </td>
-                        <td>
+                        <td class="inquiries-col--event">
                             <div class="admin-table__lead">
                                 <strong>{{ str($inquiry->event_type)->replace('_', ' ')->headline() }}</strong>
                                 <span class="meta">
@@ -102,13 +102,13 @@
                                 </span>
                             </div>
                         </td>
-                        <td>
+                        <td class="inquiries-col--status">
                             <span class="admin-status-pill admin-status-pill--{{ str_replace('_', '-', $inquiry->status) }}">
                                 {{ $statusOptions[$inquiry->status] ?? str($inquiry->status)->replace('_', ' ')->headline() }}
                             </span>
                         </td>
-                        <td>{{ $inquiry->created_at?->format('M j, Y g:i A') }}</td>
-                        <td>
+                        <td class="inquiries-col--submitted">{{ $inquiry->created_at?->format('M j, Y g:i A') }}</td>
+                        <td class="inquiries-col--source">
                             <div class="admin-table__lead">
                                 <strong>{{ str($inquiry->source)->replace('_', ' ')->headline() }}</strong>
                                 <span class="meta">
@@ -120,7 +120,7 @@
                                 </span>
                             </div>
                         </td>
-                        <td><a href="{{ route('admin.inquiries.edit', $inquiry) }}">Open</a></td>
+                        <td class="inquiries-col--open"><a href="{{ route('admin.inquiries.edit', $inquiry) }}">Open</a></td>
                     </tr>
                 @empty
                     <tr>
