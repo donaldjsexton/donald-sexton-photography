@@ -13,7 +13,11 @@
       "mcp__laravel-boost__database-query",
       "mcp__laravel-boost__search-docs",
       "Bash(npm run *)",
-      "Bash(find /Users/ninjaexilemkiii/Documents/Dev/donald-sexton-photography -name \"*.php\" -path \"*/app/*\" -exec grep -l \"Socialite\\\\|socialite\" {} \\\\;)"
+      "Bash(find /Users/ninjaexilemkiii/Documents/Dev/donald-sexton-photography -name \"*.php\" -path \"*/app/*\" -exec grep -l \"Socialite\\\\|socialite\" {} \\\\;)",
+      "Bash(curl -s https://donaldsextonphotography.com/admin/login)",
+      "Bash(curl -s \"https://donaldsextonphotography.com/build/assets/app-D2bjqC5S.css\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

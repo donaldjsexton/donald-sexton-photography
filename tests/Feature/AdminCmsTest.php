@@ -100,10 +100,10 @@ class AdminCmsTest extends TestCase
         $response->assertOk();
         $response->assertSee('admin-settings-page', false);
         $response->assertSee('admin-settings-page--imports', false);
-        $response->assertSee('admin-settings-grid', false);
         $response->assertSee('admin-settings-grid--imports', false);
-        $response->assertSee('admin-settings-grid--activity', false);
-        $response->assertSee('admin-settings-toolbar', false);
+        $response->assertSee('admin-stat-grid', false);
+        $response->assertSee('admin-section-header', false);
+        $response->assertSee('admin-import-run-list', false);
         $response->assertSee(route('admin.imports.index'), false);
     }
 
@@ -114,12 +114,13 @@ class AdminCmsTest extends TestCase
         $analytics = $this->actingAs($user)->get(route('admin.settings.edit', ['tab' => 'analytics']));
         $analytics->assertOk();
         $analytics->assertSee('admin-settings-page--analytics', false);
-        $analytics->assertSee('admin-settings-grid--analytics', false);
+        $analytics->assertSee('admin-stat-grid', false);
+        $analytics->assertSee('admin-section-header', false);
 
         $integrations = $this->actingAs($user)->get(route('admin.settings.edit', ['tab' => 'integrations']));
         $integrations->assertOk();
         $integrations->assertSee('admin-settings-page--integrations', false);
-        $integrations->assertSee('admin-settings-grid--integrations', false);
+        $integrations->assertSee('admin-stat-grid', false);
     }
 
     public function test_admin_can_view_import_activity_page(): void

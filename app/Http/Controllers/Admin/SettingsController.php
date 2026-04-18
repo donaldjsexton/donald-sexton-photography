@@ -15,34 +15,99 @@ class SettingsController extends Controller
     public function edit(GoogleBusinessProfile $businessProfile): View
     {
         $siteSettings = SiteSetting::current();
+        $googleConnected = $siteSettings->googleIsConnected();
+        $analyticsId = $siteSettings->analyticsMeasurementId();
+
+        $googleScopes = [
+            ['label' => 'Gmail (send email)', 'scope' => 'https://www.googleapis.com/auth/gmail.send'],
+            ['label' => 'Search Console (organic traffic)', 'scope' => 'https://www.googleapis.com/auth/webmasters.readonly'],
+            ['label' => 'Business Profile (reviews & rating)', 'scope' => 'https://www.googleapis.com/auth/business.manage'],
+            ['label' => 'Calendar (booking events)', 'scope' => 'https://www.googleapis.com/auth/calendar'],
+        ];
 
         $gbpListing = [];
 
-        if ($siteSettings->googleIsConnected() && $siteSettings->googleHasScope('https://www.googleapis.com/auth/business.manage')) {
+        if ($googleConnected && $siteSettings->googleHasScope('https://www.googleapis.com/auth/business.manage')) {
             $gbpListing = $businessProfile->listAccountsAndLocations();
         }
+
+        $activeScopeCount = 0;
+
+        foreach ($googleScopes as $entry) {
+            if ($siteSettings->googleHasScope($entry['scope'])) {
+                $activeScopeCount++;
+            }
+        }
+
+        $analyticsStats = [
+            [
+                'label' => 'Tracking',
+                'value' => $analyticsId ? 'Live' : 'Off',
+                'meta' => $analyticsId ? 'Public pages are reporting to GA4.' : 'Add a measurement ID to turn it on.',
+            ],
+            [
+                'label' => 'Measurement ID',
+                'value' => $analyticsId ?: '—',
+                'meta' => $analyticsId ? 'Embedded on every public page.' : 'No ID saved yet.',
+            ],
+            [
+                'label' => 'Last Saved',
+                'value' => $siteSettings->updated_at?->diffForHumans() ?: 'Never',
+                'meta' => 'When the platform settings were last updated.',
+            ],
+        ];
+
+        $integrationsStats = [
+            [
+                'label' => 'Connection',
+                'value' => $googleConnected ? 'Connected' : 'Not connected',
+                'meta' => $googleConnected ? 'Google sign-in is active for this site.' : 'Connect Google to enable services.',
+            ],
+            [
+                'label' => 'Active Services',
+                'value' => $googleConnected ? $activeScopeCount.' of '.count($googleScopes) : '—',
+                'meta' => 'Scopes approved on this Google account.',
+            ],
+            [
+                'label' => 'Account',
+                'value' => $googleConnected ? ($siteSettings->google_connected_email ?: '—') : '—',
+                'meta' => 'The Google login used for every service.',
+            ],
+        ];
+
+        $importsStats = [
+            [
+                'label' => 'Total Runs',
+                'value' => (string) ImportRun::query()->count(),
+                'meta' => 'All import jobs recorded so far.',
+            ],
+            [
+                'label' => 'Completed',
+                'value' => (string) ImportRun::query()->where('status', 'completed')->count(),
+                'meta' => 'Jobs that finished without errors.',
+            ],
+            [
+                'label' => 'Failed',
+                'value' => (string) ImportRun::query()->where('status', 'failed')->count(),
+                'meta' => 'Jobs that ended with an error.',
+            ],
+        ];
+
+        $recentImportRuns = ImportRun::query()
+            ->latest()
+            ->limit(6)
+            ->get();
 
         return view('admin.settings.edit', [
             'siteSettings' => $siteSettings,
             'gbpListing' => $gbpListing,
-            'resolvedAnalyticsMeasurementId' => $siteSettings->analyticsMeasurementId(),
-            'googleConnected' => $siteSettings->googleIsConnected(),
-            'googleScopes' => [
-                ['label' => 'Gmail (send email)', 'scope' => 'https://www.googleapis.com/auth/gmail.send'],
-                ['label' => 'Search Console (organic traffic)', 'scope' => 'https://www.googleapis.com/auth/webmasters.readonly'],
-                ['label' => 'Business Profile (reviews & rating)', 'scope' => 'https://www.googleapis.com/auth/business.manage'],
-                ['label' => 'Calendar (booking events)', 'scope' => 'https://www.googleapis.com/auth/calendar'],
-            ],
-            'wordpressImportRuns' => ImportRun::query()
-                ->where('source_type', 'wordpress')
-                ->latest()
-                ->limit(6)
-                ->get(),
-            'picTimeImportRuns' => ImportRun::query()
-                ->where('source_type', 'pictime')
-                ->latest()
-                ->limit(6)
-                ->get(),
+            'resolvedAnalyticsMeasurementId' => $analyticsId,
+            'googleConnected' => $googleConnected,
+            'googleScopes' => $googleScopes,
+            'analyticsStats' => $analyticsStats,
+            'integrationsStats' => $integrationsStats,
+            'importsStats' => $importsStats,
+            'recentImportRuns' => $recentImportRuns,
         ]);
     }
 
