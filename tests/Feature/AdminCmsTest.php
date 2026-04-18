@@ -14,11 +14,11 @@ use App\Models\SiteSetting;
 use App\Models\Tag;
 use App\Models\User;
 use App\Models\WeddingStory;
-use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -89,6 +89,20 @@ class AdminCmsTest extends TestCase
         $this->assertNotNull($settings);
         $this->assertTrue($settings->analyticsIsConfigured());
         $this->assertSame('G-TEST12345', $settings->analyticsMeasurementId());
+    }
+
+    public function test_admin_settings_page_uses_settings_specific_layout_hooks(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user)->get(route('admin.settings.edit'));
+
+        $response->assertOk();
+        $response->assertSee('admin-settings-page', false);
+        $response->assertSee('admin-settings-hero', false);
+        $response->assertSee('admin-settings-grid', false);
+        $response->assertSee('admin-settings-grid--activity', false);
+        $response->assertSee('admin-settings-table-card', false);
     }
 
     public function test_admin_can_upload_media(): void
