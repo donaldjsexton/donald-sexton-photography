@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
+use App\Http\Controllers\Admin\BookedJobController as AdminBookedJobController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
@@ -52,6 +53,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/inquiries/{inquiry}', [AdminInquiryController::class, 'update'])->name('inquiries.update');
         Route::post('/inquiries/{inquiry}/reply', [AdminInquiryController::class, 'reply'])->name('inquiries.reply');
         Route::delete('/inquiries/{inquiry}', [AdminInquiryController::class, 'destroy'])->name('inquiries.destroy');
+
+        Route::get('/booked-jobs', [AdminBookedJobController::class, 'index'])->name('booked-jobs.index');
+        Route::get('/booked-jobs/{bookedJob}', [AdminBookedJobController::class, 'show'])->name('booked-jobs.show');
+        Route::put('/booked-jobs/{bookedJob}', [AdminBookedJobController::class, 'update'])->name('booked-jobs.update');
 
         Route::post('/push/subscribe', [AdminPushSubscriptionController::class, 'store'])->name('push.subscribe');
         Route::post('/push/unsubscribe', [AdminPushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');

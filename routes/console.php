@@ -1385,3 +1385,8 @@ Schedule::command('gmail:sync')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->runInBackground();
+
+Schedule::command('calendar:sync')
+    ->everyThirtyMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();
