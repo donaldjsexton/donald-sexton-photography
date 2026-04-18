@@ -102,7 +102,33 @@ class AdminCmsTest extends TestCase
         $response->assertSee('admin-settings-hero', false);
         $response->assertSee('admin-settings-grid', false);
         $response->assertSee('admin-settings-grid--activity', false);
-        $response->assertSee('admin-settings-table-card', false);
+        $response->assertSee('admin-settings-activity-card', false);
+        $response->assertSee(route('admin.imports.index'), false);
+    }
+
+    public function test_admin_can_view_import_activity_page(): void
+    {
+        $user = User::factory()->create();
+
+        ImportRun::query()->create([
+            'source_type' => 'wordpress',
+            'status' => 'failed',
+            'started_at' => now()->subMinutes(5),
+            'finished_at' => now()->subMinutes(4),
+            'summary_json' => [
+                'posts_imported' => 4,
+                'redirects_synced' => 4,
+            ],
+            'error_log' => 'Example import error log that should stay off the settings page.',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('admin.imports.index'));
+
+        $response->assertOk();
+        $response->assertSee('Import Activity');
+        $response->assertSee('WordPress Import');
+        $response->assertSee('posts imported: 4');
+        $response->assertSee('View error log');
     }
 
     public function test_admin_can_upload_media(): void

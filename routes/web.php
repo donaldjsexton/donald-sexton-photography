@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\BookedJobController as AdminBookedJobController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
+use App\Http\Controllers\Admin\ImportRunController as AdminImportRunController;
 use App\Http\Controllers\Admin\InquiryController as AdminInquiryController;
 use App\Http\Controllers\Admin\JournalPostController as AdminJournalPostController;
 use App\Http\Controllers\Admin\MediaController as AdminMediaController;
@@ -85,6 +86,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/journal-posts/{journalPost}/edit', [AdminJournalPostController::class, 'edit'])->name('journal-posts.edit');
         Route::put('/journal-posts/{journalPost}', [AdminJournalPostController::class, 'update'])->name('journal-posts.update');
 
+        Route::get('/imports', [AdminImportRunController::class, 'index'])->name('imports.index');
         Route::get('/imports/wordpress', [AdminWordPressImportController::class, 'index'])->name('imports.wordpress.index');
         Route::post('/imports/wordpress', [AdminWordPressImportController::class, 'store'])->name('imports.wordpress.store');
         Route::get('/imports/pictime', [AdminPicTimeImportController::class, 'index'])->name('imports.pictime.index');

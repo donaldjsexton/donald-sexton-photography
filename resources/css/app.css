@@ -1359,7 +1359,7 @@ img {
     box-shadow: none;
 }
 
-.admin-settings-table-card {
+.admin-settings-activity-card {
     gap: 0.85rem;
 }
 
@@ -1394,6 +1394,22 @@ img {
 .admin-status-pill--archived {
     border-color: var(--admin-line);
     background: rgba(255, 252, 247, 0.96);
+}
+
+.admin-status-pill--completed {
+    border-color: rgba(73, 98, 76, 0.18);
+    background: rgba(244, 248, 242, 0.96);
+}
+
+.admin-status-pill--failed {
+    border-color: rgba(185, 28, 28, 0.2);
+    background: rgba(254, 242, 242, 0.98);
+    color: #991b1b;
+}
+
+.admin-status-pill--running {
+    border-color: rgba(141, 100, 66, 0.2);
+    background: rgba(250, 245, 238, 0.96);
 }
 
 .admin-stat {
@@ -3147,6 +3163,15 @@ textarea {
         grid-template-columns: 1fr;
     }
 
+    .admin-import-run__meta {
+        display: grid;
+        gap: 0.35rem;
+    }
+
+    .admin-import-run__summary span {
+        border-radius: 0.85rem;
+    }
+
     .admin-settings-grid--single {
         max-width: none;
     }
@@ -3382,6 +3407,79 @@ textarea {
     word-break: break-word;
     overflow-x: auto;
     max-height: 24rem;
+}
+
+.admin-pre--wrap {
+    overflow-wrap: anywhere;
+}
+
+.admin-import-activity-card {
+    gap: 1rem;
+}
+
+.admin-import-run-list {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.admin-import-run {
+    display: grid;
+    gap: 0.85rem;
+    padding: 1rem;
+    border: 1px solid var(--admin-line);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.82);
+}
+
+.admin-import-run__header {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.85rem;
+    align-items: flex-start;
+}
+
+.admin-import-run__copy {
+    display: grid;
+    gap: 0.35rem;
+}
+
+.admin-import-run__title {
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: clamp(1.1rem, 1.8vw, 1.35rem);
+    line-height: 1.05;
+}
+
+.admin-import-run__meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 1rem;
+    color: var(--admin-muted);
+    font-size: 0.88rem;
+}
+
+.admin-import-run__summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.admin-import-run__summary span {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+    padding: 0.45rem 0.7rem;
+    border: 1px solid var(--admin-line);
+    border-radius: 999px;
+    background: rgba(249, 242, 233, 0.85);
+    font-size: 0.82rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+}
+
+.admin-import-run__details {
+    margin-top: -0.15rem;
 }
 
 /* Calendar controls */

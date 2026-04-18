@@ -33,7 +33,6 @@ class SettingsController extends Controller
                 ['label' => 'Business Profile (reviews & rating)', 'scope' => 'https://www.googleapis.com/auth/business.manage'],
                 ['label' => 'Calendar (booking events)', 'scope' => 'https://www.googleapis.com/auth/calendar'],
             ],
-            'recentImportRuns' => ImportRun::query()->latest()->limit(12)->get(),
             'wordpressImportRuns' => ImportRun::query()
                 ->where('source_type', 'wordpress')
                 ->latest()

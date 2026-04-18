@@ -186,6 +186,7 @@
                         <p class="meta">No import runs have been recorded yet.</p>
                     @endforelse
                 </x-admin.list>
+                <a class="cta-secondary" href="{{ route('admin.imports.index') }}">Open Import Activity</a>
             </x-admin.panel>
         </div>
 

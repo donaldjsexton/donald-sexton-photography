@@ -38,7 +38,8 @@
             [
                 'label' => 'Operations',
                 'items' => [
-                    ['label' => 'Settings', 'href' => route('admin.settings.edit'), 'patterns' => ['admin.settings.*', 'admin.imports.*']],
+                    ['label' => 'Settings', 'href' => route('admin.settings.edit'), 'patterns' => ['admin.settings.*']],
+                    ['label' => 'Imports', 'href' => route('admin.imports.index'), 'patterns' => ['admin.imports.*']],
                 ],
             ],
         ];

@@ -266,7 +266,7 @@
                     @forelse ($wordpressImportRuns as $run)
                         <div class="admin-list__item">
                             <strong>{{ ucfirst($run->status) }}</strong>
-                            <span class="meta">{{ $run->created_at?->format('M j, Y g:i A') }} · {{ $run->summary_json ? collect($run->summary_json)->map(fn ($value, $key) => str_replace('_', ' ', $key).': '.$value)->join(' · ') : 'No summary saved' }}</span>
+                            <span class="meta">{{ $run->created_at?->format('M j, Y g:i A') ?: 'No timestamp recorded' }}</span>
                         </div>
                     @empty
                         <p class="meta">No WordPress import runs have been recorded yet.</p>
@@ -280,7 +280,7 @@
                     @forelse ($picTimeImportRuns as $run)
                         <div class="admin-list__item">
                             <strong>{{ ucfirst($run->status) }}</strong>
-                            <span class="meta">{{ $run->created_at?->format('M j, Y g:i A') }} · {{ $run->summary_json ? collect($run->summary_json)->map(fn ($value, $key) => str_replace('_', ' ', $key).': '.$value)->join(' · ') : 'No summary saved' }}</span>
+                            <span class="meta">{{ $run->created_at?->format('M j, Y g:i A') ?: 'No timestamp recorded' }}</span>
                         </div>
                     @empty
                         <p class="meta">No Pic-Time import runs have been recorded yet.</p>
@@ -289,47 +289,11 @@
             </article>
         </section>
 
-        <section class="admin-card admin-settings-table-card">
-            <p class="eyebrow">Recent Import Activity</p>
-
-            <div class="admin-table-wrap">
-                <table class="admin-table">
-                    <thead>
-                        <tr>
-                            <th>Source</th>
-                            <th>Status</th>
-                            <th>Started</th>
-                            <th>Summary</th>
-                            <th>Error</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @forelse ($recentImportRuns as $run)
-                            <tr>
-                                <td>{{ ucfirst($run->source_type) }}</td>
-                                <td>{{ $run->status }}</td>
-                                <td>{{ $run->started_at?->format('M j, Y g:i A') ?: $run->created_at?->format('M j, Y g:i A') }}</td>
-                                <td>
-                                    @if ($run->summary_json)
-                                        <div class="admin-summary">
-                                            @foreach ($run->summary_json as $key => $value)
-                                                <span>{{ str_replace('_', ' ', $key) }}: {{ $value }}</span>
-                                            @endforeach
-                                        </div>
-                                    @else
-                                        <span class="meta">No summary saved.</span>
-                                    @endif
-                                </td>
-                                <td>{{ $run->error_log ?: '—' }}</td>
-                            </tr>
-                        @empty
-                            <tr>
-                                <td colspan="5">No import runs recorded yet.</td>
-                            </tr>
-                        @endforelse
-                    </tbody>
-                </table>
-            </div>
+        <section class="admin-card admin-settings-activity-card">
+            <p class="eyebrow">Import Activity</p>
+            <h3 class="feature-title">Open the full import log on its own screen.</h3>
+            <p class="section-copy">Long summaries and error traces now live on a dedicated page so the settings screen stays compact and readable at every breakpoint.</p>
+            <a class="cta-secondary" href="{{ route('admin.imports.index') }}">Open Import Activity</a>
         </section>
     </div>
 @endsection
