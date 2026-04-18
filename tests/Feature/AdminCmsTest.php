@@ -95,7 +95,7 @@ class AdminCmsTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get(route('admin.settings.edit'));
+        $response = $this->actingAs($user)->get(route('admin.settings.edit', ['tab' => 'imports']));
 
         $response->assertOk();
         $response->assertSee('admin-settings-page', false);
