@@ -10,7 +10,7 @@
         $analyticsValue = old('google_analytics_measurement_id', $siteSettings->google_analytics_measurement_id ?: $resolvedAnalyticsMeasurementId);
     @endphp
 
-    <div class="admin-settings-page">
+    <div class="admin-settings-page admin-settings-page--{{ $currentTab }}" data-tab="{{ $currentTab }}">
         @if ($errors->any())
             <ul class="errors">
                 @foreach ($errors->all() as $error)
@@ -30,7 +30,7 @@
         </nav>
 
         @if ($currentTab === 'analytics')
-        <section class="admin-grid admin-grid--two admin-settings-grid" id="analytics-settings">
+        <section class="admin-grid admin-grid--two admin-settings-grid admin-settings-grid--analytics" id="analytics-settings">
             <article class="admin-card admin-card--feature">
                 <p class="eyebrow">Analytics</p>
                 <h3 class="feature-title">Google Analytics</h3>
@@ -78,7 +78,7 @@
         @endif
 
         @if ($currentTab === 'integrations')
-        <section class="admin-grid admin-grid--two admin-settings-grid" id="integrations-settings">
+        <section class="admin-grid admin-grid--two admin-settings-grid admin-settings-grid--integrations" id="integrations-settings">
             <article class="admin-card admin-card--feature">
                 <p class="eyebrow">Google</p>
                 <h3 class="feature-title">{{ $googleConnected ? 'Google is connected' : 'Connect Google' }}</h3>
@@ -125,7 +125,7 @@
         </section>
 
         @if ($googleConnected && $siteSettings->googleHasScope('https://www.googleapis.com/auth/business.manage'))
-            <section class="admin-grid admin-grid--two admin-settings-grid admin-settings-grid--single">
+            <section class="admin-grid admin-grid--two admin-settings-grid admin-settings-grid--single admin-settings-grid--gbp">
                 <article class="admin-card">
                     <p class="eyebrow">Business Profile</p>
                     <h3 class="feature-title">Choose the listing to show</h3>
@@ -186,7 +186,7 @@
         @endif
 
         @if ($currentTab === 'imports')
-        <section class="admin-grid admin-grid--two admin-settings-grid" id="import-settings">
+        <section class="admin-grid admin-grid--two admin-settings-grid admin-settings-grid--imports" id="import-settings">
             <article class="admin-card admin-card--feature" id="wordpress-import">
                 <p class="eyebrow">WordPress</p>
                 <h3 class="feature-title">Import a WordPress export</h3>
