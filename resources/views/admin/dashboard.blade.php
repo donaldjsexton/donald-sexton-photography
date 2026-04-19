@@ -8,7 +8,7 @@
     <section class="admin-dashboard-row">
         <x-admin.section-header
             eyebrow="Business Pulse"
-            title="Lead pipeline &amp; conversion"
+            title="Lead pipeline & conversion"
             description="How the inquiry funnel is moving this week, which stages are holding leads, and where the best sources are coming from."
         />
 
@@ -68,7 +68,7 @@
 
     <section class="admin-dashboard-row" data-collapsible>
         <x-admin.section-header
-            eyebrow="Marketing &amp; SEO"
+            eyebrow="Marketing & SEO"
             title="Discovery, coverage, and attribution"
             description="Signals across analytics, SEO metadata, and UTM-tagged traffic. Stubs remain where a live service is not yet connected."
         />
@@ -148,7 +148,7 @@
                 </div>
             </x-admin.panel>
 
-            <x-admin.panel eyebrow="Drafts &amp; publishing radar">
+            <x-admin.panel eyebrow="Drafts & publishing radar">
                 <x-admin.list>
                     @foreach ($contentOps['radar'] as $item)
                         <x-admin.list-item

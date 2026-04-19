@@ -105,9 +105,19 @@ class JournalPost extends Model
 
     public function summaryText(?int $words = null): ?string
     {
+        $bodyFallback = trim((string) preg_replace(
+            '/\s+/u',
+            ' ',
+            html_entity_decode(
+                strip_tags((string) ($this->sanitizedBody() ?? '')),
+                ENT_QUOTES | ENT_HTML5,
+                'UTF-8'
+            )
+        ));
+
         $copy = $this->excerpt
             ?: PicTimeContent::excerpt($this->picTimeSourceMarkup())
-            ?: trim(strip_tags((string) ($this->sanitizedBody() ?? '')));
+            ?: $bodyFallback;
 
         if ($copy === '') {
             return null;
