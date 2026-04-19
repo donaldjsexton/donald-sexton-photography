@@ -11,6 +11,30 @@
         || $pictime->showNarrativeSection()
         || $pictime->showEmbedSection()
         || $showExternalFallback;
+    $canonicalForSchema = $post->canonical_url ?: url()->current();
+    $featuredImageForSchema = method_exists($post, 'featuredImageUrl') ? $post->featuredImageUrl() : null;
+    $articleSchema = array_filter([
+        '@context' => 'https://schema.org',
+        '@type' => 'BlogPosting',
+        'headline' => $post->title,
+        'description' => $post->seo_description ?: $post->excerpt ?: $post->summaryText(40),
+        'datePublished' => $post->published_at?->toIso8601String(),
+        'dateModified' => $post->updated_at?->toIso8601String(),
+        'image' => $featuredImageForSchema,
+        'author' => filled($post->author_name) ? [
+            '@type' => 'Person',
+            'name' => $post->author_name,
+        ] : null,
+        'publisher' => [
+            '@type' => 'Organization',
+            'name' => config('app.name', 'Donald Sexton Photography'),
+            'url' => rtrim(config('app.url', url('/')), '/'),
+        ],
+        'mainEntityOfPage' => [
+            '@type' => 'WebPage',
+            '@id' => $canonicalForSchema,
+        ],
+    ], fn ($value) => $value !== null && $value !== '');
 @endphp
 
 @section('title', $post->seo_title ?: $post->title)
@@ -18,6 +42,8 @@
 @section('canonical_url', $post->canonical_url ?: url()->current())
 
 @section('content')
+    <script type="application/ld+json">{!! json_encode($articleSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+
     @php
         $meta = collect([
             $post->published_at?->format('F j, Y'),

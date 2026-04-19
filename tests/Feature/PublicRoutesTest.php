@@ -596,6 +596,29 @@ HTML,
             ->assertDontSee('The full write-up for this post is on its way.');
     }
 
+    public function test_journal_post_renders_blog_posting_json_ld_schema(): void
+    {
+        $post = JournalPost::create([
+            'title' => 'Schema Test Post',
+            'slug' => 'schema-test-post',
+            'status' => 'published',
+            'post_type' => 'journal',
+            'excerpt' => 'A short excerpt for the schema description.',
+            'author_name' => 'Donald Sexton',
+            'body' => '<p>Real content.</p>',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get('/journal/'.$post->slug)
+            ->assertOk()
+            ->assertSee('application/ld+json', false)
+            ->assertSee('"@type":"BlogPosting"', false)
+            ->assertSee('"headline":"Schema Test Post"', false)
+            ->assertSee('"description":"A short excerpt for the schema description."', false)
+            ->assertSee('"author":{"@type":"Person","name":"Donald Sexton"}', false)
+            ->assertSee('"mainEntityOfPage":{"@type":"WebPage"', false);
+    }
+
     public function test_archive_pages_render_intentional_empty_states(): void
     {
         $this->get('/weddings')
