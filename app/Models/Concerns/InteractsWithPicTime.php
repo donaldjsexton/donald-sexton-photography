@@ -254,6 +254,9 @@ trait InteractsWithPicTime
                 }
             }
 
+            $this->unwrapLegacyWixWrappers($root);
+            $this->removeBlankParagraphs($root);
+
             $sanitized = Collection::make(iterator_to_array($root->childNodes))
                 ->map(fn (\DOMNode $node) => $dom->saveHTML($node) ?: '')
                 ->implode('');
@@ -348,6 +351,67 @@ trait InteractsWithPicTime
         }
 
         return File::exists(public_path(ltrim($path, '/')));
+    }
+
+    protected function unwrapLegacyWixWrappers(\DOMElement $root): void
+    {
+        $divs = iterator_to_array($root->getElementsByTagName('div'));
+
+        foreach ($divs as $wrapper) {
+            if (! $wrapper instanceof \DOMElement || ! $this->hasLegacyWixClass($wrapper)) {
+                continue;
+            }
+
+            $parent = $wrapper->parentNode;
+
+            if (! $parent instanceof \DOMNode) {
+                continue;
+            }
+
+            while ($wrapper->firstChild !== null) {
+                $parent->insertBefore($wrapper->firstChild, $wrapper);
+            }
+
+            $parent->removeChild($wrapper);
+        }
+    }
+
+    protected function hasLegacyWixClass(\DOMElement $element): bool
+    {
+        $classAttribute = trim((string) $element->getAttribute('class'));
+
+        if ($classAttribute === '') {
+            return false;
+        }
+
+        foreach (preg_split('/\s+/', $classAttribute) ?: [] as $className) {
+            $className = (string) $className;
+
+            if ($className === '') {
+                continue;
+            }
+
+            if (Str::startsWith($className, ['s_', 'wix'])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    protected function removeBlankParagraphs(\DOMElement $root): void
+    {
+        $paragraphs = iterator_to_array($root->getElementsByTagName('p'));
+
+        foreach ($paragraphs as $paragraph) {
+            if (! $paragraph instanceof \DOMElement || ! $paragraph->parentNode instanceof \DOMNode) {
+                continue;
+            }
+
+            if ($this->isEmptyImportedWrapper($paragraph)) {
+                $paragraph->parentNode->removeChild($paragraph);
+            }
+        }
     }
 
     protected function removeNodeAndEmptyAncestors(\DOMNode $node, \DOMElement $root): void

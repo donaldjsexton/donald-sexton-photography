@@ -6,7 +6,6 @@ use App\Mail\InquiryReceived;
 use App\Models\Category;
 use App\Models\Collection;
 use App\Models\HomepageSetting;
-use App\Models\Inquiry;
 use App\Models\JournalPost;
 use App\Models\Media;
 use App\Models\Page;
@@ -392,7 +391,7 @@ HTML,
             'published_at' => now(),
         ]);
 
-        \App\Models\WeddingStory::create([
+        WeddingStory::create([
             'title' => 'Real Wedding Story',
             'slug' => 'real-wedding-story',
             'status' => 'published',
@@ -400,7 +399,7 @@ HTML,
             'published_at' => now(),
         ]);
 
-        \App\Models\Redirect::create([
+        Redirect::create([
             'from_path' => '/journal/real-wedding-story',
             'to_path' => '/weddings/real-wedding-story',
             'status_code' => 301,
@@ -565,6 +564,36 @@ HTML,
             ->assertOk()
             ->assertSee($story->title)
             ->assertSee($post->title);
+    }
+
+    public function test_blank_journal_post_renders_graceful_empty_content_fallback(): void
+    {
+        $blankPost = JournalPost::create([
+            'title' => 'Blank Legacy Post',
+            'slug' => 'blank-legacy-post',
+            'status' => 'published',
+            'post_type' => 'journal',
+            'published_at' => now(),
+        ]);
+
+        $response = $this->get('/journal/'.$blankPost->slug)
+            ->assertOk()
+            ->assertSee($blankPost->title)
+            ->assertSee('The full write-up for this post is on its way.');
+
+        $populatedPost = JournalPost::create([
+            'title' => 'Populated Journal Post',
+            'slug' => 'populated-journal-post',
+            'status' => 'published',
+            'post_type' => 'journal',
+            'body' => '<p>This post has real content that should render.</p>',
+            'published_at' => now(),
+        ]);
+
+        $this->get('/journal/'.$populatedPost->slug)
+            ->assertOk()
+            ->assertSee('This post has real content that should render.')
+            ->assertDontSee('The full write-up for this post is on its way.');
     }
 
     public function test_archive_pages_render_intentional_empty_states(): void
