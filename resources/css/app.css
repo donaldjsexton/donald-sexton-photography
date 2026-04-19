@@ -1090,11 +1090,14 @@ img {
     font-family: var(--font-display);
     font-size: clamp(1.35rem, 2.2vw, 1.7rem);
     line-height: 1.1;
+    overflow-wrap: anywhere;
+    hyphens: auto;
 }
 
 .admin-section-header__description {
     margin: 0;
     max-width: 68ch;
+    overflow-wrap: anywhere;
 }
 
 /* ── Collapsible dashboard sections (mobile only) ── */
@@ -1382,6 +1385,13 @@ img {
     border: 1px solid var(--admin-line);
     border-radius: 0.85rem;
     background: rgba(255, 255, 255, 0.85);
+    min-width: 0;
+}
+
+.admin-services-grid__item > strong {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .admin-services-grid__item.is-active {
@@ -1504,8 +1514,12 @@ img {
 .admin-stat {
     margin: 0;
     font-family: var(--font-display);
-    font-size: clamp(2.3rem, 4vw, 3.4rem);
-    line-height: 0.92;
+    font-size: clamp(1.6rem, 3vw, 2.6rem);
+    line-height: 1;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
 }
 
 .admin-list {
@@ -1681,7 +1695,9 @@ img {
 
 .admin-page .feature-title {
     font-size: clamp(1.45rem, 2vw, 2rem);
-    line-height: 0.98;
+    line-height: 1.05;
+    overflow-wrap: anywhere;
+    hyphens: auto;
 }
 
 .admin-page .section-copy,
