@@ -256,6 +256,7 @@ trait InteractsWithPicTime
 
             $this->unwrapLegacyWixWrappers($root);
             $this->removeBlankParagraphs($root);
+            $this->stripLegacyWixClassAttributes($root);
 
             $sanitized = Collection::make(iterator_to_array($root->childNodes))
                 ->map(fn (\DOMNode $node) => $dom->saveHTML($node) ?: '')
@@ -397,6 +398,52 @@ trait InteractsWithPicTime
         }
 
         return false;
+    }
+
+    protected function stripLegacyWixClassAttributes(\DOMElement $root): void
+    {
+        $elements = iterator_to_array($root->getElementsByTagName('*'));
+
+        foreach ($elements as $element) {
+            if (! $element instanceof \DOMElement || ! $element->hasAttribute('class')) {
+                continue;
+            }
+
+            $classAttribute = trim((string) $element->getAttribute('class'));
+
+            if ($classAttribute === '') {
+                $element->removeAttribute('class');
+
+                continue;
+            }
+
+            $remaining = [];
+
+            foreach (preg_split('/\s+/', $classAttribute) ?: [] as $className) {
+                $className = (string) $className;
+
+                if ($className === '') {
+                    continue;
+                }
+
+                if ($this->isLegacyWixClassName($className)) {
+                    continue;
+                }
+
+                $remaining[] = $className;
+            }
+
+            if ($remaining === []) {
+                $element->removeAttribute('class');
+            } else {
+                $element->setAttribute('class', implode(' ', $remaining));
+            }
+        }
+    }
+
+    protected function isLegacyWixClassName(string $className): bool
+    {
+        return Str::startsWith($className, ['s_', 'wix', 'font_', 'color_']);
     }
 
     protected function removeBlankParagraphs(\DOMElement $root): void

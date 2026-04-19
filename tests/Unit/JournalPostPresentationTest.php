@@ -85,4 +85,44 @@ HTML,
         $this->assertStringNotContainsString('<div', $sanitized);
         $this->assertStringContainsString('Deep paragraph.', $sanitized);
     }
+
+    public function test_sanitized_body_strips_wix_typography_class_hooks(): void
+    {
+        $post = new JournalPost([
+            'body' => <<<'HTML'
+<p class="font_8">First paragraph.</p>
+<p class="font_9 color_11">Second paragraph.</p>
+<span class="wixGuard">Inline text.</span>
+<h2 class="wixui-heading">Heading text.</h2>
+HTML,
+        ]);
+
+        $sanitized = (string) $post->sanitizedBody();
+
+        $this->assertStringContainsString('First paragraph.', $sanitized);
+        $this->assertStringContainsString('Second paragraph.', $sanitized);
+        $this->assertStringContainsString('Inline text.', $sanitized);
+        $this->assertStringContainsString('Heading text.', $sanitized);
+        $this->assertStringNotContainsString('font_8', $sanitized);
+        $this->assertStringNotContainsString('font_9', $sanitized);
+        $this->assertStringNotContainsString('color_11', $sanitized);
+        $this->assertStringNotContainsString('wixGuard', $sanitized);
+        $this->assertStringNotContainsString('wixui-heading', $sanitized);
+        $this->assertStringContainsString('<p>First paragraph.</p>', $sanitized);
+        $this->assertStringContainsString('<h2>Heading text.</h2>', $sanitized);
+    }
+
+    public function test_sanitized_body_preserves_non_wix_classes_alongside_wix_classes(): void
+    {
+        $post = new JournalPost([
+            'body' => '<p class="font_8 intro-lede color_11">Mixed class paragraph.</p>',
+        ]);
+
+        $sanitized = (string) $post->sanitizedBody();
+
+        $this->assertStringContainsString('Mixed class paragraph.', $sanitized);
+        $this->assertStringContainsString('class="intro-lede"', $sanitized);
+        $this->assertStringNotContainsString('font_8', $sanitized);
+        $this->assertStringNotContainsString('color_11', $sanitized);
+    }
 }
