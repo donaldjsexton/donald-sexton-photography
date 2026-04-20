@@ -161,6 +161,7 @@ img {
     max-width: 31rem;
     max-height: 3rem;
     overflow: hidden;
+    overflow-wrap: anywhere;
     color: var(--muted);
     font-size: 0.86rem;
     letter-spacing: 0.08em;
