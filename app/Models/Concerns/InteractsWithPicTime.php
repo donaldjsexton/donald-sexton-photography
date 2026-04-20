@@ -285,6 +285,10 @@ trait InteractsWithPicTime
         if ($this->isLegacyWordPressUploadUrl($url)) {
             $legacyPath = (string) (parse_url($url, PHP_URL_PATH) ?: $url);
 
+            if ($this->isJetpackCdnUrl($url)) {
+                $legacyPath = (string) preg_replace('#^/[^/]+#', '', $legacyPath);
+            }
+
             return $this->hasLocalPublicAsset($legacyPath);
         }
 
@@ -311,6 +315,13 @@ trait InteractsWithPicTime
         return str_contains(Str::lower($url), '/wp-content/uploads/');
     }
 
+    protected function isJetpackCdnUrl(string $url): bool
+    {
+        $host = (string) parse_url($url, PHP_URL_HOST);
+
+        return (bool) preg_match('/^i\d+\.wp\.com$/i', $host);
+    }
+
     protected function localLegacyWordPressAssetUrl(?string $url): ?string
     {
         $url = trim((string) $url);
@@ -319,7 +330,13 @@ trait InteractsWithPicTime
             return null;
         }
 
-        $path = '/'.ltrim((string) (parse_url($url, PHP_URL_PATH) ?: $url), '/');
+        $rawPath = (string) (parse_url($url, PHP_URL_PATH) ?: $url);
+
+        if ($this->isJetpackCdnUrl($url)) {
+            $rawPath = (string) preg_replace('#^/[^/]+#', '', $rawPath);
+        }
+
+        $path = '/'.ltrim($rawPath, '/');
 
         if (! $this->hasLocalPublicAsset($path)) {
             return null;

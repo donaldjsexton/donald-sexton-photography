@@ -125,4 +125,36 @@ HTML,
         $this->assertStringNotContainsString('font_8', $sanitized);
         $this->assertStringNotContainsString('color_11', $sanitized);
     }
+
+    public function test_sanitized_body_resolves_jetpack_cdn_image_to_local_wp_path(): void
+    {
+        $fixtureDir = public_path('wp-content/uploads/jetpack-fixture');
+        $fixturePath = $fixtureDir.'/foo.jpg';
+
+        if (! is_dir($fixtureDir)) {
+            mkdir($fixtureDir, 0755, true);
+        }
+
+        file_put_contents($fixturePath, 'fake-image-bytes');
+
+        try {
+            $post = new JournalPost([
+                'body' => '<p><img src="https://i0.wp.com/example.com/wp-content/uploads/jetpack-fixture/foo.jpg?ssl=1" alt=""></p>',
+            ]);
+
+            $sanitized = (string) $post->sanitizedBody();
+
+            $this->assertStringContainsString('src="/wp-content/uploads/jetpack-fixture/foo.jpg"', $sanitized);
+            $this->assertStringNotContainsString('i0.wp.com', $sanitized);
+            $this->assertStringNotContainsString('example.com', $sanitized);
+        } finally {
+            if (file_exists($fixturePath)) {
+                unlink($fixturePath);
+            }
+
+            if (is_dir($fixtureDir)) {
+                rmdir($fixtureDir);
+            }
+        }
+    }
 }
