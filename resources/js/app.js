@@ -3,20 +3,29 @@ import './bootstrap';
 const siteHeader = document.querySelector('.site-header');
 
 if (siteHeader) {
-    let condensed = false;
+    const isDesktop = window.matchMedia('(min-width: 981px)');
+    let condensed = isDesktop.matches;
 
-    const checkCondensed = () => {
-        const scrollY = window.scrollY;
-        const shouldCondense = condensed ? scrollY > 40 : scrollY > 80;
+    const updateCondensed = () => {
+        if (isDesktop.matches) {
+            if (!condensed) {
+                condensed = true;
+                siteHeader.classList.add('is-condensed');
+            }
+        } else {
+            const scrollY = window.scrollY;
+            const shouldCondense = condensed ? scrollY > 40 : scrollY > 80;
 
-        if (shouldCondense !== condensed) {
-            condensed = shouldCondense;
-            siteHeader.classList.toggle('is-condensed', condensed);
+            if (shouldCondense !== condensed) {
+                condensed = shouldCondense;
+                siteHeader.classList.toggle('is-condensed', condensed);
+            }
         }
     };
 
-    window.addEventListener('scroll', checkCondensed, { passive: true });
-    checkCondensed();
+    window.addEventListener('scroll', updateCondensed, { passive: true });
+    isDesktop.addEventListener('change', updateCondensed);
+    updateCondensed();
 }
 
 const navRoot = document.querySelector('[data-nav-root]');
