@@ -6,7 +6,8 @@ if (siteHeader) {
     let condensed = false;
 
     const checkCondensed = () => {
-        const shouldCondense = window.scrollY > 60;
+        const scrollY = window.scrollY;
+        const shouldCondense = condensed ? scrollY > 40 : scrollY > 80;
 
         if (shouldCondense !== condensed) {
             condensed = shouldCondense;
