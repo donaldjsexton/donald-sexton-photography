@@ -149,8 +149,10 @@ class PublicRoutesTest extends TestCase
     {
         $this->get('/collections')
             ->assertOk()
-            ->assertSee('Start with the full day', false)
-            ->assertSee('Get a clear quote', false);
+            ->assertSee('Essential', false)
+            ->assertSee('Complete', false)
+            ->assertSee('Extended', false)
+            ->assertSee('Add-ons', false);
     }
 
     public function test_homepage_renders_default_seo_metadata_and_structured_data(): void
@@ -633,7 +635,7 @@ HTML,
 
         $this->get('/collections')
             ->assertOk()
-            ->assertSee('Start with the full day')
+            ->assertSee('Essential')
             ->assertDontSee('No collections are published yet.');
 
         $this->get('/venues')
