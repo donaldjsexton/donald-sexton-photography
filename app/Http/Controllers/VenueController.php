@@ -14,7 +14,7 @@ class VenueController extends Controller
         $term = $request->string('q')->trim()->toString();
 
         $venues = Venue::query()
-            ->when($term !== '', fn ($query) => $query->where('name', 'like', '%'.$term.'%'))
+            ->when($term !== '', fn ($query) => $query->whereRaw('LOWER(name) LIKE ?', ['%'.strtolower($term).'%']))
             ->orderBy('name')
             ->limit(15)
             ->get(['id', 'name', 'city', 'state']);

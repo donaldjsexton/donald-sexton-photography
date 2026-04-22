@@ -7,20 +7,17 @@ if (siteHeader) {
     let condensed = isDesktop.matches;
 
     const updateCondensed = () => {
+        let shouldCondense;
+
         if (isDesktop.matches) {
-            if (!condensed) {
-                condensed = true;
-                siteHeader.classList.add('is-condensed');
-            }
+            shouldCondense = true;
         } else {
             const scrollY = window.scrollY;
-            const shouldCondense = condensed ? scrollY > 40 : scrollY > 80;
-
-            if (shouldCondense !== condensed) {
-                condensed = shouldCondense;
-                siteHeader.classList.toggle('is-condensed', condensed);
-            }
+            shouldCondense = condensed ? scrollY > 40 : scrollY > 80;
         }
+
+        condensed = shouldCondense;
+        siteHeader.classList.toggle('is-condensed', condensed);
     };
 
     window.addEventListener('scroll', updateCondensed, { passive: true });

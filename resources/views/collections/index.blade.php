@@ -22,34 +22,45 @@
     <section class="section">
         <div class="page-shell--wide page-stack page-stack--compact">
             <div class="collection-intro" data-reveal>
-                <p>Most couples start with enough time for getting ready, the ceremony, portraits, family photos, and the dance floor.</p>
-                <p>From there, you can add welcome events, rehearsal coverage, or extra portrait time if it matters to you.</p>
+                <p>Documentary wedding photography that captures your day as it unfolds. Your coverage is built on hours—start with what fits your timeline, then add what matters most.</p>
             </div>
 
-            <p class="editorial-divider">Collections</p>
+            <p class="editorial-divider">Coverage Options</p>
 
             @if ($collections->isNotEmpty())
                 <div class="collection-steps">
                     @foreach ($collections as $collection)
                         @php
                             $hours = null;
-                            if ($collection->coverage_hours_min || $collection->coverage_hours_max) {
-                                $hours = ($collection->coverage_hours_min ?? $collection->coverage_hours_max)
-                                    .(($collection->coverage_hours_max && $collection->coverage_hours_min !== $collection->coverage_hours_max) ? '-'.$collection->coverage_hours_max : '')
-                                    .' hours of coverage';
+                            $min = $collection->coverage_hours_min;
+                            $max = $collection->coverage_hours_max;
+                            if ($min || $max) {
+                                if ($min && $max && $min !== $max) {
+                                    $hours = $min.'-'.$max.' hours';
+                                } elseif ($min && ! $max) {
+                                    $hours = $min.'+ hours';
+                                } else {
+                                    $hours = ($min ?? $max).' hours';
+                                }
                             }
                             $headline = $collection->headline;
                             $summary = $collection->summary
                                 ?: \Illuminate\Support\Str::words(strip_tags($collection->description ?? ''), 28);
-                            $meta = collect([
-                                $collection->starting_price ? (($collection->price_label ?: 'Starting at').' $'.number_format((float) $collection->starting_price, 0)) : null,
-                                $hours,
-                            ])->filter()->implode(' · ');
+                            $price = $collection->starting_price ? '$'.number_format((float) $collection->starting_price, 0) : null;
+                            $priceLabel = $collection->price_label ?: 'Starting at';
                         @endphp
-                        <article data-reveal class="collection-step">
-                            <p class="collection-step__index">{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</p>
+                        <article data-reveal class="collection-step-pricing">
                             <div class="collection-step__body">
-                                <p class="collection-step__meta">{{ $meta ?: 'Custom coverage available' }}</p>
+                                @if ($hours || $price)
+                                    <div class="collection-step__price-row">
+                                        @if ($hours)
+                                            <p class="collection-step__hours">{{ $hours }}</p>
+                                        @endif
+                                        @if ($price)
+                                            <p class="collection-step__price">{{ $priceLabel }} {{ $price }}</p>
+                                        @endif
+                                    </div>
+                                @endif
                                 <h2 class="collection-step__title">{{ $collection->name }}</h2>
                                 @if ($headline)
                                     <p class="collection-step__headline">{{ $headline }}</p>
@@ -63,30 +74,51 @@
                 </div>
             @else
                 <div class="collection-steps">
-                    <article data-reveal class="collection-step">
-                        <p class="collection-step__index">01</p>
+                    <article data-reveal class="collection-step-pricing">
                         <div class="collection-step__body">
-                            <p class="collection-step__meta">Most requested</p>
-                            <h2 class="collection-step__title">Start with the full day.</h2>
-                            <p class="collection-step__copy">Most couples want enough time for getting ready, the ceremony, portraits, family photos, and the dance floor.</p>
+                            <div class="collection-step__price-row">
+                                <p class="collection-step__hours">6 hours</p>
+                                <p class="collection-step__price">Starting at $3,800</p>
+                            </div>
+                            <h2 class="collection-step__title">Essential</h2>
+                            <p class="collection-step__headline">Full day, core moments.</p>
+                            <p class="collection-step__copy">Getting ready, ceremony, family photos, portraits, and reception coverage. Everything you need to document the day.</p>
                         </div>
                     </article>
-                    <article data-reveal class="collection-step">
-                        <p class="collection-step__index">02</p>
+                    <article data-reveal class="collection-step-pricing">
                         <div class="collection-step__body">
-                            <p class="collection-step__meta">Build around your plans</p>
-                            <h2 class="collection-step__title">Add what you do not want to miss.</h2>
-                            <p class="collection-step__copy">You can add rehearsal coverage, a welcome party, extra portrait time, or a session before the wedding.</p>
+                            <div class="collection-step__price-row">
+                                <p class="collection-step__hours">8 hours</p>
+                                <p class="collection-step__price">Starting at $5,200</p>
+                            </div>
+                            <h2 class="collection-step__title">Complete</h2>
+                            <p class="collection-step__headline">All day, all moments.</p>
+                            <p class="collection-step__copy">Everything in Essential, plus rehearsal coverage, pre-ceremony prep, and first looks. Capture the full narrative from beginning to end.</p>
                         </div>
                     </article>
-                    <article data-reveal class="collection-step">
-                        <p class="collection-step__index">03</p>
+                    <article data-reveal class="collection-step-pricing">
                         <div class="collection-step__body">
-                            <p class="collection-step__meta">Simple next step</p>
-                            <h2 class="collection-step__title">Get a clear quote.</h2>
-                            <p class="collection-step__copy">Send the date, the venue, and a rough guest count. From there, I can point you to the best fit.</p>
+                            <div class="collection-step__price-row">
+                                <p class="collection-step__hours">10+ hours</p>
+                                <p class="collection-step__price">Starting at $6,800</p>
+                            </div>
+                            <h2 class="collection-step__title">Extended</h2>
+                            <p class="collection-step__headline">Full coverage, no limits.</p>
+                            <p class="collection-step__copy">Complete coverage plus welcome events, post-ceremony portraits, details, and extended reception. For weddings that demand nothing be missed.</p>
                         </div>
                     </article>
+                </div>
+
+                <div class="collection-addons" data-reveal>
+                    <p class="collection-addons__heading">Add-ons</p>
+                    <ul class="collection-addons__list">
+                        <li>Second shooter (+$1,200)</li>
+                        <li>Engagement session (+$600)</li>
+                        <li>Rehearsal coverage (+$500)</li>
+                        <li>Getting ready only (+$400)</li>
+                        <li>Additional hour (+$650)</li>
+                        <li>Custom coverage (ask in inquiry)</li>
+                    </ul>
                 </div>
             @endif
 

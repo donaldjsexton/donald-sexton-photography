@@ -17,7 +17,8 @@
       "Bash(curl -s https://donaldsextonphotography.com/admin/login)",
       "Bash(curl -s \"https://donaldsextonphotography.com/build/assets/app-D2bjqC5S.css\")",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "WebSearch"
     ]
   }
 }
