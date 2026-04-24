@@ -49,8 +49,15 @@ class CalendarSync
         }
 
         $upserted = 0;
+        $seenEventIds = [];
 
         foreach ($events as $event) {
+            $eventId = $event->getId();
+
+            if ($eventId !== null && $eventId !== '') {
+                $seenEventIds[] = $eventId;
+            }
+
             if ($this->isSpam($event)) {
                 continue;
             }
@@ -63,9 +70,33 @@ class CalendarSync
             $upserted++;
         }
 
-        Log::info("CalendarSync: Synced {$upserted} booked jobs.");
+        $cancelled = $this->cancelMissingEvents($seenEventIds);
+
+        Log::info("CalendarSync: Synced {$upserted} booked jobs, cancelled {$cancelled} deleted events.");
 
         return $upserted;
+    }
+
+    /**
+     * Mark confirmed jobs as cancelled when their Google event no longer
+     * appears in the current sync window (e.g. deleted from the calendar).
+     *
+     * @param  array<int, string>  $seenEventIds
+     */
+    private function cancelMissingEvents(array $seenEventIds): int
+    {
+        $windowStart = now()->subMonths(6)->toDateString();
+        $windowEnd = now()->addYear()->toDateString();
+
+        return BookedJob::query()
+            ->whereBetween('event_date', [$windowStart, $windowEnd])
+            ->whereNotNull('google_event_id')
+            ->where('status', 'confirmed')
+            ->when($seenEventIds !== [], fn ($query) => $query->whereNotIn('google_event_id', $seenEventIds))
+            ->update([
+                'status' => 'cancelled',
+                'synced_at' => now(),
+            ]);
     }
 
     /**

@@ -107,6 +107,70 @@ class CalendarSyncTest extends TestCase
         ]);
     }
 
+    public function test_sync_cancels_confirmed_events_missing_from_calendar(): void
+    {
+        $deleted = BookedJob::factory()->create([
+            'google_event_id' => 'evt-deleted',
+            'event_date' => now()->addMonth(),
+            'status' => 'confirmed',
+        ]);
+
+        $kept = $this->makeEvent(
+            id: 'evt-kept',
+            summary: 'Alice & Ben Wedding',
+            date: now()->addMonths(2)->toDateString(),
+        );
+        $keptJob = BookedJob::factory()->create([
+            'google_event_id' => 'evt-kept',
+            'event_date' => now()->addMonths(2),
+            'status' => 'confirmed',
+        ]);
+
+        $service = $this->buildSyncWithEvents([$kept]);
+        $service->sync();
+
+        $this->assertDatabaseHas('booked_jobs', [
+            'id' => $deleted->id,
+            'status' => 'cancelled',
+        ]);
+        $this->assertDatabaseHas('booked_jobs', [
+            'id' => $keptJob->id,
+            'status' => 'confirmed',
+        ]);
+    }
+
+    public function test_sync_does_not_cancel_events_outside_the_sync_window(): void
+    {
+        $farFuture = BookedJob::factory()->create([
+            'google_event_id' => 'evt-far',
+            'event_date' => now()->addYears(2),
+            'status' => 'confirmed',
+        ]);
+
+        $service = $this->buildSyncWithEvents([]);
+        $service->sync();
+
+        $this->assertDatabaseHas('booked_jobs', [
+            'id' => $farFuture->id,
+            'status' => 'confirmed',
+        ]);
+    }
+
+    public function test_sync_preserves_completed_jobs_missing_from_calendar(): void
+    {
+        $completed = BookedJob::factory()->completed()->create([
+            'google_event_id' => 'evt-done',
+        ]);
+
+        $service = $this->buildSyncWithEvents([]);
+        $service->sync();
+
+        $this->assertDatabaseHas('booked_jobs', [
+            'id' => $completed->id,
+            'status' => 'completed',
+        ]);
+    }
+
     public function test_sync_returns_zero_when_calendar_not_connected(): void
     {
         $googleClient = Mockery::mock(GoogleClient::class);
