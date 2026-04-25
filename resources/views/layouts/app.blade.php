@@ -10,6 +10,16 @@
         $canonicalUrl = trim($__env->yieldContent('canonical_url', url()->current()));
         $siteName = config('app.name', 'Donald Sexton Photography');
         $siteUrl = rtrim(config('app.url', url('/')), '/');
+        $ogType = trim($__env->yieldContent('og_type', 'website')) ?: 'website';
+        $rawOgImage = trim($__env->yieldContent('og_image', (string) config('seo.default_og_image', '')));
+        $ogImage = '';
+        if ($rawOgImage !== '') {
+            $ogImage = preg_match('#^https?://#i', $rawOgImage) ? $rawOgImage : url($rawOgImage);
+        }
+        $ogImageAlt = trim($__env->yieldContent('og_image_alt', $metaTitle));
+        $ogArticlePublishedTime = trim($__env->yieldContent('og_article_published_time'));
+        $ogArticleModifiedTime = trim($__env->yieldContent('og_article_modified_time'));
+        $ogArticleAuthor = trim($__env->yieldContent('og_article_author'));
         $websiteSchema = [
             '@context' => 'https://schema.org',
             '@type' => 'WebSite',
@@ -33,7 +43,7 @@
     <meta name="robots" content="index,follow,max-image-preview:large">
     <meta name="author" content="Donald Sexton Photography">
     <meta name="theme-color" content="#f9f7f4">
-    <meta property="og:type" content="website">
+    <meta property="og:type" content="{{ $ogType }}">
     <meta property="og:site_name" content="{{ $siteName }}">
     <meta property="og:locale" content="en_US">
     <meta property="og:title" content="{{ $metaTitle }}">
@@ -41,6 +51,27 @@
     <meta name="twitter:description" content="{{ $metaDescription }}">
     @if ($canonicalUrl !== '')
         <meta property="og:url" content="{{ $canonicalUrl }}">
+    @endif
+    @if ($ogImage !== '')
+        <meta property="og:image" content="{{ $ogImage }}">
+        @if ($ogImageAlt !== '')
+            <meta property="og:image:alt" content="{{ $ogImageAlt }}">
+        @endif
+        <meta name="twitter:image" content="{{ $ogImage }}">
+        @if ($ogImageAlt !== '')
+            <meta name="twitter:image:alt" content="{{ $ogImageAlt }}">
+        @endif
+    @endif
+    @if ($ogType === 'article')
+        @if ($ogArticlePublishedTime !== '')
+            <meta property="article:published_time" content="{{ $ogArticlePublishedTime }}">
+        @endif
+        @if ($ogArticleModifiedTime !== '')
+            <meta property="article:modified_time" content="{{ $ogArticleModifiedTime }}">
+        @endif
+        @if ($ogArticleAuthor !== '')
+            <meta property="article:author" content="{{ $ogArticleAuthor }}">
+        @endif
     @endif
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{{ $metaTitle }}">

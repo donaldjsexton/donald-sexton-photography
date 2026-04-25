@@ -1,6 +1,14 @@
 @extends('layouts.app')
 
+@php
+    $firstWeddingImage = $stories->getCollection()
+        ->map(fn ($story) => $story->featuredImageUrl())
+        ->first(fn ($url) => filled($url));
+@endphp
+
 @section('title', 'Weddings')
+@section('og_image', $firstWeddingImage ?: '')
+@section('og_image_alt', 'Wedding stories by Donald Sexton Photography')
 
 @section('content')
     @php
