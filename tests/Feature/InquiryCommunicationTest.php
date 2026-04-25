@@ -30,6 +30,23 @@ class InquiryCommunicationTest extends TestCase
         });
     }
 
+    public function test_inquiry_submission_with_honeypot_filled_is_silently_dropped(): void
+    {
+        Mail::fake();
+
+        $response = $this->post(route('inquiry.store'), [
+            'primary_name' => 'Bot McBotface',
+            'email' => 'bot@example.com',
+            'event_type' => 'wedding',
+            'website' => 'https://spam.example',
+        ]);
+
+        $response->assertRedirect(route('inquiry.thank-you'));
+
+        $this->assertDatabaseMissing('inquiries', ['email' => 'bot@example.com']);
+        Mail::assertNothingSent();
+    }
+
     public function test_admin_can_reply_to_inquiry(): void
     {
         Mail::fake();

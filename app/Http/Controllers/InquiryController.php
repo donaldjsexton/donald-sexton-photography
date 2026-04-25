@@ -20,6 +20,10 @@ class InquiryController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        if (filled($request->input('website'))) {
+            return redirect()->route('inquiry.thank-you');
+        }
+
         $validated = $request->validate([
             'primary_name' => ['required', 'string', 'max:255'],
             'partner_name' => ['nullable', 'string', 'max:255'],
