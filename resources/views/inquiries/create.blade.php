@@ -39,19 +39,19 @@
                             <input type="text" name="primary_name" value="{{ old('primary_name') }}" required>
                         </label>
                         <label>
-                            Partner's name
-                            <input type="text" name="partner_name" value="{{ old('partner_name') }}">
+                            Email
+                            <input type="email" name="email" value="{{ old('email') }}" required>
                         </label>
                     </div>
 
                     <div class="field-grid">
                         <label>
-                            Email
-                            <input type="email" name="email" value="{{ old('email') }}" required>
-                        </label>
-                        <label>
                             Phone
                             <input type="text" name="phone" value="{{ old('phone') }}">
+                        </label>
+                        <label>
+                            Date
+                            <input type="date" name="event_date" value="{{ old('event_date') }}">
                         </label>
                     </div>
 
@@ -59,10 +59,6 @@
                         <label>
                             What are you planning?
                             <input type="text" name="event_type" value="{{ old('event_type', 'wedding') }}" required>
-                        </label>
-                        <label>
-                            Date
-                            <input type="date" name="event_date" value="{{ old('event_date') }}">
                         </label>
                     </div>
 
@@ -81,28 +77,6 @@
                                 <input type="hidden" name="venue_id" value="{{ old('venue_id') }}" data-venue-id>
                                 <ul class="venue-autocomplete__list" data-venue-list hidden></ul>
                             </div>
-                        </label>
-                    </div>
-
-                    <div class="field-grid">
-                        <label>
-                            City
-                            <input type="text" name="location_city" value="{{ old('location_city') }}">
-                        </label>
-                        <label>
-                            Guest count
-                            <input type="text" name="guest_count_range" value="{{ old('guest_count_range') }}">
-                        </label>
-                    </div>
-
-                    <div class="field-grid">
-                        <label>
-                            Photo budget
-                            <input type="text" name="budget_range" value="{{ old('budget_range') }}">
-                        </label>
-                        <label>
-                            Instagram
-                            <input type="text" name="instagram_handle" value="{{ old('instagram_handle') }}">
                         </label>
                     </div>
 

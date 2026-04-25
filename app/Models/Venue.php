@@ -25,6 +25,8 @@ class Venue extends Model
         'hero_media_id',
         'website_url',
         'google_places_id',
+        'referral_emails',
+        'referral_contact_name',
         'is_featured',
         'seo_title',
         'seo_description',
@@ -34,6 +36,7 @@ class Venue extends Model
     {
         return [
             'is_featured' => 'boolean',
+            'referral_emails' => 'array',
         ];
     }
 

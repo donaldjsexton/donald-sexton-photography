@@ -82,6 +82,50 @@ class GmailApiReader implements GmailReader
         return $parsed;
     }
 
+    public function searchMessages(string $query, int $maxResults = 25): array
+    {
+        $gmail = $this->gmail();
+
+        if ($gmail === null) {
+            return [];
+        }
+
+        try {
+            $response = $gmail->users_messages->listUsersMessages('me', [
+                'q' => $query,
+                'maxResults' => $maxResults,
+            ]);
+        } catch (\Throwable $e) {
+            Log::warning('Gmail search failed: '.$e->getMessage());
+
+            return [];
+        }
+
+        $stubs = $response->getMessages() ?? [];
+
+        if ($stubs === []) {
+            return [];
+        }
+
+        $parsed = [];
+
+        foreach ($stubs as $stub) {
+            try {
+                $full = $gmail->users_messages->get('me', $stub->getId(), ['format' => 'full']);
+            } catch (\Throwable $e) {
+                Log::warning("Gmail message fetch failed ({$stub->getId()}): ".$e->getMessage());
+
+                continue;
+            }
+
+            $parsed[] = $this->parseMessage($full, $stub->getThreadId() ?? '');
+        }
+
+        usort($parsed, fn (ParsedGmailMessage $a, ParsedGmailMessage $b) => $b->sentAt <=> $a->sentAt);
+
+        return $parsed;
+    }
+
     private function gmail(): ?Gmail
     {
         $client = $this->googleClient->client();

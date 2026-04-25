@@ -20,4 +20,12 @@ interface GmailReader
      * @return array<int, ParsedGmailMessage>
      */
     public function fetchThreadMessages(string $threadId): array;
+
+    /**
+     * Search Gmail messages with a raw query string (Gmail search syntax).
+     * Returns up to $maxResults parsed messages, newest first.
+     *
+     * @return array<int, ParsedGmailMessage>
+     */
+    public function searchMessages(string $query, int $maxResults = 25): array;
 }

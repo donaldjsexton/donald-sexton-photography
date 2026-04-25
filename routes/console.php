@@ -1386,6 +1386,11 @@ Schedule::command('gmail:sync')
     ->withoutOverlapping()
     ->runInBackground();
 
+Schedule::command('gmail:ingest-venue-referrals')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();
+
 Schedule::command('calendar:sync')
     ->everyThirtyMinutes()
     ->withoutOverlapping()

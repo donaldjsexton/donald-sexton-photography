@@ -177,4 +177,9 @@ class FakeGmailReader implements GmailReader
     {
         return $this->messagesByThread[$threadId] ?? [];
     }
+
+    public function searchMessages(string $query, int $maxResults = 25): array
+    {
+        return [];
+    }
 }

@@ -18,6 +18,7 @@ class Inquiry extends Model
         'primary_name',
         'partner_name',
         'email',
+        'email_secondary',
         'phone',
         'sms_opt_in_transactional',
         'sms_opt_in_marketing',

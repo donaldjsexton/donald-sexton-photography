@@ -668,6 +668,15 @@ HTML,
             ->assertSee('name="venue_id"', false);
     }
 
+    public function test_inquiry_form_omits_deferred_qualification_fields(): void
+    {
+        $response = $this->get('/inquire')->assertOk();
+
+        foreach (['partner_name', 'location_city', 'guest_count_range', 'budget_range', 'instagram_handle'] as $field) {
+            $response->assertDontSee('name="'.$field.'"', false);
+        }
+    }
+
     public function test_sitemap_lists_key_public_routes_with_lastmod_metadata(): void
     {
         Page::create([
