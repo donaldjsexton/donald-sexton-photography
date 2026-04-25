@@ -3,6 +3,8 @@
 @section('title', $page?->seo_title ?: $page?->title ?: 'Collections')
 @section('meta_description', $page?->seo_description ?: $page?->excerpt ?: '')
 @section('canonical_url', $page?->canonical_url ?: url()->current())
+@section('og_image', $page?->heroMedia?->publicUrl() ?: '')
+@section('og_image_alt', $page?->title ?: 'Collections')
 
 @section('content')
     <x-editorial.page-hero

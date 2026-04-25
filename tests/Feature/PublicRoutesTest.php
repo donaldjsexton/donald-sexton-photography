@@ -735,6 +735,118 @@ HTML,
             ->assertSee('<lastmod>', false);
     }
 
+    public function test_robots_txt_advertises_sitemap_and_disallows_admin(): void
+    {
+        $response = $this->get('/robots.txt')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'text/plain; charset=UTF-8');
+
+        $body = $response->getContent();
+
+        $this->assertStringContainsString('User-agent: *', $body);
+        $this->assertStringContainsString('Disallow: /admin', $body);
+        $this->assertStringContainsString('Sitemap: '.route('sitemap'), $body);
+    }
+
+    public function test_journal_post_renders_og_image_and_article_metadata(): void
+    {
+        $hero = Media::create([
+            'disk' => 'public',
+            'path' => 'media/test/journal-hero.jpg',
+            'filename' => 'journal-hero.jpg',
+            'mime_type' => 'image/jpeg',
+            'width' => 1600,
+            'height' => 900,
+        ]);
+
+        $post = JournalPost::create([
+            'title' => 'OG Image Journal Post',
+            'slug' => 'og-image-journal-post',
+            'status' => 'published',
+            'post_type' => 'journal',
+            'author_name' => 'Donald Sexton',
+            'body' => '<p>Body.</p>',
+            'hero_media_id' => $hero->id,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $absoluteImage = url($hero->publicUrl());
+
+        $this->get('/journal/'.$post->slug)
+            ->assertOk()
+            ->assertSee('<meta property="og:type" content="article">', false)
+            ->assertSee('<meta property="og:image" content="'.$absoluteImage.'">', false)
+            ->assertSee('<meta property="og:image:alt" content="OG Image Journal Post">', false)
+            ->assertSee('<meta name="twitter:image" content="'.$absoluteImage.'">', false)
+            ->assertSee('<meta property="article:published_time" content="'.$post->published_at->toIso8601String().'">', false)
+            ->assertSee('<meta property="article:author" content="Donald Sexton">', false);
+    }
+
+    public function test_wedding_story_renders_og_image_with_absolute_url(): void
+    {
+        $hero = Media::create([
+            'disk' => 'public',
+            'path' => 'media/test/wedding-hero.jpg',
+            'filename' => 'wedding-hero.jpg',
+            'mime_type' => 'image/jpeg',
+            'width' => 1600,
+            'height' => 900,
+        ]);
+
+        $story = WeddingStory::create([
+            'title' => 'OG Image Wedding Story',
+            'slug' => 'og-image-wedding-story',
+            'status' => 'published',
+            'hero_media_id' => $hero->id,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $absoluteImage = url($hero->publicUrl());
+
+        $this->get('/weddings/'.$story->slug)
+            ->assertOk()
+            ->assertSee('<meta property="og:type" content="article">', false)
+            ->assertSee('<meta property="og:image" content="'.$absoluteImage.'">', false)
+            ->assertSee('<meta name="twitter:image" content="'.$absoluteImage.'">', false);
+    }
+
+    public function test_pages_without_a_featured_image_omit_og_image_when_no_default_configured(): void
+    {
+        config()->set('seo.default_og_image', '');
+
+        Page::create([
+            'title' => 'About',
+            'slug' => 'about',
+            'template' => 'about',
+            'status' => 'published',
+            'body' => '<p>About body.</p>',
+            'published_at' => now(),
+        ]);
+
+        $this->get('/about')
+            ->assertOk()
+            ->assertDontSee('property="og:image"', false)
+            ->assertDontSee('name="twitter:image"', false);
+    }
+
+    public function test_pages_use_configured_default_og_image_fallback(): void
+    {
+        config()->set('seo.default_og_image', '/storage/media/site/default-og.jpg');
+
+        Page::create([
+            'title' => 'About',
+            'slug' => 'about',
+            'template' => 'about',
+            'status' => 'published',
+            'body' => '<p>About body.</p>',
+            'published_at' => now(),
+        ]);
+
+        $this->get('/about')
+            ->assertOk()
+            ->assertSee('<meta property="og:image" content="'.url('/storage/media/site/default-og.jpg').'">', false);
+    }
+
     public function test_imported_wedding_story_renders_lead_once_and_splits_gallery_from_body(): void
     {
         $story = WeddingStory::create([

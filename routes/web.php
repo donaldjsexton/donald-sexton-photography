@@ -125,4 +125,18 @@ Route::put('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'u
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 
+Route::get('/robots.txt', function () {
+    $lines = [
+        'User-agent: *',
+        'Disallow: /admin',
+        'Disallow: /admin/',
+        '',
+        'Sitemap: '.route('sitemap'),
+    ];
+
+    return response(implode("\n", $lines)."\n", 200, [
+        'Content-Type' => 'text/plain; charset=UTF-8',
+    ]);
+})->name('robots');
+
 Route::fallback(LegacyRedirectController::class);

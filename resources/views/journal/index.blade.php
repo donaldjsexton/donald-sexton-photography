@@ -1,6 +1,14 @@
 @extends('layouts.app')
 
+@php
+    $firstJournalImage = $posts
+        ->map(fn ($post) => $post->featuredImageUrl())
+        ->first(fn ($url) => filled($url));
+@endphp
+
 @section('title', $title)
+@section('og_image', $firstJournalImage ?: '')
+@section('og_image_alt', $title)
 
 @section('content')
     <x-editorial.page-hero

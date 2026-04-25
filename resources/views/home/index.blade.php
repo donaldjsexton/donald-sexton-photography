@@ -1,17 +1,24 @@
 @extends('layouts.app')
 
+@php
+    $homeVisualStoryPool = $homeStories
+        ->concat($featuredStories)
+        ->unique('id')
+        ->filter(fn ($story) => filled($story?->featuredImageUrl()))
+        ->values();
+    $homeLeadImage = $homeVisualStoryPool->first()?->featuredImageUrl();
+@endphp
+
 @section('title', 'Donald Sexton Photography')
 @section('meta_description', 'Calm wedding photography for Clearwater, Tampa, and beyond. Real wedding stories, planning guidance, and straightforward next steps.')
 @section('canonical_url', url()->current())
+@section('og_image', $homeLeadImage ?: '')
+@section('og_image_alt', 'Donald Sexton Photography')
 @section('body_class', 'home-page')
 
 @section('content')
     @php
-        $visualStoryPool = $homeStories
-            ->concat($featuredStories)
-            ->unique('id')
-            ->filter(fn ($story) => filled($story?->featuredImageUrl()))
-            ->values();
+        $visualStoryPool = $homeVisualStoryPool;
         $leadStory = $visualStoryPool->get(0) ?? $homeStories->get(0) ?? $featuredStories->get(0);
         $secondStory = $visualStoryPool->get(1) ?? $homeStories->get(1) ?? $featuredStories->get(1) ?? $leadStory;
         $thirdStory = $visualStoryPool->get(2) ?? $homeStories->get(2) ?? $featuredStories->get(2) ?? $secondStory;
