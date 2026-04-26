@@ -81,6 +81,8 @@ class Inquiry extends Model
                     else 5
                 end
             ")
+            ->orderByRaw('event_date is null')
+            ->orderBy('event_date')
             ->latest('created_at');
     }
 
