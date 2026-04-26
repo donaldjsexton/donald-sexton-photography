@@ -8,13 +8,17 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Carbon;
 
 class InquiryAcknowledgment extends Mailable
 {
     use Queueable;
     use SerializesModels;
 
-    public function __construct(public Inquiry $inquiry) {}
+    /**
+     * @param  array{status: string, event_date: ?Carbon, nearby_dates: array<int, Carbon>}|null  $availability
+     */
+    public function __construct(public Inquiry $inquiry, public ?array $availability = null) {}
 
     public function envelope(): Envelope
     {
@@ -29,6 +33,11 @@ class InquiryAcknowledgment extends Mailable
             view: 'emails.inquiries.acknowledgment',
             with: [
                 'inquiry' => $this->inquiry,
+                'availability' => $this->availability ?? [
+                    'status' => 'unknown',
+                    'event_date' => $this->inquiry->event_date,
+                    'nearby_dates' => [],
+                ],
             ],
         );
     }

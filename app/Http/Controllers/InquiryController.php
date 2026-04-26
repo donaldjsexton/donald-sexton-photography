@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\InquiryAcknowledgment;
 use App\Mail\InquiryReceived;
 use App\Models\Inquiry;
+use App\Services\InquiryAvailabilityService;
 use App\Services\WebPushService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -117,8 +118,10 @@ class InquiryController extends Controller
     private function acknowledgeClient(Inquiry $inquiry): void
     {
         try {
+            $availability = app(InquiryAvailabilityService::class)->forDate($inquiry->event_date);
+
             Mail::to($inquiry->email, $inquiry->primary_name)
-                ->send(new InquiryAcknowledgment($inquiry));
+                ->send(new InquiryAcknowledgment($inquiry, $availability));
         } catch (\Throwable $exception) {
             report($exception);
         }

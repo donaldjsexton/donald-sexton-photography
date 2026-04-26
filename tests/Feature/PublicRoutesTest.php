@@ -162,7 +162,8 @@ class PublicRoutesTest extends TestCase
             ->assertSee('<meta name="description" content="Calm wedding photography for Clearwater, Tampa, and beyond. Real wedding stories, planning guidance, and straightforward next steps.">', false)
             ->assertSee('<meta name="robots" content="index,follow,max-image-preview:large">', false)
             ->assertSee('"@type":"WebSite"', false)
-            ->assertSee('"@type":"ProfessionalService"', false);
+            ->assertSee('"@type":"WeddingPhotographer"', false)
+            ->assertSee('"addressLocality":"Clearwater"', false);
     }
 
     public function test_public_layout_renders_google_analytics_when_platform_setting_exists(): void

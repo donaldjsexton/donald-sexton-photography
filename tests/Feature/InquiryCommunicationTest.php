@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Mail\InquiryAcknowledgment;
 use App\Mail\InquiryReply;
+use App\Models\BookedJob;
 use App\Models\Inquiry;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
@@ -28,6 +30,56 @@ class InquiryCommunicationTest extends TestCase
             return $mail->hasTo('jane@example.com')
                 && $mail->inquiry->primary_name === 'Jane Doe';
         });
+    }
+
+    public function test_acknowledgment_says_date_is_open_when_no_confirmed_booking_exists(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2027-01-15'));
+
+        $inquiry = Inquiry::factory()->create([
+            'event_date' => '2027-09-11',
+            'event_type' => 'wedding',
+        ]);
+
+        $rendered = (new InquiryAcknowledgment($inquiry, [
+            'status' => 'available',
+            'event_date' => Carbon::parse('2027-09-11'),
+            'nearby_dates' => [],
+        ]))->render();
+
+        $this->assertStringContainsString('September 11, 2027 is open on my calendar', $rendered);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_acknowledgment_lists_nearby_saturdays_when_requested_date_is_booked(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2027-01-15'));
+
+        BookedJob::factory()->create([
+            'event_date' => '2027-09-11',
+            'status' => 'confirmed',
+        ]);
+
+        $inquiry = Inquiry::factory()->create([
+            'event_date' => '2027-09-11',
+            'event_type' => 'wedding',
+        ]);
+
+        $rendered = (new InquiryAcknowledgment($inquiry, [
+            'status' => 'unavailable',
+            'event_date' => Carbon::parse('2027-09-11'),
+            'nearby_dates' => [
+                Carbon::parse('2027-09-04'),
+                Carbon::parse('2027-09-18'),
+            ],
+        ]))->render();
+
+        $this->assertStringContainsString('September 11, 2027 is already on the calendar', $rendered);
+        $this->assertStringContainsString('Saturday, September 4, 2027', $rendered);
+        $this->assertStringContainsString('Saturday, September 18, 2027', $rendered);
+
+        Carbon::setTestNow();
     }
 
     public function test_inquiry_submission_with_honeypot_filled_is_silently_dropped(): void

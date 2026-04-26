@@ -17,6 +17,16 @@
 @section('og_article_published_time', $story->published_at?->toIso8601String() ?: '')
 @section('og_article_modified_time', $story->updated_at?->toIso8601String() ?: '')
 
+@push('json_ld')
+    @if ($story->venue)
+        <script type="application/ld+json">{!! json_encode(\App\Support\StructuredData::place($story->venue->loadMissing('heroMedia')), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    @endif
+    @php
+        $schemaGalleryMedia = \App\Support\StructuredData::galleryMediaForStory($story, $pictime);
+    @endphp
+    <script type="application/ld+json">{!! json_encode(\App\Support\StructuredData::weddingStory($story, $schemaGalleryMedia), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+@endpush
+
 @section('content')
     @php
         $heroMedia = $pictime->heroMedia();
