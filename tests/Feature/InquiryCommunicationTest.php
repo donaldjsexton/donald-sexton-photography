@@ -72,6 +72,85 @@ class InquiryCommunicationTest extends TestCase
         });
     }
 
+    public function test_first_outbound_to_admin_created_lead_uses_fresh_subject_with_event_type_and_date(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->create([
+            'source' => 'admin',
+            'event_type' => 'wedding',
+            'event_date' => '2026-09-12',
+        ]);
+
+        $this->actingAs($user)->post(route('admin.inquiries.reply', $inquiry), [
+            'body' => 'Welcome — would love to chat about your day.',
+        ]);
+
+        Mail::assertSent(InquiryReply::class, function (InquiryReply $mail): bool {
+            return $mail->envelope()->subject === 'Donald Sexton Photography — Wedding on September 12, 2026';
+        });
+    }
+
+    public function test_first_outbound_to_admin_created_lead_without_event_date_omits_date(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->create([
+            'source' => 'admin',
+            'event_type' => 'engagement',
+            'event_date' => null,
+        ]);
+
+        $this->actingAs($user)->post(route('admin.inquiries.reply', $inquiry), [
+            'body' => 'Glad to connect.',
+        ]);
+
+        Mail::assertSent(InquiryReply::class, function (InquiryReply $mail): bool {
+            return $mail->envelope()->subject === 'Donald Sexton Photography — Engagement inquiry';
+        });
+    }
+
+    public function test_subsequent_outbound_to_admin_created_lead_uses_reply_subject(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->create(['source' => 'admin']);
+        $inquiry->messages()->create([
+            'direction' => 'outbound',
+            'body' => 'Earlier note.',
+            'sender_name' => $user->name,
+            'sender_email' => config('mail.from.address'),
+            'sent_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($user)->post(route('admin.inquiries.reply', $inquiry), [
+            'body' => 'Following up.',
+        ]);
+
+        Mail::assertSent(InquiryReply::class, function (InquiryReply $mail): bool {
+            return $mail->envelope()->subject === 'Re: Your inquiry — Donald Sexton Photography';
+        });
+    }
+
+    public function test_first_outbound_to_form_submitted_lead_still_uses_reply_subject(): void
+    {
+        Mail::fake();
+
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->create(['source' => 'site_form']);
+
+        $this->actingAs($user)->post(route('admin.inquiries.reply', $inquiry), [
+            'body' => 'Thanks for reaching out!',
+        ]);
+
+        Mail::assertSent(InquiryReply::class, function (InquiryReply $mail): bool {
+            return $mail->envelope()->subject === 'Re: Your inquiry — Donald Sexton Photography';
+        });
+    }
+
     public function test_first_reply_records_response_time_and_activates_inquiry(): void
     {
         Mail::fake();

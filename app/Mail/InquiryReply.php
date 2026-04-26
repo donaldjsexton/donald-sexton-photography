@@ -23,8 +23,42 @@ class InquiryReply extends Mailable
     public function envelope(): Envelope
     {
         return new Envelope(
-            subject: 'Re: Your inquiry — Donald Sexton Photography',
+            subject: $this->resolveSubject(),
         );
+    }
+
+    private function resolveSubject(): string
+    {
+        if (! $this->isInitialAdminOutreach()) {
+            return 'Re: Your inquiry — Donald Sexton Photography';
+        }
+
+        $eventType = str((string) $this->inquiry->event_type)
+            ->replace('_', ' ')
+            ->headline()
+            ->toString();
+
+        if ($eventType === '') {
+            $eventType = 'Photography';
+        }
+
+        $eventDate = $this->inquiry->event_date?->format('F j, Y');
+
+        return $eventDate !== null
+            ? "Donald Sexton Photography — {$eventType} on {$eventDate}"
+            : "Donald Sexton Photography — {$eventType} inquiry";
+    }
+
+    private function isInitialAdminOutreach(): bool
+    {
+        if ($this->inquiry->source !== 'admin') {
+            return false;
+        }
+
+        return $this->inquiry->messages()
+            ->where('direction', 'outbound')
+            ->whereKeyNot($this->message->getKey())
+            ->doesntExist();
     }
 
     public function content(): Content
