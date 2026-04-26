@@ -26,6 +26,7 @@ class VenueController extends Controller
     {
         return view('venues.index', [
             'venues' => Venue::query()
+                ->with('heroMedia')
                 ->where(function ($query) {
                     $query->whereHas('journalPosts', fn ($related) => $related->published())
                         ->orWhereHas('weddingStories', fn ($related) => $related->published());

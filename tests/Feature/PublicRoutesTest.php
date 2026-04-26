@@ -538,6 +538,89 @@ HTML,
         $this->assertNotContains('draft-only-venue', $listedSlugs);
     }
 
+    public function test_venue_index_renders_hero_image_for_tagged_venues(): void
+    {
+        $hero = Media::create([
+            'disk' => 'public',
+            'path' => 'media/test/venue-hero.jpg',
+            'filename' => 'venue-hero.jpg',
+            'mime_type' => 'image/jpeg',
+            'width' => 1600,
+            'height' => 1200,
+        ]);
+
+        $venue = Venue::create([
+            'name' => 'Sunlit Pavilion',
+            'slug' => 'sunlit-pavilion',
+            'summary' => 'Venue summary.',
+            'hero_media_id' => $hero->id,
+        ]);
+
+        WeddingStory::create([
+            'title' => 'Sunlit Pavilion Wedding',
+            'slug' => 'sunlit-pavilion-wedding',
+            'status' => 'published',
+            'venue_id' => $venue->id,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get('/venues')
+            ->assertOk()
+            ->assertSee('media/test/venue-hero.jpg', false)
+            ->assertSee('archive-card__media', false);
+    }
+
+    public function test_venue_show_renders_hero_image_for_related_stories_and_posts(): void
+    {
+        $venue = Venue::create([
+            'name' => 'Hilltop House',
+            'slug' => 'hilltop-house',
+            'summary' => 'Venue summary.',
+        ]);
+
+        $storyHero = Media::create([
+            'disk' => 'public',
+            'path' => 'media/test/story-hero.jpg',
+            'filename' => 'story-hero.jpg',
+            'mime_type' => 'image/jpeg',
+            'width' => 1600,
+            'height' => 1200,
+        ]);
+
+        $postHero = Media::create([
+            'disk' => 'public',
+            'path' => 'media/test/post-hero.jpg',
+            'filename' => 'post-hero.jpg',
+            'mime_type' => 'image/jpeg',
+            'width' => 1600,
+            'height' => 1200,
+        ]);
+
+        WeddingStory::create([
+            'title' => 'Hilltop Wedding',
+            'slug' => 'hilltop-wedding',
+            'status' => 'published',
+            'venue_id' => $venue->id,
+            'hero_media_id' => $storyHero->id,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $post = JournalPost::create([
+            'title' => 'Hilltop Planning Notes',
+            'slug' => 'hilltop-planning-notes',
+            'status' => 'published',
+            'post_type' => 'advice',
+            'hero_media_id' => $postHero->id,
+            'published_at' => now()->subDay(),
+        ]);
+        $post->venues()->attach($venue);
+
+        $this->get('/venues/'.$venue->slug)
+            ->assertOk()
+            ->assertSee('media/test/story-hero.jpg', false)
+            ->assertSee('media/test/post-hero.jpg', false);
+    }
+
     public function test_journal_post_show_lists_tagged_venues_with_browse_all_link(): void
     {
         $venue = Venue::create([
