@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\BookedJob;
 use App\Models\HomepageSetting;
 use App\Models\ImportRun;
 use App\Models\Inquiry;
@@ -13,6 +14,7 @@ use App\Models\SiteSetting;
 use App\Models\WeddingStory;
 use App\Services\CrmMetrics;
 use App\Services\MarketingHealth;
+use Illuminate\Support\Collection;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -35,9 +37,57 @@ class DashboardController extends Controller
             'marketingHealth' => $this->marketingHealth->snapshot($siteSettings),
             'contentOps' => $this->contentOpsData($siteSettings, $latestFailedImport),
             'quickActions' => $this->quickActions(),
+            'thisWeek' => $this->thisWeekJobs(),
+            'needsReply' => $this->needsReplyInquiries(),
             'recentInquiries' => Inquiry::query()->latest()->limit(5)->get(),
             'recentImports' => ImportRun::query()->latest()->limit(5)->get(),
         ]);
+    }
+
+    /**
+     * Booked jobs in the next 7 days (today through today+6).
+     *
+     * @return Collection<int, BookedJob>
+     */
+    private function thisWeekJobs(): Collection
+    {
+        return BookedJob::query()
+            ->whereBetween('event_date', [today(), today()->copy()->addDays(6)])
+            ->where('status', 'confirmed')
+            ->orderBy('event_date')
+            ->orderBy('event_time')
+            ->limit(10)
+            ->get();
+    }
+
+    /**
+     * Inquiries that have not yet been responded to. Returns count + oldest waiting.
+     *
+     * @return array{count: int, oldestHours: ?int, items: Collection<int, Inquiry>}
+     */
+    private function needsReplyInquiries(): array
+    {
+        $items = Inquiry::query()
+            ->whereNull('first_responded_at')
+            ->whereIn('status', ['new', 'active'])
+            ->orderBy('created_at')
+            ->limit(5)
+            ->get();
+
+        $count = Inquiry::query()
+            ->whereNull('first_responded_at')
+            ->whereIn('status', ['new', 'active'])
+            ->count();
+
+        $oldest = $items->first();
+
+        return [
+            'count' => $count,
+            'oldestHours' => $oldest && $oldest->created_at
+                ? (int) $oldest->created_at->diffInHours(now())
+                : null,
+            'items' => $items,
+        ];
     }
 
     /**
@@ -128,24 +178,24 @@ class DashboardController extends Controller
     {
         return [
             [
+                'label' => 'New Inquiry',
+                'href' => route('admin.inquiries.create'),
+                'description' => 'Log a lead from a referral, call, or DM that did not come through the form.',
+            ],
+            [
+                'label' => 'Open Calendar',
+                'href' => route('admin.booked-jobs.index'),
+                'description' => 'Confirmed shoots and upcoming weeks at a glance.',
+            ],
+            [
                 'label' => 'Edit Homepage',
                 'href' => route('admin.homepage.edit'),
                 'description' => 'Update hero copy, featured stories, and curated journal selections.',
             ],
             [
-                'label' => 'Review Inquiries',
-                'href' => route('admin.inquiries.index'),
-                'description' => 'Sort new leads, update statuses, and keep the pipeline current.',
-            ],
-            [
                 'label' => 'Review Media',
                 'href' => route('admin.media.index'),
                 'description' => 'Audit focal points, alt text, and uploaded image inventory.',
-            ],
-            [
-                'label' => 'Open Settings',
-                'href' => route('admin.settings.edit'),
-                'description' => 'Manage analytics and import operations from one place.',
             ],
         ];
     }

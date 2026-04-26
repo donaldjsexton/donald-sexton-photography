@@ -60,7 +60,7 @@
     </nav>
 
     <div class="admin-table-wrap">
-        <table class="admin-table">
+        <table class="admin-table admin-table--cards">
             <thead>
                 <tr>
                     <th>Lead</th>

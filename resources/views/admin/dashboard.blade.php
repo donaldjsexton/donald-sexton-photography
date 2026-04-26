@@ -51,6 +51,63 @@
 
     <section class="admin-dashboard-row">
         <x-admin.section-header
+            eyebrow="On Your Plate"
+            title="Needs reply &amp; this week"
+            description="Leads waiting on a first response, plus shoots in the next seven days."
+        />
+
+        <div class="admin-grid admin-grid--two">
+            <x-admin.panel eyebrow="Needs reply">
+                @if ($needsReply['count'] === 0)
+                    <p class="meta">All current leads have a first reply on the books.</p>
+                @else
+                    <p class="admin-stat">
+                        {{ $needsReply['count'] }}
+                        <span class="meta">
+                            {{ \Illuminate\Support\Str::plural('lead', $needsReply['count']) }} waiting
+                            @if ($needsReply['oldestHours'] !== null)
+                                · oldest {{ $needsReply['oldestHours'] }}h
+                            @endif
+                        </span>
+                    </p>
+                    <x-admin.list>
+                        @foreach ($needsReply['items'] as $inquiry)
+                            <x-admin.list-item
+                                :title="$inquiry->primary_name.' · '.($inquiry->event_date?->format('M j, Y') ?: 'No date')"
+                                :meta="$inquiry->email.' · received '.$inquiry->created_at?->diffForHumans()"
+                                :href="route('admin.inquiries.edit', $inquiry)"
+                            />
+                        @endforeach
+                    </x-admin.list>
+                    <a class="cta-secondary" href="{{ route('admin.inquiries.index', ['status' => 'new']) }}">Open New Inquiries</a>
+                @endif
+            </x-admin.panel>
+
+            <x-admin.panel eyebrow="This week">
+                @if ($thisWeek->isEmpty())
+                    <p class="meta">No confirmed shoots in the next seven days.</p>
+                @else
+                    <p class="admin-stat">
+                        {{ $thisWeek->count() }}
+                        <span class="meta">{{ \Illuminate\Support\Str::plural('shoot', $thisWeek->count()) }} through {{ today()->copy()->addDays(6)->format('M j') }}</span>
+                    </p>
+                    <x-admin.list>
+                        @foreach ($thisWeek as $job)
+                            <x-admin.list-item
+                                :title="($job->couple_names ?: $job->summary ?: 'Booked shoot').' · '.($job->event_date?->format('D, M j') ?: '')"
+                                :meta="trim(collect([$job->event_time, $job->location])->filter()->implode(' · ')) ?: 'Time/location TBD'"
+                                :href="route('admin.booked-jobs.show', $job)"
+                            />
+                        @endforeach
+                    </x-admin.list>
+                    <a class="cta-secondary" href="{{ route('admin.booked-jobs.index') }}">Open Calendar</a>
+                @endif
+            </x-admin.panel>
+        </div>
+    </section>
+
+    <section class="admin-dashboard-row">
+        <x-admin.section-header
             eyebrow="Quick Actions"
             title="Common next steps"
         />

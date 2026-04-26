@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\PageController as AdminPageController;
 use App\Http\Controllers\Admin\PicTimeImportController as AdminPicTimeImportController;
 use App\Http\Controllers\Admin\PushSubscriptionController as AdminPushSubscriptionController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\VenueController as AdminVenueController;
 use App\Http\Controllers\Admin\WeddingStoryController as AdminWeddingStoryController;
 use App\Http\Controllers\Admin\WordPressImportController as AdminWordPressImportController;
 use App\Http\Controllers\CollectionController;
@@ -85,6 +86,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/journal-posts', [AdminJournalPostController::class, 'store'])->name('journal-posts.store');
         Route::get('/journal-posts/{journalPost}/edit', [AdminJournalPostController::class, 'edit'])->name('journal-posts.edit');
         Route::put('/journal-posts/{journalPost}', [AdminJournalPostController::class, 'update'])->name('journal-posts.update');
+
+        Route::get('/venues', [AdminVenueController::class, 'index'])->name('venues.index');
+        Route::get('/venues/create', [AdminVenueController::class, 'create'])->name('venues.create');
+        Route::post('/venues', [AdminVenueController::class, 'store'])->name('venues.store');
+        Route::get('/venues/{venue}/edit', [AdminVenueController::class, 'edit'])->name('venues.edit');
+        Route::put('/venues/{venue}', [AdminVenueController::class, 'update'])->name('venues.update');
+        Route::delete('/venues/{venue}', [AdminVenueController::class, 'destroy'])->name('venues.destroy');
 
         Route::get('/imports', [AdminImportRunController::class, 'index'])->name('imports.index');
         Route::get('/imports/wordpress', [AdminWordPressImportController::class, 'index'])->name('imports.wordpress.index');
