@@ -6,6 +6,10 @@
 @section('og_image', $venue->heroMedia?->publicUrl() ?: '')
 @section('og_image_alt', $venue->name)
 
+@push('json_ld')
+    <script type="application/ld+json">{!! json_encode(\App\Support\StructuredData::place($venue), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+@endpush
+
 @section('content')
     @php
         $hasStories = $stories->isNotEmpty();

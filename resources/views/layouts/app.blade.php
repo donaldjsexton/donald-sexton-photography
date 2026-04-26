@@ -25,15 +25,9 @@
             '@type' => 'WebSite',
             'name' => $siteName,
             'url' => $siteUrl,
+            'publisher' => ['@id' => \App\Support\StructuredData::organizationId()],
         ];
-        $businessSchema = [
-            '@context' => 'https://schema.org',
-            '@type' => 'ProfessionalService',
-            'name' => $siteName,
-            'url' => $siteUrl,
-            'description' => $defaultDescription,
-            'areaServed' => ['Clearwater', 'Tampa', 'Florida'],
-        ];
+        $businessSchema = \App\Support\StructuredData::organization();
     @endphp
     <title>{{ $metaTitle }}</title>
     <meta name="description" content="{{ $metaDescription }}">
@@ -79,6 +73,7 @@
     <link href="https://fonts.bunny.net/css?family=cormorant-garamond:400,500,600,700|jost:300,400,500,600" rel="stylesheet" />
     <script type="application/ld+json">{!! json_encode($websiteSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
     <script type="application/ld+json">{!! json_encode($businessSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    @stack('json_ld')
     @if ($analyticsMeasurementId)
         <script async src="https://www.googletagmanager.com/gtag/js?id={{ $analyticsMeasurementId }}"></script>
         <script>

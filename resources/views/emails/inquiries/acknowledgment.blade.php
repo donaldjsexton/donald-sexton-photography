@@ -11,7 +11,22 @@
 
         <p style="margin:0 0 16px; color:#4a3f36;">I received your note and will be in touch soon — usually within one business day.</p>
 
-        @if ($inquiry->event_date)
+        @if (($availability['status'] ?? null) === 'available' && $availability['event_date'])
+            <p style="margin:0 0 16px; color:#3f5b3a;"><strong>Good news — {{ $availability['event_date']->format('F j, Y') }} is open on my calendar.</strong> I&rsquo;ll follow up with next steps shortly.</p>
+        @elseif (($availability['status'] ?? null) === 'unavailable' && $availability['event_date'])
+            <p style="margin:0 0 12px; color:#7a4536;"><strong>{{ $availability['event_date']->format('F j, Y') }} is already on the calendar</strong> — but I wanted to let you know right away rather than leave you waiting.</p>
+            @if (! empty($availability['nearby_dates']))
+                <p style="margin:0 0 8px; color:#4a3f36;">If a nearby weekend would still work, these are open:</p>
+                <ul style="margin:0 0 16px 20px; padding:0; color:#4a3f36;">
+                    @foreach ($availability['nearby_dates'] as $date)
+                        <li>{{ $date->format('l, F j, Y') }}</li>
+                    @endforeach
+                </ul>
+                <p style="margin:0 0 16px; color:#4a3f36;">Just reply to this email if any of those work, or share a few flexible dates and I&rsquo;ll see what I can do.</p>
+            @else
+                <p style="margin:0 0 16px; color:#4a3f36;">If you have any flexibility on the date, reply with a few options and I&rsquo;ll see what I can do.</p>
+            @endif
+        @elseif ($inquiry->event_date)
             <p style="margin:0 0 16px; color:#4a3f36;">I see your date is <strong>{{ $inquiry->event_date->format('F j, Y') }}</strong>. I will check availability and get back to you with next steps.</p>
         @endif
 
