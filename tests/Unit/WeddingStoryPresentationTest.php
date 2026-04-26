@@ -76,6 +76,32 @@ HTML,
         );
     }
 
+    public function test_featured_image_url_falls_back_to_first_attached_media_when_loaded(): void
+    {
+        $story = new WeddingStory([
+            'body' => '<p>Lead paragraph.</p><figure class="wp-import-gallery"><figure class="wp-import-image"><img src="https://example.test/body-image.jpg" alt=""></figure></figure>',
+            'original_wp_post_id' => 707,
+        ]);
+
+        $story->setRelation('media', collect([
+            new Media([
+                'disk' => 'public',
+                'path' => 'imports/pictime/sample/gallery-first.jpg',
+                'filename' => 'gallery-first.jpg',
+            ]),
+            new Media([
+                'disk' => 'public',
+                'path' => 'imports/pictime/sample/gallery-second.jpg',
+                'filename' => 'gallery-second.jpg',
+            ]),
+        ]));
+
+        $this->assertSame(
+            '/storage/imports/pictime/sample/gallery-first.jpg',
+            $story->featuredImageUrl()
+        );
+    }
+
     public function test_featured_image_url_ignores_legacy_wordpress_uploads(): void
     {
         config()->set('app.url', 'https://donaldsextonphotography.com');

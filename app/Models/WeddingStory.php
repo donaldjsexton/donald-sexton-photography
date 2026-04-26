@@ -180,6 +180,14 @@ class WeddingStory extends Model
             return $this->heroMedia->publicUrl();
         }
 
+        if ($this->relationLoaded('media')) {
+            $firstAttached = $this->media->first(fn (Media $media) => filled($media->path));
+
+            if ($firstAttached) {
+                return $firstAttached->publicUrl();
+            }
+        }
+
         return $this->featuredImageUrlFromBody();
     }
 
@@ -282,11 +290,13 @@ class WeddingStory extends Model
 
                 if ($leadText === null && $this->isLeadParagraph($child)) {
                     $leadText = $this->normalizeImportedText($childHtml);
+
                     continue;
                 }
 
                 if ($galleryHtml === null && $this->isImportedGallery($child)) {
                     $galleryHtml = $childHtml;
+
                     continue;
                 }
 
