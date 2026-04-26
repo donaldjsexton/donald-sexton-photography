@@ -53,27 +53,23 @@
             </label>
         </div>
 
-        <div class="field-grid">
-            <label>
-                Hero media
-                <select name="hero_media_id">
-                    <option value="">Select media</option>
-                    @foreach ($mediaItems as $media)
-                        <option value="{{ $media->id }}" @selected((string) old('hero_media_id', $story->hero_media_id) === (string) $media->id)>#{{ $media->id }} · {{ $media->filename }}</option>
-                    @endforeach
-                </select>
-            </label>
+        <x-admin.media-picker
+            name="hero_media_id"
+            label="Hero media"
+            help-text="Search by filename, alt text, or ID."
+            :value="$story->hero_media_id"
+            :media="$story->heroMedia"
+        />
 
-            <label>
-                Venue
-                <select name="venue_id">
-                    <option value="">Select venue</option>
-                    @foreach ($venues as $venue)
-                        <option value="{{ $venue->id }}" @selected((string) old('venue_id', $story->venue_id) === (string) $venue->id)>{{ $venue->name }}</option>
-                    @endforeach
-                </select>
-            </label>
-        </div>
+        <label>
+            Venue
+            <select name="venue_id">
+                <option value="">Select venue</option>
+                @foreach ($venues as $venue)
+                    <option value="{{ $venue->id }}" @selected((string) old('venue_id', $story->venue_id) === (string) $venue->id)>{{ $venue->name }}</option>
+                @endforeach
+            </select>
+        </label>
 
         <div class="field-grid">
             <label>

@@ -21,24 +21,18 @@
         @csrf
         @method('PUT')
 
-        <div class="field-grid">
-            <label>
-                Hero heading
-                <input type="text" name="hero_heading" value="{{ old('hero_heading', $settings->hero_heading) }}">
-            </label>
+        <label>
+            Hero heading
+            <input type="text" name="hero_heading" value="{{ old('hero_heading', $settings->hero_heading) }}">
+        </label>
 
-            <label>
-                Hero media
-                <select name="hero_media_id">
-                    <option value="">Select media</option>
-                    @foreach ($mediaItems as $media)
-                        <option value="{{ $media->id }}" @selected((string) old('hero_media_id', $settings->hero_media_id) === (string) $media->id)>
-                            #{{ $media->id }} · {{ $media->filename }}
-                        </option>
-                    @endforeach
-                </select>
-            </label>
-        </div>
+        <x-admin.media-picker
+            name="hero_media_id"
+            label="Hero media"
+            help-text="Search by filename, alt text, or ID."
+            :value="$settings->hero_media_id"
+            :media="$settings->heroMedia"
+        />
 
         <label>
             Hero subheading

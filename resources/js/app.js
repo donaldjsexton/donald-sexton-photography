@@ -554,3 +554,327 @@ if (venueWidget) {
         }, 150);
     });
 }
+
+// ── Media picker ──
+const mediaPickers = document.querySelectorAll('[data-media-picker]');
+
+if (mediaPickers.length > 0) {
+    let modal = null;
+    let modalSearch = null;
+    let modalGrid = null;
+    let modalStatus = null;
+    let modalLoadMore = null;
+    let activePicker = null;
+    let currentPage = 1;
+    let lastPage = 1;
+    let isLoading = false;
+    let searchDebounce = null;
+    let lastFocusedTrigger = null;
+
+    const ensureModal = () => {
+        if (modal) {
+            return;
+        }
+
+        modal = document.createElement('div');
+        modal.className = 'media-picker-modal';
+        modal.setAttribute('role', 'dialog');
+        modal.setAttribute('aria-modal', 'true');
+        modal.setAttribute('aria-label', 'Choose media');
+        modal.hidden = true;
+        modal.innerHTML = `
+            <div class="media-picker-modal__backdrop" data-modal-close></div>
+            <div class="media-picker-modal__panel">
+                <header class="media-picker-modal__header">
+                    <div class="media-picker-modal__heading">
+                        <p class="eyebrow">Media library</p>
+                        <h2>Choose an image</h2>
+                    </div>
+                    <button type="button" class="media-picker-modal__close" data-modal-close aria-label="Close">&times;</button>
+                </header>
+                <div class="media-picker-modal__toolbar">
+                    <input type="search" class="media-picker-modal__search" placeholder="Search by filename, alt text, or ID…" autocomplete="off">
+                    <span class="media-picker-modal__status" aria-live="polite"></span>
+                </div>
+                <div class="media-picker-modal__grid" tabindex="0"></div>
+                <footer class="media-picker-modal__footer">
+                    <button type="button" class="cta-secondary media-picker-modal__more" hidden>Load more</button>
+                </footer>
+            </div>
+        `;
+
+        document.body.appendChild(modal);
+
+        modalSearch = modal.querySelector('.media-picker-modal__search');
+        modalGrid = modal.querySelector('.media-picker-modal__grid');
+        modalStatus = modal.querySelector('.media-picker-modal__status');
+        modalLoadMore = modal.querySelector('.media-picker-modal__more');
+
+        modal.querySelectorAll('[data-modal-close]').forEach((node) => {
+            node.addEventListener('click', closeModal);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !modal.hidden) {
+                closeModal();
+            }
+        });
+
+        modalSearch.addEventListener('input', () => {
+            clearTimeout(searchDebounce);
+            searchDebounce = setTimeout(() => loadResults(true), 220);
+        });
+
+        modalLoadMore.addEventListener('click', () => loadResults(false));
+
+        modalGrid.addEventListener('click', (event) => {
+            const tile = event.target.closest('[data-media-tile]');
+
+            if (!tile) {
+                return;
+            }
+
+            applySelection({
+                id: tile.dataset.id,
+                filename: tile.dataset.filename,
+                url: tile.dataset.url,
+                altText: tile.dataset.altText,
+            });
+        });
+    };
+
+    const setLoading = (loading) => {
+        isLoading = loading;
+        modalLoadMore.disabled = loading;
+
+        if (loading) {
+            modalLoadMore.textContent = 'Loading…';
+        } else {
+            modalLoadMore.textContent = 'Load more';
+        }
+    };
+
+    const renderTiles = (items, append) => {
+        if (!append) {
+            modalGrid.innerHTML = '';
+        }
+
+        if (items.length === 0 && !append) {
+            const empty = document.createElement('p');
+            empty.className = 'media-picker-modal__empty';
+            empty.textContent = 'No media matched your search.';
+            modalGrid.appendChild(empty);
+
+            return;
+        }
+
+        items.forEach((media) => {
+            const tile = document.createElement('button');
+            tile.type = 'button';
+            tile.className = 'media-picker-tile';
+            tile.dataset.mediaTile = '';
+            tile.dataset.id = media.id;
+            tile.dataset.filename = media.filename || '';
+            tile.dataset.url = media.url || '';
+            tile.dataset.altText = media.alt_text || '';
+
+            const figure = document.createElement('span');
+            figure.className = 'media-picker-tile__image';
+
+            if (media.url) {
+                const img = document.createElement('img');
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                img.src = media.url;
+                img.alt = media.alt_text || media.filename || '';
+                figure.appendChild(img);
+            }
+
+            const meta = document.createElement('span');
+            meta.className = 'media-picker-tile__meta';
+            meta.innerHTML = `
+                <strong>${escapeHtml(media.filename || 'Untitled')}</strong>
+                <span class="meta">#${media.id}</span>
+            `;
+
+            tile.appendChild(figure);
+            tile.appendChild(meta);
+            modalGrid.appendChild(tile);
+        });
+    };
+
+    const escapeHtml = (value) => String(value)
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#39;');
+
+    const loadResults = (reset) => {
+        if (!activePicker || isLoading) {
+            return;
+        }
+
+        const endpoint = activePicker.dataset.mediaPickerEndpoint;
+
+        if (!endpoint) {
+            return;
+        }
+
+        if (reset) {
+            currentPage = 1;
+            lastPage = 1;
+            modalStatus.textContent = 'Searching…';
+            modalGrid.scrollTop = 0;
+        } else {
+            currentPage += 1;
+        }
+
+        const params = new URLSearchParams();
+        const term = modalSearch.value.trim();
+
+        if (term !== '') {
+            params.set('q', term);
+        }
+
+        params.set('page', String(currentPage));
+
+        setLoading(true);
+
+        fetch(`${endpoint}?${params.toString()}`, {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Request failed');
+                }
+
+                return response.json();
+            })
+            .then((payload) => {
+                lastPage = payload.last_page || 1;
+                renderTiles(payload.data || [], !reset);
+                modalLoadMore.hidden = !payload.has_more;
+                modalStatus.textContent = `${payload.total} result${payload.total === 1 ? '' : 's'}`;
+            })
+            .catch(() => {
+                modalStatus.textContent = 'Could not load media. Try again.';
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    };
+
+    const openModal = (picker) => {
+        ensureModal();
+        activePicker = picker;
+        lastFocusedTrigger = picker.querySelector('[data-media-picker-open]');
+        modal.hidden = false;
+        document.body.classList.add('media-picker-modal-open');
+        modalSearch.value = '';
+        modalGrid.innerHTML = '';
+        modalLoadMore.hidden = true;
+        modalStatus.textContent = '';
+        loadResults(true);
+        setTimeout(() => modalSearch.focus(), 50);
+    };
+
+    function closeModal() {
+        if (!modal || modal.hidden) {
+            return;
+        }
+
+        modal.hidden = true;
+        document.body.classList.remove('media-picker-modal-open');
+        activePicker = null;
+        lastFocusedTrigger?.focus();
+    }
+
+    const applySelection = (media) => {
+        if (!activePicker) {
+            return;
+        }
+
+        const input = activePicker.querySelector('[data-media-picker-value]');
+        const surface = activePicker.querySelector('[data-media-picker-surface]');
+        const preview = activePicker.querySelector('[data-media-picker-preview]');
+        const filenameNode = activePicker.querySelector('[data-media-picker-filename]');
+        const idNode = activePicker.querySelector('[data-media-picker-id]');
+        const clearButton = activePicker.querySelector('[data-media-picker-clear]');
+
+        if (input) {
+            input.value = media.id;
+        }
+
+        surface?.classList.remove('is-empty');
+
+        if (preview) {
+            preview.innerHTML = '';
+
+            if (media.url) {
+                const img = document.createElement('img');
+                img.src = media.url;
+                img.alt = media.altText || media.filename || '';
+                img.loading = 'lazy';
+                img.dataset.mediaPickerPreviewImage = '';
+                preview.appendChild(img);
+            } else {
+                const span = document.createElement('span');
+                span.className = 'media-picker__placeholder';
+                span.dataset.mediaPickerPlaceholder = '';
+                span.textContent = 'No image selected';
+                preview.appendChild(span);
+            }
+        }
+
+        if (filenameNode) {
+            filenameNode.textContent = media.filename || '—';
+        }
+
+        if (idNode) {
+            idNode.textContent = media.id ? `#${media.id}` : '';
+        }
+
+        if (clearButton) {
+            clearButton.hidden = false;
+        }
+
+        closeModal();
+    };
+
+    mediaPickers.forEach((picker) => {
+        const openButton = picker.querySelector('[data-media-picker-open]');
+        const clearButton = picker.querySelector('[data-media-picker-clear]');
+
+        openButton?.addEventListener('click', () => openModal(picker));
+
+        clearButton?.addEventListener('click', () => {
+            const input = picker.querySelector('[data-media-picker-value]');
+            const surface = picker.querySelector('[data-media-picker-surface]');
+            const preview = picker.querySelector('[data-media-picker-preview]');
+            const filenameNode = picker.querySelector('[data-media-picker-filename]');
+            const idNode = picker.querySelector('[data-media-picker-id]');
+
+            if (input) {
+                input.value = '';
+            }
+
+            surface?.classList.add('is-empty');
+
+            if (preview) {
+                preview.innerHTML = '<span class="media-picker__placeholder" data-media-picker-placeholder>No image selected</span>';
+            }
+
+            if (filenameNode) {
+                filenameNode.textContent = '—';
+            }
+
+            if (idNode) {
+                idNode.textContent = '';
+            }
+
+            clearButton.hidden = true;
+        });
+    });
+}

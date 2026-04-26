@@ -55,22 +55,18 @@
             </label>
         </div>
 
-        <div class="field-grid">
-            <label>
-                Hero media
-                <select name="hero_media_id">
-                    <option value="">Select media</option>
-                    @foreach ($mediaItems as $media)
-                        <option value="{{ $media->id }}" @selected((string) old('hero_media_id', $post->hero_media_id) === (string) $media->id)>#{{ $media->id }} · {{ $media->filename }}</option>
-                    @endforeach
-                </select>
-            </label>
+        <x-admin.media-picker
+            name="hero_media_id"
+            label="Hero media"
+            help-text="Search by filename, alt text, or ID."
+            :value="$post->hero_media_id"
+            :media="$post->heroMedia"
+        />
 
-            <label>
-                Author
-                <input type="text" name="author_name" value="{{ old('author_name', $post->author_name) }}">
-            </label>
-        </div>
+        <label>
+            Author
+            <input type="text" name="author_name" value="{{ old('author_name', $post->author_name) }}">
+        </label>
 
         <div class="field-grid">
             <label>

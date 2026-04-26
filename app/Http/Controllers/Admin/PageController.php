@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Media;
 use App\Models\Page;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,7 +23,6 @@ class PageController extends Controller
     {
         return view('admin.pages.form', [
             'page' => new Page(['status' => 'draft', 'template' => 'custom']),
-            'mediaItems' => Media::query()->latest()->limit(250)->get(),
             'templates' => $this->templates(),
             'statuses' => $this->statuses(),
         ]);
@@ -33,7 +31,7 @@ class PageController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validatePage($request);
-        $page = new Page();
+        $page = new Page;
         $this->fillPage($page, $validated);
 
         return redirect()
@@ -43,9 +41,10 @@ class PageController extends Controller
 
     public function edit(Page $page): View
     {
+        $page->loadMissing('heroMedia');
+
         return view('admin.pages.form', [
             'page' => $page,
-            'mediaItems' => Media::query()->latest()->limit(250)->get(),
             'templates' => $this->templates(),
             'statuses' => $this->statuses(),
         ]);

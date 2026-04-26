@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\JournalPost;
-use App\Models\Media;
 use App\Models\Tag;
 use App\Models\Venue;
 use Illuminate\Http\RedirectResponse;
@@ -34,7 +33,7 @@ class JournalPostController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validatePost($request);
-        $post = new JournalPost();
+        $post = new JournalPost;
         $this->fillPost($post, $validated);
         $this->syncRelations($post, $validated);
 
@@ -45,6 +44,8 @@ class JournalPostController extends Controller
 
     public function edit(JournalPost $journalPost): View
     {
+        $journalPost->loadMissing('heroMedia');
+
         return view('admin.journal-posts.form', $this->formData($journalPost));
     }
 
@@ -103,7 +104,6 @@ class JournalPostController extends Controller
     {
         return [
             'post' => $post,
-            'mediaItems' => Media::query()->latest()->limit(250)->get(),
             'categories' => Category::query()->orderBy('name')->get(),
             'tags' => Tag::query()->orderBy('name')->get(),
             'venues' => Venue::query()->orderBy('name')->get(),

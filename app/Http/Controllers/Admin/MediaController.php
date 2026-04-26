@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Media;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
 class MediaController extends Controller
@@ -15,6 +15,49 @@ class MediaController extends Controller
     {
         return view('admin.media.index', [
             'mediaItems' => Media::query()->latest()->paginate(24),
+        ]);
+    }
+
+    public function picker(Request $request): JsonResponse
+    {
+        $term = $request->string('q')->trim()->toString();
+        $perPage = (int) $request->integer('per_page', 60);
+        $perPage = max(12, min(120, $perPage));
+
+        $query = Media::query()->latest('id');
+
+        if ($term !== '') {
+            if (ctype_digit($term)) {
+                $query->where(function ($builder) use ($term): void {
+                    $builder
+                        ->where('id', (int) $term)
+                        ->orWhereRaw('LOWER(filename) LIKE ?', ['%'.strtolower($term).'%'])
+                        ->orWhereRaw('LOWER(alt_text) LIKE ?', ['%'.strtolower($term).'%']);
+                });
+            } else {
+                $needle = '%'.strtolower($term).'%';
+                $query->where(function ($builder) use ($needle): void {
+                    $builder
+                        ->whereRaw('LOWER(filename) LIKE ?', [$needle])
+                        ->orWhereRaw('LOWER(alt_text) LIKE ?', [$needle]);
+                });
+            }
+        }
+
+        $paginator = $query->paginate($perPage);
+
+        return response()->json([
+            'data' => $paginator->getCollection()->map(fn (Media $media) => [
+                'id' => $media->id,
+                'filename' => $media->filename,
+                'alt_text' => $media->alt_text,
+                'url' => $media->publicUrl(),
+                'webp_url' => $media->webpPublicUrl(),
+            ])->all(),
+            'current_page' => $paginator->currentPage(),
+            'last_page' => $paginator->lastPage(),
+            'has_more' => $paginator->hasMorePages(),
+            'total' => $paginator->total(),
         ]);
     }
 
@@ -29,7 +72,7 @@ class MediaController extends Controller
     {
         $validated = $this->validateMedia($request, true);
 
-        $media = new Media();
+        $media = new Media;
         $this->fillMediaFromRequest($media, $request, $validated);
 
         return redirect()
