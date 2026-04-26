@@ -31,6 +31,7 @@
                     ['label' => 'Homepage', 'href' => route('admin.homepage.edit'), 'patterns' => ['admin.homepage.*']],
                     ['label' => 'Wedding Stories', 'href' => route('admin.wedding-stories.index'), 'patterns' => ['admin.wedding-stories.*']],
                     ['label' => 'Journal Posts', 'href' => route('admin.journal-posts.index'), 'patterns' => ['admin.journal-posts.*']],
+                    ['label' => 'Venues', 'href' => route('admin.venues.index'), 'patterns' => ['admin.venues.*']],
                     ['label' => 'Pages', 'href' => route('admin.pages.index'), 'patterns' => ['admin.pages.*']],
                     ['label' => 'Media', 'href' => route('admin.media.index'), 'patterns' => ['admin.media.*']],
                 ],

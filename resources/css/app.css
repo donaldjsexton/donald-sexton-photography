@@ -3452,60 +3452,69 @@ textarea {
         padding-top: 3rem;
     }
 
-    /* Inquiries table → stacked cards on mobile */
-    .admin-table {
+    /* Card-style admin tables (inquiries) — scoped via .admin-table--cards */
+    .admin-table--cards {
         min-width: 0;
+        border-collapse: separate;
+        border-spacing: 0;
     }
 
-    .admin-table thead {
+    .admin-table--cards thead {
         display: none;
     }
 
-    .admin-table tbody tr {
+    .admin-table--cards tbody tr {
         display: grid;
         grid-template-columns: 1fr auto;
         grid-template-areas:
-            "lead   status"
-            "event  event"
-            "open   open";
-        gap: 0.35rem 0.75rem;
+            "lead    status"
+            "event   event"
+            "source  source"
+            "open    open";
+        gap: 0.45rem 0.75rem;
         align-items: start;
         padding: 1rem;
         border: 1px solid var(--admin-line);
         border-radius: 0.85rem;
-        margin-bottom: 0.65rem;
+        margin-bottom: 0.75rem;
+        background: var(--admin-surface, #fff);
     }
 
-    .admin-table tbody tr td {
+    .admin-table--cards tbody tr td {
         display: block;
         padding: 0;
         border: 0;
     }
 
-    .admin-table tbody tr .inquiries-col--lead {
+    .admin-table--cards tbody tr .inquiries-col--lead {
         grid-area: lead;
     }
 
-    .admin-table tbody tr .inquiries-col--status {
+    .admin-table--cards tbody tr .inquiries-col--status {
         grid-area: status;
         justify-self: end;
         align-self: center;
     }
 
-    .admin-table tbody tr .inquiries-col--event {
+    .admin-table--cards tbody tr .inquiries-col--event {
         grid-area: event;
     }
 
-    .admin-table tbody tr .inquiries-col--submitted,
-    .admin-table tbody tr .inquiries-col--source {
+    .admin-table--cards tbody tr .inquiries-col--source {
+        grid-area: source;
+        font-size: 0.8rem;
+        opacity: 0.85;
+    }
+
+    .admin-table--cards tbody tr .inquiries-col--submitted {
         display: none;
     }
 
-    .admin-table tbody tr .inquiries-col--open {
+    .admin-table--cards tbody tr .inquiries-col--open {
         grid-area: open;
     }
 
-    .admin-table tbody tr .inquiries-col--open a {
+    .admin-table--cards tbody tr .inquiries-col--open a {
         display: block;
         min-height: 44px;
         line-height: 44px;
