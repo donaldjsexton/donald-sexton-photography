@@ -15,17 +15,25 @@
         $story->venue?->name ?? $story->location_name,
         $story->event_date?->format('F Y'),
     ])->filter()->implode(' · ');
+    $mediaSrc = method_exists($story, 'featuredImageUrl') ? $story->featuredImageUrl() : null;
+    $hasMedia = filled($mediaSrc) || (filled($story->heroMedia) && filled($story->heroMedia->path ?? null));
 @endphp
 
-<article data-reveal {{ $attributes->class(['story-feature', 'story-feature--reverse' => $reverse]) }}>
-    <a class="story-feature__media" href="{{ $href }}">
-        <x-editorial.media-frame
-            :media="$story->heroMedia"
-            :src="method_exists($story, 'featuredImageUrl') ? $story->featuredImageUrl() : null"
-            :ratio="$ratio"
-            :alt="$story->title"
-        />
-    </a>
+<article data-reveal {{ $attributes->class([
+    'story-feature',
+    'story-feature--reverse' => $reverse,
+    'story-feature--no-media' => ! $hasMedia,
+]) }}>
+    @if ($hasMedia)
+        <a class="story-feature__media" href="{{ $href }}">
+            <x-editorial.media-frame
+                :media="$story->heroMedia"
+                :src="$mediaSrc"
+                :ratio="$ratio"
+                :alt="$story->title"
+            />
+        </a>
+    @endif
 
     <div class="story-feature__copy">
         <p class="eyebrow">{{ $story->story_type_label }}</p>

@@ -24,6 +24,11 @@
         $thirdStory = $visualStoryPool->get(2) ?? $homeStories->get(2) ?? $featuredStories->get(2) ?? $secondStory;
         $discoverLeftStory = $visualStoryPool->get(3) ?? $homeStories->get(3) ?? $visualStoryPool->get(1);
         $discoverRightStory = $visualStoryPool->get(4) ?? $homeStories->get(4) ?? $visualStoryPool->get(2);
+        $leadStoryImage = $leadStory?->featuredImageUrl();
+        $secondStoryImage = $secondStory?->featuredImageUrl();
+        $thirdStoryImage = $thirdStory?->featuredImageUrl();
+        $discoverLeftImage = $discoverLeftStory?->featuredImageUrl();
+        $discoverRightImage = $discoverRightStory?->featuredImageUrl();
         $portfolioStories = $visualStoryPool->take(3)->count() === 3
             ? $visualStoryPool->take(3)
             : $featuredStories->take(3);
@@ -35,51 +40,61 @@
 
     <section class="home-hero">
         <div class="page-shell--wide home-hero__stage">
-            <div class="home-hero__triptych">
-                <x-editorial.media-frame
-                    class="media-frame--clean home-hero__panel home-hero__panel--left"
-                    :media="$leadStory?->heroMedia"
-                    :src="$leadStory?->featuredImageUrl()"
-                    ratio="portrait"
-                    :alt="$leadStory?->title"
-                    loading="eager"
-                    decoding="sync"
-                    fetchpriority="high"
-                />
-                <x-editorial.media-frame
-                    class="media-frame--clean home-hero__panel home-hero__panel--center"
-                    :media="$secondStory?->heroMedia"
-                    :src="$secondStory?->featuredImageUrl()"
-                    ratio="portrait"
-                    :alt="$secondStory?->title ?? $leadStory?->title"
-                    loading="eager"
-                    decoding="sync"
-                    fetchpriority="high"
-                />
-                <x-editorial.media-frame
-                    class="media-frame--clean home-hero__panel home-hero__panel--right"
-                    :media="$thirdStory?->heroMedia"
-                    :src="$thirdStory?->featuredImageUrl()"
-                    ratio="portrait"
-                    :alt="$thirdStory?->title ?? $secondStory?->title"
-                    loading="eager"
-                    decoding="sync"
-                    fetchpriority="high"
-                />
-            </div>
+            @if ($leadStoryImage || $secondStoryImage || $thirdStoryImage)
+                <div class="home-hero__triptych">
+                    @if ($leadStoryImage)
+                        <x-editorial.media-frame
+                            class="media-frame--clean home-hero__panel home-hero__panel--left"
+                            :media="$leadStory?->heroMedia"
+                            :src="$leadStoryImage"
+                            ratio="portrait"
+                            :alt="$leadStory?->title"
+                            loading="eager"
+                            decoding="sync"
+                            fetchpriority="high"
+                        />
+                    @endif
+                    @if ($secondStoryImage)
+                        <x-editorial.media-frame
+                            class="media-frame--clean home-hero__panel home-hero__panel--center"
+                            :media="$secondStory?->heroMedia"
+                            :src="$secondStoryImage"
+                            ratio="portrait"
+                            :alt="$secondStory?->title ?? $leadStory?->title"
+                            loading="eager"
+                            decoding="sync"
+                            fetchpriority="high"
+                        />
+                    @endif
+                    @if ($thirdStoryImage)
+                        <x-editorial.media-frame
+                            class="media-frame--clean home-hero__panel home-hero__panel--right"
+                            :media="$thirdStory?->heroMedia"
+                            :src="$thirdStoryImage"
+                            ratio="portrait"
+                            :alt="$thirdStory?->title ?? $secondStory?->title"
+                            loading="eager"
+                            decoding="sync"
+                            fetchpriority="high"
+                        />
+                    @endif
+                </div>
+            @endif
 
-            <div class="home-hero__solo">
-                <x-editorial.media-frame
-                    class="media-frame--clean home-hero__solo-frame"
-                    :media="$leadStory?->heroMedia"
-                    :src="$leadStory?->featuredImageUrl()"
-                    ratio="cinema"
-                    :alt="$leadStory?->title"
-                    loading="eager"
-                    decoding="sync"
-                    fetchpriority="high"
-                />
-            </div>
+            @if ($leadStoryImage)
+                <div class="home-hero__solo">
+                    <x-editorial.media-frame
+                        class="media-frame--clean home-hero__solo-frame"
+                        :media="$leadStory?->heroMedia"
+                        :src="$leadStoryImage"
+                        ratio="cinema"
+                        :alt="$leadStory?->title"
+                        loading="eager"
+                        decoding="sync"
+                        fetchpriority="high"
+                    />
+                </div>
+            @endif
 
             <div class="home-hero__wordmark" data-reveal>
                 <span class="home-hero__wordmark-line">Donald</span>
@@ -126,13 +141,15 @@
 
     <section class="home-discover" data-reveal>
         <div class="page-shell--wide home-discover__grid">
-            <x-editorial.media-frame
-                class="media-frame--clean home-discover__image home-discover__image--left"
-                :media="$discoverLeftStory?->heroMedia"
-                :src="$discoverLeftStory?->featuredImageUrl()"
-                ratio="portrait"
-                :alt="$discoverLeftStory?->title"
-            />
+            @if ($discoverLeftImage)
+                <x-editorial.media-frame
+                    class="media-frame--clean home-discover__image home-discover__image--left"
+                    :media="$discoverLeftStory?->heroMedia"
+                    :src="$discoverLeftImage"
+                    ratio="portrait"
+                    :alt="$discoverLeftStory?->title"
+                />
+            @endif
 
             <div class="home-discover__type">
                 <p class="eyebrow">Favorite Stories</p>
@@ -145,13 +162,15 @@
                 <p class="home-discover__copy">{{ $discoverCopy }}</p>
             </div>
 
-            <x-editorial.media-frame
-                class="media-frame--clean home-discover__image home-discover__image--right"
-                :media="$discoverRightStory?->heroMedia"
-                :src="$discoverRightStory?->featuredImageUrl()"
-                ratio="portrait"
-                :alt="$discoverRightStory?->title"
-            />
+            @if ($discoverRightImage)
+                <x-editorial.media-frame
+                    class="media-frame--clean home-discover__image home-discover__image--right"
+                    :media="$discoverRightStory?->heroMedia"
+                    :src="$discoverRightImage"
+                    ratio="portrait"
+                    :alt="$discoverRightStory?->title"
+                />
+            @endif
         </div>
     </section>
 

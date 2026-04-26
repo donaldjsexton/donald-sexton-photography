@@ -2309,6 +2309,12 @@ img {
     margin-top: clamp(-3rem, -6vw, -5.5rem);
 }
 
+.story-feature--no-media .story-feature__copy {
+    grid-column: 1 / -1;
+    width: min(42rem, 100%);
+    margin-top: 0;
+}
+
 .editorial-band {
     display: grid;
     grid-template-columns: minmax(0, 0.9fr) minmax(280px, 1.1fr);

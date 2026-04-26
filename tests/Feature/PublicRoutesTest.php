@@ -724,17 +724,20 @@ HTML,
             ->assertOk()
             ->assertSee($story->title)
             ->assertDontSee('Editorial Frame')
+            ->assertDontSee('media-frame__placeholder', false)
             ->assertDontSee('View Story');
 
         $this->get('/weddings')
             ->assertOk()
             ->assertSee($story->title)
             ->assertDontSee('Editorial Frame')
+            ->assertDontSee('media-frame__placeholder', false)
             ->assertDontSee('View Story');
 
         $this->get('/weddings/minimal-story')
             ->assertOk()
             ->assertDontSee('Story Detail')
+            ->assertDontSee('media-frame__placeholder', false)
             ->assertDontSee('Wedding Day');
     }
 
