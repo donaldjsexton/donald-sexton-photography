@@ -86,6 +86,26 @@
         </x-editorial.reading-section>
     @endif
 
+    @if ($post->venues->isNotEmpty())
+        <section class="section" data-reveal aria-labelledby="post-venues-heading">
+            <div class="detail-shell post-venues">
+                <p class="editorial-divider" id="post-venues-heading">Venues</p>
+                <ul class="post-venues__list">
+                    @foreach ($post->venues as $venue)
+                        <li>
+                            <a class="post-venues__chip" href="{{ route('venues.show', $venue->slug) }}">
+                                {{ $venue->name }}
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+                <p class="post-venues__all">
+                    <a href="{{ route('venues.index') }}">Browse all venues</a>
+                </p>
+            </div>
+        </section>
+    @endif
+
     <x-editorial.pictime-detail
         :record="$post"
         :presentation="$pictime"
