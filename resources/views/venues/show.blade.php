@@ -44,6 +44,9 @@
                             :title="$story->title"
                             :href="route('weddings.show', $story->slug)"
                             :copy="method_exists($story, 'summaryText') ? $story->summaryText(24) : $story->excerpt"
+                            :media="$story->heroMedia"
+                            :media-src="method_exists($story, 'featuredImageUrl') ? $story->featuredImageUrl() : null"
+                            :media-alt="$story->title"
                         />
                     @endforeach
                 </div>
@@ -65,6 +68,9 @@
                             :title="$post->title"
                             :href="route('journal.show', $post->slug)"
                             :copy="method_exists($post, 'summaryText') ? $post->summaryText(24) : $post->excerpt"
+                            :media="$post->heroMedia"
+                            :media-src="method_exists($post, 'featuredImageUrl') ? $post->featuredImageUrl() : null"
+                            :media-alt="$post->title"
                         />
                     @endforeach
                 </div>
