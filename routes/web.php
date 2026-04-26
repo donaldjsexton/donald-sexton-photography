@@ -64,6 +64,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/push/unsubscribe', [AdminPushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
 
         Route::get('/media', [AdminMediaController::class, 'index'])->name('media.index');
+        Route::get('/media/picker', [AdminMediaController::class, 'picker'])->name('media.picker');
         Route::get('/media/create', [AdminMediaController::class, 'create'])->name('media.create');
         Route::post('/media', [AdminMediaController::class, 'store'])->name('media.store');
         Route::get('/media/{media}/edit', [AdminMediaController::class, 'edit'])->name('media.edit');

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Media;
 use App\Models\Tag;
 use App\Models\Venue;
 use App\Models\WeddingStory;
@@ -33,7 +32,7 @@ class WeddingStoryController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $this->validateStory($request);
-        $story = new WeddingStory();
+        $story = new WeddingStory;
         $this->fillStory($story, $validated);
         $story->tags()->sync($validated['tag_ids'] ?? []);
 
@@ -44,6 +43,8 @@ class WeddingStoryController extends Controller
 
     public function edit(WeddingStory $weddingStory): View
     {
+        $weddingStory->loadMissing('heroMedia');
+
         return view('admin.wedding-stories.form', $this->formData($weddingStory));
     }
 
@@ -111,7 +112,6 @@ class WeddingStoryController extends Controller
     {
         return [
             'story' => $story,
-            'mediaItems' => Media::query()->latest()->limit(250)->get(),
             'venues' => Venue::query()->orderBy('name')->get(),
             'tags' => Tag::query()->orderBy('name')->get(),
             'storyTypes' => ['wedding', 'elopement', 'engagement', 'editorial'],

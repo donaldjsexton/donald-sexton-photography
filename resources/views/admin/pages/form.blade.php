@@ -49,22 +49,18 @@
             </label>
         </div>
 
-        <div class="field-grid">
-            <label>
-                Hero media
-                <select name="hero_media_id">
-                    <option value="">Select media</option>
-                    @foreach ($mediaItems as $media)
-                        <option value="{{ $media->id }}" @selected((string) old('hero_media_id', $page->hero_media_id) === (string) $media->id)>#{{ $media->id }} · {{ $media->filename }}</option>
-                    @endforeach
-                </select>
-            </label>
+        <x-admin.media-picker
+            name="hero_media_id"
+            label="Hero media"
+            help-text="Search by filename, alt text, or ID."
+            :value="$page->hero_media_id"
+            :media="$page->heroMedia"
+        />
 
-            <label>
-                Publish at
-                <input type="datetime-local" name="published_at" value="{{ old('published_at', $page->published_at?->format('Y-m-d\TH:i')) }}">
-            </label>
-        </div>
+        <label>
+            Publish at
+            <input type="datetime-local" name="published_at" value="{{ old('published_at', $page->published_at?->format('Y-m-d\TH:i')) }}">
+        </label>
 
         <label>
             Excerpt

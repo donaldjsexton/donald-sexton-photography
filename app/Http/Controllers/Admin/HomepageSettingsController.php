@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\HomepageSetting;
 use App\Models\JournalPost;
-use App\Models\Media;
 use App\Models\Testimonial;
 use App\Models\WeddingStory;
 use Illuminate\Http\RedirectResponse;
@@ -16,9 +15,10 @@ class HomepageSettingsController extends Controller
 {
     public function edit(): View
     {
+        $settings = HomepageSetting::query()->with('heroMedia')->first() ?? new HomepageSetting;
+
         return view('admin.homepage.edit', [
-            'settings' => HomepageSetting::query()->first() ?? new HomepageSetting,
-            'mediaItems' => Media::query()->latest()->limit(250)->get(['id', 'filename']),
+            'settings' => $settings,
             'stories' => WeddingStory::query()->latest()->limit(250)->get(['id', 'title']),
             'journalPosts' => JournalPost::query()->latest()->limit(250)->get(['id', 'title']),
             'testimonials' => Testimonial::query()->orderByDesc('is_featured')->orderBy('sort_order')->get(['id', 'author_name', 'is_featured', 'sort_order']),

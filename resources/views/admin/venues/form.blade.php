@@ -73,22 +73,18 @@
             <textarea name="body" rows="10">{{ old('body', $venue->body) }}</textarea>
         </label>
 
-        <div class="field-grid">
-            <label>
-                Hero media
-                <select name="hero_media_id">
-                    <option value="">Select media</option>
-                    @foreach ($mediaItems as $media)
-                        <option value="{{ $media->id }}" @selected((string) old('hero_media_id', $venue->hero_media_id) === (string) $media->id)>#{{ $media->id }} · {{ $media->filename }}</option>
-                    @endforeach
-                </select>
-            </label>
+        <x-admin.media-picker
+            name="hero_media_id"
+            label="Hero media"
+            help-text="Search by filename, alt text, or ID."
+            :value="$venue->hero_media_id"
+            :media="$venue->heroMedia"
+        />
 
-            <label>
-                Website URL
-                <input type="url" name="website_url" value="{{ old('website_url', $venue->website_url) }}">
-            </label>
-        </div>
+        <label>
+            Website URL
+            <input type="url" name="website_url" value="{{ old('website_url', $venue->website_url) }}">
+        </label>
 
         <div class="field-grid">
             <label>

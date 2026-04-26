@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Media;
 use App\Models\Venue;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -43,7 +42,6 @@ class VenueController extends Controller
     {
         return view('admin.venues.form', [
             'venue' => new Venue(['is_featured' => false]),
-            'mediaItems' => Media::query()->latest()->limit(250)->get(),
         ]);
     }
 
@@ -60,9 +58,10 @@ class VenueController extends Controller
 
     public function edit(Venue $venue): View
     {
+        $venue->loadMissing('heroMedia');
+
         return view('admin.venues.form', [
             'venue' => $venue,
-            'mediaItems' => Media::query()->latest()->limit(250)->get(),
         ]);
     }
 
