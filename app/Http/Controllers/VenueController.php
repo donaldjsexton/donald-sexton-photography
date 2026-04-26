@@ -30,6 +30,10 @@ class VenueController extends Controller
                     'weddingStories' => fn ($query) => $query->published(),
                     'journalPosts' => fn ($query) => $query->published(),
                 ])
+                ->where(function ($query) {
+                    $query->whereHas('weddingStories', fn ($q) => $q->published())
+                        ->orWhereHas('journalPosts', fn ($q) => $q->published());
+                })
                 ->orderByDesc('is_featured')
                 ->orderBy('name')
                 ->paginate(12),
@@ -43,18 +47,23 @@ class VenueController extends Controller
             ->where('slug', $slug)
             ->firstOrFail();
 
+        $stories = $venue->weddingStories()
+            ->published()
+            ->with('heroMedia')
+            ->latest('published_at')
+            ->get();
+
+        $posts = $venue->journalPosts()
+            ->published()
+            ->with('heroMedia')
+            ->latest('published_at')
+            ->get();
+
         return view('venues.show', [
             'venue' => $venue,
-            'stories' => $venue->weddingStories()
-                ->published()
-                ->with('heroMedia')
-                ->latest('published_at')
-                ->get(),
-            'posts' => $venue->journalPosts()
-                ->published()
-                ->with('heroMedia')
-                ->latest('published_at')
-                ->get(),
+            'stories' => $stories,
+            'posts' => $posts,
+            'isStub' => $stories->isEmpty() && $posts->isEmpty(),
         ]);
     }
 }

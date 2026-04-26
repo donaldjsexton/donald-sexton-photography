@@ -18,7 +18,12 @@ class VenueController extends Controller
         $search = trim((string) $request->query('search', ''));
 
         $venues = Venue::query()
-            ->withCount(['weddingStories', 'journalPosts'])
+            ->withCount([
+                'weddingStories',
+                'journalPosts',
+                'weddingStories as published_wedding_stories_count' => fn ($q) => $q->published(),
+                'journalPosts as published_journal_posts_count' => fn ($q) => $q->published(),
+            ])
             ->when($search !== '', function ($query) use ($search) {
                 $like = '%'.$search.'%';
                 $query->where(function ($q) use ($like) {
@@ -33,9 +38,21 @@ class VenueController extends Controller
             ->paginate(24)
             ->withQueryString();
 
+        $totals = [
+            'total' => Venue::query()->count(),
+            'public' => Venue::query()
+                ->where(function ($q) {
+                    $q->whereHas('weddingStories', fn ($s) => $s->published())
+                        ->orWhereHas('journalPosts', fn ($s) => $s->published());
+                })
+                ->count(),
+        ];
+        $totals['stub'] = $totals['total'] - $totals['public'];
+
         return view('admin.venues.index', [
             'venues' => $venues,
             'search' => $search,
+            'totals' => $totals,
         ]);
     }
 

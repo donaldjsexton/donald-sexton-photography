@@ -472,6 +472,80 @@ HTML,
         $this->assertSame(1, $listedVenue->journal_posts_count);
     }
 
+    public function test_venue_index_excludes_venues_with_no_published_content(): void
+    {
+        $populatedVenue = Venue::create([
+            'name' => 'Knotted Roots on the Lake',
+            'slug' => 'knotted-roots-on-the-lake',
+        ]);
+
+        WeddingStory::create([
+            'title' => 'Lake Wedding',
+            'slug' => 'lake-wedding',
+            'status' => 'published',
+            'venue_id' => $populatedVenue->id,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $stubVenue = Venue::create([
+            'name' => 'Empty Hall',
+            'slug' => 'empty-hall',
+        ]);
+
+        $draftOnlyVenue = Venue::create([
+            'name' => 'Drafts Only',
+            'slug' => 'drafts-only',
+        ]);
+        WeddingStory::create([
+            'title' => 'Draft Story',
+            'slug' => 'draft-story',
+            'status' => 'draft',
+            'venue_id' => $draftOnlyVenue->id,
+        ]);
+
+        $response = $this->get('/venues');
+
+        $response->assertOk();
+
+        $listed = $response->viewData('venues')->getCollection()->pluck('slug')->all();
+
+        $this->assertContains('knotted-roots-on-the-lake', $listed);
+        $this->assertNotContains('empty-hall', $listed);
+        $this->assertNotContains('drafts-only', $listed);
+    }
+
+    public function test_stub_venue_show_page_emits_noindex(): void
+    {
+        $venue = Venue::create([
+            'name' => 'Stub Venue',
+            'slug' => 'stub-venue',
+        ]);
+
+        $response = $this->get('/venues/'.$venue->slug);
+
+        $response->assertOk()
+            ->assertSee('<meta name="robots" content="noindex,follow">', false);
+    }
+
+    public function test_populated_venue_show_page_keeps_default_robots(): void
+    {
+        $venue = Venue::create([
+            'name' => 'Populated Venue',
+            'slug' => 'populated-venue',
+        ]);
+        WeddingStory::create([
+            'title' => 'A Real Wedding',
+            'slug' => 'a-real-wedding',
+            'status' => 'published',
+            'venue_id' => $venue->id,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get('/venues/'.$venue->slug)
+            ->assertOk()
+            ->assertSee('<meta name="robots" content="index,follow,max-image-preview:large">', false);
+    }
+
     public function test_fallback_redirects_legacy_paths(): void
     {
         Redirect::create([

@@ -34,7 +34,7 @@
     @if ($canonicalUrl !== '')
         <link rel="canonical" href="{{ $canonicalUrl }}">
     @endif
-    <meta name="robots" content="index,follow,max-image-preview:large">
+    <meta name="robots" content="@yield('robots_meta', 'index,follow,max-image-preview:large')">
     <meta name="author" content="Donald Sexton Photography">
     <meta name="theme-color" content="#f9f7f4">
     <meta property="og:type" content="{{ $ogType }}">

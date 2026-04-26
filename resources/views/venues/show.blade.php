@@ -3,6 +3,9 @@
 @section('title', $venue->seo_title ?: $venue->name)
 @section('meta_description', $venue->seo_description ?: $venue->summary ?: '')
 @section('canonical_url', url()->current())
+@if ($isStub)
+    @section('robots_meta', 'noindex,follow')
+@endif
 @section('og_image', $venue->heroMedia?->publicUrl() ?: '')
 @section('og_image_alt', $venue->name)
 
