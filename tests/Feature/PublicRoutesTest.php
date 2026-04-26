@@ -472,6 +472,123 @@ HTML,
         $this->assertSame(1, $listedVenue->journal_posts_count);
     }
 
+    public function test_venue_index_only_lists_venues_tagged_on_published_content(): void
+    {
+        $taggedByPost = Venue::create([
+            'name' => 'Tagged By Post',
+            'slug' => 'tagged-by-post',
+            'summary' => 'Tagged via journal post.',
+        ]);
+
+        $taggedByStory = Venue::create([
+            'name' => 'Tagged By Story',
+            'slug' => 'tagged-by-story',
+            'summary' => 'Tagged via wedding story.',
+        ]);
+
+        $orphan = Venue::create([
+            'name' => 'Orphan Venue',
+            'slug' => 'orphan-venue',
+            'summary' => 'No tagged content.',
+        ]);
+
+        $draftOnly = Venue::create([
+            'name' => 'Draft Only Venue',
+            'slug' => 'draft-only-venue',
+            'summary' => 'Only attached to drafts.',
+        ]);
+
+        $publishedPost = JournalPost::create([
+            'title' => 'Published Post',
+            'slug' => 'published-post',
+            'status' => 'published',
+            'post_type' => 'advice',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $draftPost = JournalPost::create([
+            'title' => 'Draft Post',
+            'slug' => 'draft-post',
+            'status' => 'draft',
+            'post_type' => 'advice',
+        ]);
+
+        $taggedByPost->journalPosts()->attach($publishedPost->id);
+        $draftOnly->journalPosts()->attach($draftPost->id);
+
+        WeddingStory::create([
+            'title' => 'Tagged Story',
+            'slug' => 'tagged-story',
+            'status' => 'published',
+            'venue_id' => $taggedByStory->id,
+            'published_at' => now()->subDay(),
+        ]);
+
+        $response = $this->get('/venues');
+        $response->assertOk();
+
+        $listedSlugs = $response->viewData('venues')
+            ->getCollection()
+            ->pluck('slug')
+            ->all();
+
+        $this->assertContains('tagged-by-post', $listedSlugs);
+        $this->assertContains('tagged-by-story', $listedSlugs);
+        $this->assertNotContains('orphan-venue', $listedSlugs);
+        $this->assertNotContains('draft-only-venue', $listedSlugs);
+    }
+
+    public function test_journal_post_show_lists_tagged_venues_with_browse_all_link(): void
+    {
+        $venue = Venue::create([
+            'name' => 'Lakeside Pavilion',
+            'slug' => 'lakeside-pavilion',
+            'summary' => 'Venue summary.',
+        ]);
+
+        $post = JournalPost::create([
+            'title' => 'Spring Wedding Tips',
+            'slug' => 'spring-wedding-tips',
+            'status' => 'published',
+            'post_type' => 'advice',
+            'body' => '<p>Body.</p>',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $post->venues()->attach($venue);
+
+        $this->get('/journal/'.$post->slug)
+            ->assertOk()
+            ->assertSee('Lakeside Pavilion')
+            ->assertSee(route('venues.show', $venue->slug), false)
+            ->assertSee(route('venues.index'), false)
+            ->assertSee('Browse all venues');
+    }
+
+    public function test_journal_post_show_omits_venues_section_when_post_has_none(): void
+    {
+        $post = JournalPost::create([
+            'title' => 'Quiet Post',
+            'slug' => 'quiet-post',
+            'status' => 'published',
+            'post_type' => 'advice',
+            'body' => '<p>Body.</p>',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get('/journal/'.$post->slug)
+            ->assertOk()
+            ->assertDontSee('Browse all venues');
+    }
+
+    public function test_main_navigation_does_not_link_to_venues(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertDontSee('href="/venues"', false)
+            ->assertDontSee('href="'.route('venues.index').'"', false);
+    }
+
     public function test_fallback_redirects_legacy_paths(): void
     {
         Redirect::create([

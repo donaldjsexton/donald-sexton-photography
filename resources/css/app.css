@@ -558,6 +558,45 @@ img {
     margin-inline: auto;
 }
 
+.post-venues {
+    display: grid;
+    gap: 1rem;
+}
+
+.post-venues__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+}
+
+.post-venues__chip {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0.5rem 1rem;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(255, 252, 248, 0.84);
+    color: inherit;
+    text-decoration: none;
+    font-size: 0.9rem;
+    line-height: 1.2;
+}
+
+.post-venues__chip:hover,
+.post-venues__chip:focus-visible {
+    background: rgba(34, 23, 17, 0.05);
+}
+
+.post-venues__all {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+}
+
 .archive-stack {
     display: grid;
     gap: 2rem;
