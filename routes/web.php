@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettin
 use App\Http\Controllers\Admin\ImportRunController as AdminImportRunController;
 use App\Http\Controllers\Admin\InquiryController as AdminInquiryController;
 use App\Http\Controllers\Admin\JournalPostController as AdminJournalPostController;
+use App\Http\Controllers\Admin\LogController as AdminLogController;
 use App\Http\Controllers\Admin\MediaController as AdminMediaController;
 use App\Http\Controllers\Admin\PageController as AdminPageController;
 use App\Http\Controllers\Admin\PicTimeImportController as AdminPicTimeImportController;
@@ -98,6 +99,8 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('/console', [AdminConsoleCommandController::class, 'index'])->name('console.index');
         Route::post('/console/run', [AdminConsoleCommandController::class, 'run'])->name('console.run');
+
+        Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
 
         Route::get('/imports', [AdminImportRunController::class, 'index'])->name('imports.index');
         Route::get('/imports/wordpress', [AdminWordPressImportController::class, 'index'])->name('imports.wordpress.index');
