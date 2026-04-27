@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\BookedJobController as AdminBookedJobController;
+use App\Http\Controllers\Admin\ConsoleCommandController as AdminConsoleCommandController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
@@ -94,6 +95,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/venues/{venue}/edit', [AdminVenueController::class, 'edit'])->name('venues.edit');
         Route::put('/venues/{venue}', [AdminVenueController::class, 'update'])->name('venues.update');
         Route::delete('/venues/{venue}', [AdminVenueController::class, 'destroy'])->name('venues.destroy');
+
+        Route::get('/console', [AdminConsoleCommandController::class, 'index'])->name('console.index');
+        Route::post('/console/run', [AdminConsoleCommandController::class, 'run'])->name('console.run');
 
         Route::get('/imports', [AdminImportRunController::class, 'index'])->name('imports.index');
         Route::get('/imports/wordpress', [AdminWordPressImportController::class, 'index'])->name('imports.wordpress.index');
