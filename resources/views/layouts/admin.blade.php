@@ -42,6 +42,7 @@
                     ['label' => 'Settings', 'href' => route('admin.settings.edit'), 'patterns' => ['admin.settings.*']],
                     ['label' => 'Imports', 'href' => route('admin.imports.index'), 'patterns' => ['admin.imports.*']],
                     ['label' => 'Console', 'href' => route('admin.console.index'), 'patterns' => ['admin.console.*']],
+                    ['label' => 'Logs', 'href' => route('admin.logs.index'), 'patterns' => ['admin.logs.*']],
                 ],
             ],
         ];
