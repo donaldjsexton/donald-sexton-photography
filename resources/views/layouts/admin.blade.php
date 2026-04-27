@@ -41,6 +41,7 @@
                 'items' => [
                     ['label' => 'Settings', 'href' => route('admin.settings.edit'), 'patterns' => ['admin.settings.*']],
                     ['label' => 'Imports', 'href' => route('admin.imports.index'), 'patterns' => ['admin.imports.*']],
+                    ['label' => 'Console', 'href' => route('admin.console.index'), 'patterns' => ['admin.console.*']],
                 ],
             ],
         ];
