@@ -40,7 +40,7 @@ class GenerateWeddingStorySeoCommandTest extends TestCase
             'status' => 'published',
         ]);
 
-        $this->artisan('seo:generate-wedding-stories')
+        $this->artisan('seo:generate-wedding-stories', ['--sleep' => 0])
             ->assertSuccessful();
 
         $this->assertSame('First Title', $first->fresh()->seo_title);
@@ -67,12 +67,65 @@ class GenerateWeddingStorySeoCommandTest extends TestCase
             'api.anthropic.com/*' => Http::response($this->fakeToolPayload('New Title', 'New description, long enough to read like a real meta description from the model.')),
         ]);
 
-        $this->artisan('seo:generate-wedding-stories')->assertSuccessful();
+        $this->artisan('seo:generate-wedding-stories', ['--sleep' => 0])->assertSuccessful();
 
         $this->assertSame('Existing', $alreadyFilled->fresh()->seo_title);
         $this->assertSame('New Title', $needsSeo->fresh()->seo_title);
 
         Http::assertSentCount(1);
+    }
+
+    public function test_partial_seo_fills_missing_field_without_overwriting_existing(): void
+    {
+        $story = WeddingStory::create([
+            'title' => 'Hand-edited title',
+            'slug' => 'partial',
+            'status' => 'published',
+            'seo_title' => 'Hand-edited SEO title that we keep',
+            'seo_description' => null,
+        ]);
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response($this->fakeToolPayload(
+                'Generated Title We Should Discard',
+                'Generated description that should be saved because the existing one is empty.',
+            )),
+        ]);
+
+        $this->artisan('seo:generate-wedding-stories', ['--sleep' => 0])->assertSuccessful();
+
+        $fresh = $story->fresh();
+
+        $this->assertSame('Hand-edited SEO title that we keep', $fresh->seo_title);
+        $this->assertSame(
+            'Generated description that should be saved because the existing one is empty.',
+            $fresh->seo_description,
+        );
+    }
+
+    public function test_partial_seo_treats_empty_string_like_null(): void
+    {
+        $story = WeddingStory::create([
+            'title' => 'Empty string side',
+            'slug' => 'empty-side',
+            'status' => 'published',
+            'seo_title' => '',
+            'seo_description' => 'Hand written description that we keep',
+        ]);
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response($this->fakeToolPayload(
+                'Generated Title For Empty Slot',
+                'Generated description that we should NOT save because there is one already.',
+            )),
+        ]);
+
+        $this->artisan('seo:generate-wedding-stories', ['--sleep' => 0])->assertSuccessful();
+
+        $fresh = $story->fresh();
+
+        $this->assertSame('Generated Title For Empty Slot', $fresh->seo_title);
+        $this->assertSame('Hand written description that we keep', $fresh->seo_description);
     }
 
     public function test_all_flag_regenerates_filled_stories(): void
@@ -89,7 +142,7 @@ class GenerateWeddingStorySeoCommandTest extends TestCase
             'api.anthropic.com/*' => Http::response($this->fakeToolPayload('Refreshed Title', 'Refreshed description, long enough to read like a real meta description from the model.')),
         ]);
 
-        $this->artisan('seo:generate-wedding-stories', ['--all' => true])->assertSuccessful();
+        $this->artisan('seo:generate-wedding-stories', ['--all' => true, '--sleep' => 0])->assertSuccessful();
 
         $this->assertSame('Refreshed Title', $story->fresh()->seo_title);
     }
@@ -104,7 +157,7 @@ class GenerateWeddingStorySeoCommandTest extends TestCase
             'status' => 'published',
         ]);
 
-        $this->artisan('seo:generate-wedding-stories', ['--dry-run' => true])->assertSuccessful();
+        $this->artisan('seo:generate-wedding-stories', ['--dry-run' => true, '--sleep' => 0])->assertSuccessful();
 
         $this->assertNull($story->fresh()->seo_title);
         Http::assertNothingSent();
@@ -128,11 +181,34 @@ class GenerateWeddingStorySeoCommandTest extends TestCase
             'api.anthropic.com/*' => Http::response($this->fakeToolPayload('Targeted Title', 'Targeted description, long enough to read like a real meta description from the model.')),
         ]);
 
-        $this->artisan('seo:generate-wedding-stories', ['--story' => [$target->id]])->assertSuccessful();
+        $this->artisan('seo:generate-wedding-stories', ['--story' => [$target->id], '--sleep' => 0])->assertSuccessful();
 
         $this->assertSame('Targeted Title', $target->fresh()->seo_title);
         $this->assertNull($other->fresh()->seo_title);
         Http::assertSentCount(1);
+    }
+
+    public function test_limit_caps_number_of_stories_processed(): void
+    {
+        for ($i = 1; $i <= 4; $i++) {
+            WeddingStory::create([
+                'title' => "Story {$i}",
+                'slug' => "story-{$i}",
+                'status' => 'published',
+            ]);
+        }
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response($this->fakeToolPayload(
+                'Title',
+                'Description that is long enough to look like a real meta description from the model.',
+            )),
+        ]);
+
+        $this->artisan('seo:generate-wedding-stories', ['--limit' => 2, '--sleep' => 0])->assertSuccessful();
+
+        Http::assertSentCount(2);
+        $this->assertSame(2, WeddingStory::whereNotNull('seo_title')->count());
     }
 
     public function test_reports_no_work_when_nothing_to_generate(): void
@@ -147,7 +223,7 @@ class GenerateWeddingStorySeoCommandTest extends TestCase
 
         Http::fake();
 
-        $this->artisan('seo:generate-wedding-stories')
+        $this->artisan('seo:generate-wedding-stories', ['--sleep' => 0])
             ->expectsOutputToContain('No wedding stories need SEO generation.')
             ->assertSuccessful();
 
