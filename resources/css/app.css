@@ -4062,9 +4062,10 @@ body.media-picker-modal-open {
     border-radius: 16px;
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
     width: min(1100px, 100%);
+    height: min(820px, 92vh);
     max-height: min(820px, 92vh);
     display: grid;
-    grid-template-rows: auto auto 1fr auto;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
     overflow: hidden;
 }
 
@@ -4124,7 +4125,9 @@ body.media-picker-modal-open {
 }
 
 .media-picker-modal__grid {
+    min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 0.75rem 1.5rem 1.25rem;
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -4146,6 +4149,7 @@ body.media-picker-modal-open {
     padding: 0;
     display: grid;
     grid-template-rows: auto auto;
+    min-width: 0;
     overflow: hidden;
     cursor: pointer;
     text-align: left;
@@ -4210,8 +4214,9 @@ body.media-picker-modal-open {
     }
 
     .media-picker-modal__panel {
-        max-height: 100vh;
-        height: 100vh;
+        width: 100%;
+        max-height: 100dvh;
+        height: 100dvh;
         border-radius: 0;
     }
 
