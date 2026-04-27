@@ -4165,13 +4165,17 @@ body.media-picker-modal-open {
 }
 
 .media-picker-tile__image {
-    aspect-ratio: 1 / 1;
+    position: relative;
+    width: 100%;
+    padding-top: 100%;
     background: rgba(0, 0, 0, 0.05);
     display: block;
     overflow: hidden;
 }
 
 .media-picker-tile__image img {
+    position: absolute;
+    inset: 0;
     width: 100%;
     height: 100%;
     object-fit: cover;
