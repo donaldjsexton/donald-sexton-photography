@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Collection;
+use App\Models\JournalPost;
 use App\Models\Media;
 use App\Models\Venue;
 use App\Models\WeddingStory;
@@ -88,6 +90,70 @@ class StructuredDataTest extends TestCase
             ->assertSee('"@type":"ImageGallery"', false)
             ->assertSee('"@type":"Place","@id":"'.$venuePlaceId.'"', false)
             ->assertSee('"contentLocation":{"@id":"'.$venuePlaceId.'"}', false)
-            ->assertSee('"startDate":"2027-03-14"', false);
+            ->assertSee('"startDate":"2027-03-14"', false)
+            ->assertSee('"@type":"Photograph"', false)
+            ->assertSee('"@type":"BreadcrumbList"', false);
+    }
+
+    public function test_journal_post_renders_breadcrumb_list_and_blog_is_part_of(): void
+    {
+        $post = JournalPost::create([
+            'title' => 'Spring Planning Notes',
+            'slug' => 'spring-planning-notes',
+            'status' => 'published',
+            'post_type' => 'advice',
+            'excerpt' => 'A short excerpt.',
+            'body' => '<p>Body.</p>',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get(route('journal.show', $post->slug))
+            ->assertOk()
+            ->assertSee('"@type":"BlogPosting"', false)
+            ->assertSee('"@type":"Blog"', false)
+            ->assertSee('"@type":"BreadcrumbList"', false)
+            ->assertSee('"name":"Journal"', false)
+            ->assertSee('"name":"Spring Planning Notes"', false);
+    }
+
+    public function test_collections_index_emits_offer_catalog_when_collections_exist(): void
+    {
+        Collection::create([
+            'name' => 'Essential Coverage',
+            'slug' => 'essential-coverage',
+            'status' => 'published',
+            'summary' => 'Six hours of full day coverage.',
+            'starting_price' => 3800,
+            'display_order' => 1,
+        ]);
+
+        $this->get(route('collections.index'))
+            ->assertOk()
+            ->assertSee('"@type":"OfferCatalog"', false)
+            ->assertSee('"@type":"Offer"', false)
+            ->assertSee('"price":"3800.00"', false)
+            ->assertSee('"priceCurrency":"USD"', false)
+            ->assertSee('"@type":"BreadcrumbList"', false);
+    }
+
+    public function test_inquiry_page_renders_faq_page_schema(): void
+    {
+        $this->get(route('inquiry.create'))
+            ->assertOk()
+            ->assertSee('"@type":"FAQPage"', false)
+            ->assertSee('"@type":"Question"', false)
+            ->assertSee('"@type":"Answer"', false)
+            ->assertSee('Where are you based and how far do you travel?', false)
+            ->assertSee('"@type":"BreadcrumbList"', false);
+    }
+
+    public function test_homepage_organization_schema_advertises_multiple_service_offerings(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('"@type":"WeddingPhotographer"', false)
+            ->assertSee('"name":"Wedding Photography"', false)
+            ->assertSee('"name":"Engagement Photography"', false)
+            ->assertSee('"name":"Elopement Photography"', false);
     }
 }

@@ -23,8 +23,14 @@
     @endif
     @php
         $schemaGalleryMedia = \App\Support\StructuredData::galleryMediaForStory($story, $pictime);
+        $breadcrumbSchema = \App\Support\StructuredData::breadcrumbList([
+            ['name' => 'Home', 'url' => route('home')],
+            ['name' => 'Weddings', 'url' => route('weddings.index')],
+            ['name' => $story->title, 'url' => $story->canonical_url ?: route('weddings.show', $story->slug)],
+        ]);
     @endphp
     <script type="application/ld+json">{!! json_encode(\App\Support\StructuredData::weddingStory($story, $schemaGalleryMedia), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    <script type="application/ld+json">{!! json_encode($breadcrumbSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
 @endpush
 
 @section('content')

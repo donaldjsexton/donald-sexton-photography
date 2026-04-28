@@ -13,28 +13,12 @@
         || $showExternalFallback;
     $canonicalForSchema = $post->canonical_url ?: url()->current();
     $featuredImageForSchema = method_exists($post, 'featuredImageUrl') ? $post->featuredImageUrl() : null;
-    $articleSchema = array_filter([
-        '@context' => 'https://schema.org',
-        '@type' => 'BlogPosting',
-        'headline' => $post->title,
-        'description' => $post->seo_description ?: $post->excerpt ?: $post->summaryText(40),
-        'datePublished' => $post->published_at?->toIso8601String(),
-        'dateModified' => $post->updated_at?->toIso8601String(),
-        'image' => $featuredImageForSchema,
-        'author' => filled($post->author_name) ? [
-            '@type' => 'Person',
-            'name' => $post->author_name,
-        ] : null,
-        'publisher' => [
-            '@type' => 'Organization',
-            'name' => config('app.name', 'Donald Sexton Photography'),
-            'url' => rtrim(config('app.url', url('/')), '/'),
-        ],
-        'mainEntityOfPage' => [
-            '@type' => 'WebPage',
-            '@id' => $canonicalForSchema,
-        ],
-    ], fn ($value) => $value !== null && $value !== '');
+    $articleSchema = \App\Support\StructuredData::journalPost($post);
+    $breadcrumbSchema = \App\Support\StructuredData::breadcrumbList([
+        ['name' => 'Home', 'url' => route('home')],
+        ['name' => 'Journal', 'url' => route('journal.index')],
+        ['name' => $post->title, 'url' => $canonicalForSchema],
+    ]);
 @endphp
 
 @section('title', $post->seo_title ?: $post->title)
@@ -47,8 +31,12 @@
 @section('og_article_modified_time', $post->updated_at?->toIso8601String() ?: '')
 @section('og_article_author', $post->author_name ?: '')
 
-@section('content')
+@push('json_ld')
     <script type="application/ld+json">{!! json_encode($articleSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    <script type="application/ld+json">{!! json_encode($breadcrumbSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+@endpush
+
+@section('content')
 
     @php
         $meta = collect([

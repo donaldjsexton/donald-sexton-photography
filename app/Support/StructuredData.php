@@ -2,6 +2,8 @@
 
 namespace App\Support;
 
+use App\Models\Collection as CollectionModel;
+use App\Models\JournalPost;
 use App\Models\Media;
 use App\Models\Venue;
 use App\Models\WeddingStory;
@@ -68,15 +70,243 @@ class StructuredData
                 'Documentary Wedding Photography',
             ],
             'makesOffer' => [
-                '@type' => 'Offer',
-                'itemOffered' => [
-                    '@type' => 'Service',
-                    'name' => 'Wedding Photography',
-                    'serviceType' => 'Wedding Photography',
-                    'areaServed' => 'Florida',
+                [
+                    '@type' => 'Offer',
+                    'itemOffered' => [
+                        '@type' => 'Service',
+                        'name' => 'Wedding Photography',
+                        'serviceType' => 'Wedding Photography',
+                        'areaServed' => 'Florida',
+                        'provider' => ['@id' => self::organizationId()],
+                    ],
+                ],
+                [
+                    '@type' => 'Offer',
+                    'itemOffered' => [
+                        '@type' => 'Service',
+                        'name' => 'Engagement Photography',
+                        'serviceType' => 'Engagement Photography',
+                        'areaServed' => 'Florida',
+                        'provider' => ['@id' => self::organizationId()],
+                    ],
+                ],
+                [
+                    '@type' => 'Offer',
+                    'itemOffered' => [
+                        '@type' => 'Service',
+                        'name' => 'Elopement Photography',
+                        'serviceType' => 'Elopement Photography',
+                        'areaServed' => 'Florida',
+                        'provider' => ['@id' => self::organizationId()],
+                    ],
                 ],
             ],
         ]);
+    }
+
+    /**
+     * @param  array<int, array{name: string, url: string}>  $items
+     * @return array<string, mixed>
+     */
+    public static function breadcrumbList(array $items): array
+    {
+        $elements = [];
+
+        foreach (array_values($items) as $index => $item) {
+            $name = trim((string) ($item['name'] ?? ''));
+            $url = trim((string) ($item['url'] ?? ''));
+
+            if ($name === '' || $url === '') {
+                continue;
+            }
+
+            $elements[] = [
+                '@type' => 'ListItem',
+                'position' => $index + 1,
+                'name' => $name,
+                'item' => $url,
+            ];
+        }
+
+        if ($elements === []) {
+            return [];
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'BreadcrumbList',
+            'itemListElement' => $elements,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public static function journalPost(JournalPost $post): array
+    {
+        $canonical = $post->canonical_url ?: route('journal.show', $post->slug);
+        $featuredImage = method_exists($post, 'featuredImageUrl') ? $post->featuredImageUrl() : null;
+
+        $author = filled($post->author_name)
+            ? ['@type' => 'Person', 'name' => $post->author_name]
+            : ['@id' => self::organizationId()];
+
+        return self::compact([
+            '@context' => 'https://schema.org',
+            '@type' => 'BlogPosting',
+            'headline' => $post->title,
+            'description' => $post->seo_description ?: $post->excerpt ?: $post->summaryText(40),
+            'datePublished' => $post->published_at?->toIso8601String(),
+            'dateModified' => $post->updated_at?->toIso8601String(),
+            'image' => $featuredImage,
+            'thumbnailUrl' => $featuredImage,
+            'url' => $canonical,
+            'author' => $author,
+            'publisher' => ['@id' => self::organizationId()],
+            'mainEntityOfPage' => [
+                '@type' => 'WebPage',
+                '@id' => $canonical,
+            ],
+            'isPartOf' => [
+                '@type' => 'Blog',
+                '@id' => route('journal.index').'#journal',
+                'name' => 'Journal',
+                'url' => route('journal.index'),
+            ],
+        ]);
+    }
+
+    /**
+     * Build Photograph entries for the supplied media collection so AI
+     * crawlers receive caption/alt text alongside the gallery URLs.
+     *
+     * @param  Collection<int, Media>  $media
+     * @return array<int, array<string, mixed>>
+     */
+    public static function photographs(Collection $media, ?string $altFallback = null): array
+    {
+        return $media
+            ->map(function (Media $item) use ($altFallback): ?array {
+                $url = $item->publicUrl();
+
+                if (! $url) {
+                    return null;
+                }
+
+                return self::compact([
+                    '@type' => 'Photograph',
+                    'contentUrl' => $url,
+                    'url' => $url,
+                    'name' => $item->caption ?: $item->alt_text ?: $altFallback,
+                    'description' => $item->alt_text ?: $altFallback,
+                    'caption' => $item->caption ?: null,
+                    'width' => $item->width ? (int) $item->width : null,
+                    'height' => $item->height ? (int) $item->height : null,
+                    'creditText' => $item->credit ?: null,
+                    'creator' => ['@id' => self::organizationId()],
+                    'copyrightHolder' => ['@id' => self::organizationId()],
+                ]);
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  Collection<int, CollectionModel>  $collections
+     * @return array<string, mixed>
+     */
+    public static function collectionOfferCatalog(Collection $collections): array
+    {
+        $offers = $collections
+            ->map(function (CollectionModel $collection): ?array {
+                $name = trim((string) $collection->name);
+
+                if ($name === '') {
+                    return null;
+                }
+
+                $price = $collection->starting_price !== null
+                    ? number_format((float) $collection->starting_price, 2, '.', '')
+                    : null;
+
+                return self::compact([
+                    '@type' => 'Offer',
+                    'name' => $name,
+                    'description' => $collection->summary ?: $collection->headline ?: null,
+                    'price' => $price,
+                    'priceCurrency' => $price ? 'USD' : null,
+                    'priceSpecification' => $price ? [
+                        '@type' => 'PriceSpecification',
+                        'price' => $price,
+                        'priceCurrency' => 'USD',
+                        'valueAddedTaxIncluded' => false,
+                    ] : null,
+                    'availability' => 'https://schema.org/InStock',
+                    'category' => 'Wedding Photography',
+                    'itemOffered' => self::compact([
+                        '@type' => 'Service',
+                        'name' => $name,
+                        'serviceType' => 'Wedding Photography',
+                        'description' => $collection->summary ?: $collection->headline ?: null,
+                        'provider' => ['@id' => self::organizationId()],
+                        'areaServed' => 'Florida',
+                    ]),
+                ]);
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        if ($offers === []) {
+            return [];
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'OfferCatalog',
+            'name' => 'Wedding Photography Collections',
+            'url' => route('collections.index'),
+            'provider' => ['@id' => self::organizationId()],
+            'itemListElement' => $offers,
+        ];
+    }
+
+    /**
+     * @param  array<int, array{question: string, answer: string}>  $items
+     * @return array<string, mixed>
+     */
+    public static function faqPage(array $items): array
+    {
+        $entities = [];
+
+        foreach ($items as $item) {
+            $question = trim((string) ($item['question'] ?? ''));
+            $answer = trim((string) ($item['answer'] ?? ''));
+
+            if ($question === '' || $answer === '') {
+                continue;
+            }
+
+            $entities[] = [
+                '@type' => 'Question',
+                'name' => $question,
+                'acceptedAnswer' => [
+                    '@type' => 'Answer',
+                    'text' => $answer,
+                ],
+            ];
+        }
+
+        if ($entities === []) {
+            return [];
+        }
+
+        return [
+            '@context' => 'https://schema.org',
+            '@type' => 'FAQPage',
+            'mainEntity' => $entities,
+        ];
     }
 
     /**
@@ -151,6 +381,8 @@ class StructuredData
             ? $couple.' — Wedding at '.($story->venue?->name ?: $story->location_name ?: 'Florida')
             : $story->title;
 
+        $photographs = self::photographs($galleryMedia, $story->title);
+
         return self::compact([
             '@context' => 'https://schema.org',
             '@type' => 'ImageGallery',
@@ -162,6 +394,7 @@ class StructuredData
             'dateModified' => $story->updated_at?->toIso8601String(),
             'image' => $images ?: ($featuredImage ? [$featuredImage] : null),
             'thumbnailUrl' => $featuredImage,
+            'associatedMedia' => $photographs ?: null,
             'contentLocation' => $story->venue
                 ? ['@id' => self::venueId($story->venue)]
                 : ($story->location_name
