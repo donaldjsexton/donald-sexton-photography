@@ -16,6 +16,7 @@
 @section('og_image_alt', $story->title)
 @section('og_article_published_time', $story->published_at?->toIso8601String() ?: '')
 @section('og_article_modified_time', $story->updated_at?->toIso8601String() ?: '')
+@section('og_article_author', 'Donald Sexton')
 
 @push('json_ld')
     @if ($story->venue)

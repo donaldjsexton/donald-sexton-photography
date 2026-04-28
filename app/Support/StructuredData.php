@@ -5,8 +5,11 @@ namespace App\Support;
 use App\Models\Collection as CollectionModel;
 use App\Models\JournalPost;
 use App\Models\Media;
+use App\Models\SiteSetting;
 use App\Models\Venue;
 use App\Models\WeddingStory;
+use App\Services\GoogleBusinessProfile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 class StructuredData
@@ -101,7 +104,103 @@ class StructuredData
                     ],
                 ],
             ],
+            'sameAs' => self::organizationSameAs(),
+            'aggregateRating' => self::aggregateRating(),
+            'review' => self::reviews(),
         ]);
+    }
+
+    /**
+     * @return array<int, string>|null
+     */
+    private static function organizationSameAs(): ?array
+    {
+        $urls = SiteSetting::current()->socialProfileUrls();
+
+        return $urls === [] ? null : $urls;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function aggregateRating(): ?array
+    {
+        $snapshot = self::businessProfileSnapshot();
+
+        if ($snapshot === null) {
+            return null;
+        }
+
+        $rating = (float) ($snapshot['rating'] ?? 0);
+        $count = (int) ($snapshot['reviewCount'] ?? 0);
+
+        if ($rating <= 0 || $count <= 0) {
+            return null;
+        }
+
+        return [
+            '@type' => 'AggregateRating',
+            'ratingValue' => round($rating, 2),
+            'reviewCount' => $count,
+            'bestRating' => 5,
+            'worstRating' => 1,
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>|null
+     */
+    private static function reviews(): ?array
+    {
+        $snapshot = self::businessProfileSnapshot();
+
+        if ($snapshot === null) {
+            return null;
+        }
+
+        $reviews = collect($snapshot['recentReviews'] ?? [])
+            ->filter(fn ($r) => filled($r['excerpt'] ?? null) && (int) ($r['rating'] ?? 0) > 0)
+            ->map(fn ($r) => [
+                '@type' => 'Review',
+                'author' => ['@type' => 'Person', 'name' => $r['author'] ?? 'Anonymous'],
+                'datePublished' => self::reviewDate($r['date'] ?? ''),
+                'reviewBody' => $r['excerpt'],
+                'reviewRating' => [
+                    '@type' => 'Rating',
+                    'ratingValue' => (int) $r['rating'],
+                    'bestRating' => 5,
+                    'worstRating' => 1,
+                ],
+            ])
+            ->values()
+            ->all();
+
+        return $reviews === [] ? null : $reviews;
+    }
+
+    private static function reviewDate(string $formatted): ?string
+    {
+        if ($formatted === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($formatted)->toDateString();
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    /**
+     * @return array{rating: float, reviewCount: int, recentReviews: array<int, array{author: string, rating: int, excerpt: string, date: string}>}|null
+     */
+    private static function businessProfileSnapshot(): ?array
+    {
+        try {
+            return app(GoogleBusinessProfile::class)->snapshot();
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     /**

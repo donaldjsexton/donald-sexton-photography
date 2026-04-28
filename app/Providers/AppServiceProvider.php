@@ -3,7 +3,11 @@
 namespace App\Providers;
 
 use App\Mail\GmailApiTransport;
+use App\Models\JournalPost;
+use App\Models\Page;
 use App\Models\SiteSetting;
+use App\Models\WeddingStory;
+use App\Observers\IndexNowObserver;
 use App\Services\Gmail\GmailApiReader;
 use App\Services\Gmail\GmailReader;
 use App\Services\GoogleClient;
@@ -44,5 +48,9 @@ class AppServiceProvider extends ServiceProvider
         $mail->extend('gmail', function () {
             return new GmailApiTransport($this->app->make(GoogleClient::class));
         });
+
+        JournalPost::observe(IndexNowObserver::class);
+        WeddingStory::observe(IndexNowObserver::class);
+        Page::observe(IndexNowObserver::class);
     }
 }
