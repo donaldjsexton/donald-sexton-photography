@@ -30,6 +30,7 @@ use App\Http\Controllers\QuestionnaireController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\VenueController;
 use App\Http\Controllers\WeddingStoryController;
+use App\Models\SiteSetting;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -144,6 +145,16 @@ Route::put('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'u
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/llms.txt', LlmsTxtController::class)->name('llms');
+
+Route::get('/{key}.txt', function (string $key) {
+    $expected = trim((string) (SiteSetting::current()->indexnow_key ?? ''));
+
+    abort_if($expected === '' || ! hash_equals($expected, $key), 404);
+
+    return response($expected."\n", 200, [
+        'Content-Type' => 'text/plain; charset=UTF-8',
+    ]);
+})->where('key', '[a-f0-9]{8,128}')->name('indexnow.key');
 
 Route::get('/robots.txt', function () {
     $aiCrawlers = [

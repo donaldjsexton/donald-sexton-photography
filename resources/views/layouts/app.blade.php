@@ -36,6 +36,9 @@
     @endif
     <meta name="robots" content="index,follow,max-image-preview:large">
     <meta name="author" content="Donald Sexton Photography">
+    @foreach (($siteSettings?->verificationMetas() ?? []) as $name => $content)
+        <meta name="{{ $name }}" content="{{ $content }}">
+    @endforeach
     <meta name="theme-color" content="#f9f7f4">
     <meta property="og:type" content="{{ $ogType }}">
     <meta property="og:site_name" content="{{ $siteName }}">

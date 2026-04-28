@@ -21,6 +21,16 @@ class SiteSetting extends Model
         'gmail_last_synced_at',
         'gbp_account_name',
         'gbp_location_name',
+        'instagram_url',
+        'pinterest_url',
+        'facebook_url',
+        'youtube_url',
+        'tiktok_url',
+        'x_url',
+        'google_site_verification',
+        'bing_site_verification',
+        'pinterest_site_verification',
+        'indexnow_key',
     ];
 
     protected $casts = [
@@ -79,5 +89,36 @@ class SiteSetting extends Model
             'https://www.googleapis.com/auth/gmail.send',
             'https://www.googleapis.com/auth/gmail.readonly',
         ];
+    }
+
+    /**
+     * URLs for the schema.org `sameAs` array on the organization entity.
+     *
+     * @return array<int, string>
+     */
+    public function socialProfileUrls(): array
+    {
+        return array_values(array_filter([
+            $this->instagram_url,
+            $this->pinterest_url,
+            $this->facebook_url,
+            $this->youtube_url,
+            $this->tiktok_url,
+            $this->x_url,
+        ], fn ($url) => filled($url)));
+    }
+
+    /**
+     * Site-verification meta tags pasted into the page head.
+     *
+     * @return array<string, string>
+     */
+    public function verificationMetas(): array
+    {
+        return array_filter([
+            'google-site-verification' => (string) $this->google_site_verification,
+            'msvalidate.01' => (string) $this->bing_site_verification,
+            'p:domain_verify' => (string) $this->pinterest_site_verification,
+        ], fn ($value) => $value !== '');
     }
 }

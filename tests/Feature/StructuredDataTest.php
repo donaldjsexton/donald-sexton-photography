@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Models\Collection;
 use App\Models\JournalPost;
 use App\Models\Media;
+use App\Models\SiteSetting;
 use App\Models\Venue;
 use App\Models\WeddingStory;
+use App\Services\GoogleBusinessProfile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -155,5 +157,60 @@ class StructuredDataTest extends TestCase
             ->assertSee('"name":"Wedding Photography"', false)
             ->assertSee('"name":"Engagement Photography"', false)
             ->assertSee('"name":"Elopement Photography"', false);
+    }
+
+    public function test_organization_schema_includes_same_as_from_settings(): void
+    {
+        SiteSetting::create([
+            'instagram_url' => 'https://instagram.com/donaldsextonphoto',
+            'pinterest_url' => 'https://pinterest.com/donaldsextonphoto',
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('"sameAs":', false)
+            ->assertSee('https://instagram.com/donaldsextonphoto', false)
+            ->assertSee('https://pinterest.com/donaldsextonphoto', false);
+    }
+
+    public function test_organization_schema_includes_aggregate_rating_when_gbp_snapshot_available(): void
+    {
+        $this->mock(GoogleBusinessProfile::class, function ($mock): void {
+            $mock->shouldReceive('snapshot')->andReturn([
+                'rating' => 4.9,
+                'reviewCount' => 42,
+                'recentReviews' => [
+                    [
+                        'author' => 'Avery K.',
+                        'rating' => 5,
+                        'excerpt' => 'Calm, kind, and the photos are unreal.',
+                        'date' => 'Mar 5, 2026',
+                    ],
+                ],
+            ]);
+        });
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('"@type":"AggregateRating"', false)
+            ->assertSee('"ratingValue":4.9', false)
+            ->assertSee('"reviewCount":42', false)
+            ->assertSee('"@type":"Review"', false)
+            ->assertSee('Calm, kind, and the photos are unreal.', false);
+    }
+
+    public function test_layout_renders_verification_meta_tags_when_codes_are_set(): void
+    {
+        SiteSetting::create([
+            'google_site_verification' => 'abc-google-token',
+            'bing_site_verification' => 'BING123',
+            'pinterest_site_verification' => 'pinterest-claim-456',
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('<meta name="google-site-verification" content="abc-google-token">', false)
+            ->assertSee('<meta name="msvalidate.01" content="BING123">', false)
+            ->assertSee('<meta name="p:domain_verify" content="pinterest-claim-456">', false);
     }
 }

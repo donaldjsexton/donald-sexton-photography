@@ -26,6 +26,7 @@
         <nav class="admin-section-nav admin-settings-nav" aria-label="Settings sections">
             <a class="{{ $currentTab === 'analytics' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'analytics']) }}#analytics-settings">Analytics</a>
             <a class="{{ $currentTab === 'integrations' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'integrations']) }}#integrations-settings">Google</a>
+            <a class="{{ $currentTab === 'discovery' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'discovery']) }}#discovery-settings">Discovery</a>
             <a class="{{ $currentTab === 'imports' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'imports']) }}#import-settings">Imports</a>
         </nav>
 
@@ -175,6 +176,67 @@
                     </article>
                 </section>
             @endif
+        @endif
+
+        @if ($currentTab === 'discovery')
+            <section class="admin-dashboard-row" id="discovery-settings">
+                <x-admin.section-header
+                    eyebrow="Discovery"
+                    title="Search engines, AI, and social"
+                    description="Verification codes, social profiles, and the IndexNow key. These power schema.org sameAs, Pinterest Rich Pins, and faster indexing."
+                />
+
+                <article class="admin-card admin-card--feature admin-settings-focus">
+                    <form method="POST" action="{{ route('admin.settings.update') }}" class="admin-form">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" name="return_tab" value="discovery">
+
+                        <p class="eyebrow">Social profiles</p>
+                        <p class="section-copy">Linked profiles get added to <code>schema.org/sameAs</code>, which AI search engines and Google use to confirm this is the right business.</p>
+
+                        @foreach ([
+                            'instagram_url' => 'Instagram URL',
+                            'pinterest_url' => 'Pinterest URL',
+                            'facebook_url' => 'Facebook URL',
+                            'youtube_url' => 'YouTube URL',
+                            'tiktok_url' => 'TikTok URL',
+                            'x_url' => 'X / Twitter URL',
+                        ] as $field => $label)
+                            <label>
+                                {{ $label }}
+                                <input type="url" name="{{ $field }}" value="{{ old($field, $siteSettings->{$field}) }}" placeholder="https://" spellcheck="false">
+                            </label>
+                        @endforeach
+
+                        <p class="eyebrow">Site verification</p>
+                        <p class="section-copy">Paste only the verification token (the value of the <code>content</code> attribute), not the full meta tag.</p>
+
+                        <label>
+                            Google Search Console
+                            <input type="text" name="google_site_verification" value="{{ old('google_site_verification', $siteSettings->google_site_verification) }}" spellcheck="false">
+                        </label>
+                        <label>
+                            Bing Webmaster Tools
+                            <input type="text" name="bing_site_verification" value="{{ old('bing_site_verification', $siteSettings->bing_site_verification) }}" spellcheck="false">
+                        </label>
+                        <label>
+                            Pinterest domain claim
+                            <input type="text" name="pinterest_site_verification" value="{{ old('pinterest_site_verification', $siteSettings->pinterest_site_verification) }}" spellcheck="false">
+                        </label>
+
+                        <p class="eyebrow">IndexNow</p>
+                        <p class="section-copy">Generate a hex string (8–128 chars). The site exposes it at <code>/{key}.txt</code> automatically and pings IndexNow whenever a journal post, wedding story, or page publishes.</p>
+
+                        <label>
+                            IndexNow key
+                            <input type="text" name="indexnow_key" value="{{ old('indexnow_key', $siteSettings->indexnow_key) }}" placeholder="e.g. {{ bin2hex(random_bytes(16)) }}" spellcheck="false">
+                        </label>
+
+                        <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Discovery</button>
+                    </form>
+                </article>
+            </section>
         @endif
 
         @if ($currentTab === 'imports')
