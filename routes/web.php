@@ -22,7 +22,9 @@ use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\JournalController;
+use App\Http\Controllers\JournalFeedController;
 use App\Http\Controllers\LegacyRedirectController;
+use App\Http\Controllers\LlmsTxtController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\QuestionnaireController;
 use App\Http\Controllers\SitemapController;
@@ -119,6 +121,7 @@ Route::get('/weddings', [WeddingStoryController::class, 'index'])->name('wedding
 Route::get('/weddings/{slug}', [WeddingStoryController::class, 'show'])->name('weddings.show');
 
 Route::get('/journal', [JournalController::class, 'index'])->name('journal.index');
+Route::get('/journal/feed.atom', JournalFeedController::class)->name('journal.feed');
 Route::get('/journal/category/{slug}', [JournalController::class, 'category'])->name('journal.category');
 Route::get('/journal/tag/{slug}', [JournalController::class, 'tag'])->name('journal.tag');
 Route::get('/journal/{slug}', [JournalController::class, 'show'])->name('journal.show');
@@ -140,15 +143,42 @@ Route::get('/questionnaire/{questionnaire}', [QuestionnaireController::class, 's
 Route::put('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'update'])->name('questionnaire.update');
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
+Route::get('/llms.txt', LlmsTxtController::class)->name('llms');
 
 Route::get('/robots.txt', function () {
+    $aiCrawlers = [
+        'GPTBot',
+        'OAI-SearchBot',
+        'ChatGPT-User',
+        'ClaudeBot',
+        'Claude-Web',
+        'anthropic-ai',
+        'PerplexityBot',
+        'Perplexity-User',
+        'Google-Extended',
+        'Applebot-Extended',
+        'Bytespider',
+        'meta-externalagent',
+        'Amazonbot',
+        'CCBot',
+    ];
+
     $lines = [
         'User-agent: *',
         'Disallow: /admin',
         'Disallow: /admin/',
-        '',
-        'Sitemap: '.route('sitemap'),
     ];
+
+    foreach ($aiCrawlers as $agent) {
+        $lines[] = '';
+        $lines[] = 'User-agent: '.$agent;
+        $lines[] = 'Allow: /';
+        $lines[] = 'Disallow: /admin';
+        $lines[] = 'Disallow: /admin/';
+    }
+
+    $lines[] = '';
+    $lines[] = 'Sitemap: '.route('sitemap');
 
     return response(implode("\n", $lines)."\n", 200, [
         'Content-Type' => 'text/plain; charset=UTF-8',
