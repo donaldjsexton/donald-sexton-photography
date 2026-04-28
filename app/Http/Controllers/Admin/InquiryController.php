@@ -30,7 +30,9 @@ class InquiryController extends Controller
 
         $query = Inquiry::query()->with('venue');
 
-        if ($currentStatus !== 'all') {
+        if ($currentStatus === 'all') {
+            $query->where('status', '!=', 'archived');
+        } else {
             $query->where('status', $currentStatus);
         }
 
@@ -46,7 +48,7 @@ class InquiryController extends Controller
             });
         }
 
-        $statusCounts = ['all' => Inquiry::query()->count()];
+        $statusCounts = ['all' => Inquiry::query()->where('status', '!=', 'archived')->count()];
 
         foreach (array_keys($statusOptions) as $status) {
             $statusCounts[$status] = Inquiry::query()->where('status', $status)->count();

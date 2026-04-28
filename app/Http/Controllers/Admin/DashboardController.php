@@ -39,7 +39,7 @@ class DashboardController extends Controller
             'quickActions' => $this->quickActions(),
             'thisWeek' => $this->thisWeekJobs(),
             'needsReply' => $this->needsReplyInquiries(),
-            'recentInquiries' => Inquiry::query()->latest()->limit(5)->get(),
+            'recentInquiries' => Inquiry::query()->where('status', '!=', 'archived')->latest()->limit(5)->get(),
             'recentImports' => ImportRun::query()->latest()->limit(5)->get(),
         ]);
     }
