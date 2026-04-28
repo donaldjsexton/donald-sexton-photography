@@ -2,6 +2,39 @@
 
 @section('title', 'Check Availability')
 
+@push('json_ld')
+    @php
+        $inquiryFaqSchema = \App\Support\StructuredData::faqPage([
+            [
+                'question' => 'Where are you based and how far do you travel?',
+                'answer' => 'Donald Sexton Photography is based in Clearwater, Florida and photographs weddings throughout Tampa Bay, St. Petersburg, Sarasota, and the rest of Florida. Travel beyond the Tampa Bay area is welcome and quoted with the inquiry.',
+            ],
+            [
+                'question' => 'How much does wedding photography cost?',
+                'answer' => 'Coverage is built on hours, with multiple collections covering six, eight, and ten or more hours of wedding day coverage. Add-ons such as a second shooter, engagement session, and rehearsal coverage are available. See the Collections page for current starting prices, or include your details in an inquiry for a tailored quote.',
+            ],
+            [
+                'question' => 'How do I check if my date is available?',
+                'answer' => 'Send your wedding date, venue, and a few details through the inquiry form on this page. You will hear back within a couple of business days with availability and next steps.',
+            ],
+            [
+                'question' => 'What is the photography style?',
+                'answer' => 'Calm, documentary wedding photography. The day is captured as it unfolds, with relaxed direction during portraits and family photos. The goal is photographs that feel like the day itself rather than posed reproductions.',
+            ],
+            [
+                'question' => 'Do you offer engagement sessions and elopement coverage?',
+                'answer' => 'Yes. Engagement sessions can be added to any wedding collection, and elopement coverage is available as a stand-alone option. Mention either in the inquiry message.',
+            ],
+        ]);
+        $inquiryBreadcrumbSchema = \App\Support\StructuredData::breadcrumbList([
+            ['name' => 'Home', 'url' => route('home')],
+            ['name' => 'Check Availability', 'url' => route('inquiry.create')],
+        ]);
+    @endphp
+    <script type="application/ld+json">{!! json_encode($inquiryFaqSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    <script type="application/ld+json">{!! json_encode($inquiryBreadcrumbSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+@endpush
+
 @section('content')
     <x-editorial.page-hero
         eyebrow="Inquiry"

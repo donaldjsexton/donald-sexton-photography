@@ -952,6 +952,123 @@ HTML,
         $this->assertStringContainsString('Sitemap: '.route('sitemap'), $body);
     }
 
+    public function test_robots_txt_explicitly_allows_known_ai_crawlers(): void
+    {
+        $body = $this->get('/robots.txt')->assertOk()->getContent();
+
+        foreach (['GPTBot', 'ClaudeBot', 'PerplexityBot', 'Google-Extended', 'Applebot-Extended', 'CCBot'] as $agent) {
+            $this->assertStringContainsString('User-agent: '.$agent, $body);
+        }
+
+        $this->assertStringContainsString("User-agent: GPTBot\nAllow: /\nDisallow: /admin", $body);
+    }
+
+    public function test_llms_txt_lists_key_pages_and_recent_content(): void
+    {
+        $story = WeddingStory::create([
+            'title' => 'Lighthouse Wedding',
+            'slug' => 'lighthouse-wedding',
+            'status' => 'published',
+            'excerpt' => 'A coastal wedding at sunset.',
+            'event_date' => '2027-06-12',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $post = JournalPost::create([
+            'title' => 'Wedding Timeline Tips',
+            'slug' => 'wedding-timeline-tips',
+            'status' => 'published',
+            'post_type' => 'advice',
+            'excerpt' => 'How to plan a relaxed wedding day timeline.',
+            'body' => '<p>Body.</p>',
+            'published_at' => now()->subDays(2),
+        ]);
+
+        Collection::create([
+            'name' => 'Essential Coverage',
+            'slug' => 'essential-coverage',
+            'status' => 'published',
+            'summary' => 'Six hours of full day coverage.',
+            'starting_price' => 3800,
+            'coverage_hours_min' => 6,
+            'display_order' => 1,
+        ]);
+
+        $response = $this->get('/llms.txt')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'text/plain; charset=UTF-8');
+
+        $body = $response->getContent();
+
+        $this->assertStringContainsString('# Donald Sexton Photography', $body);
+        $this->assertStringContainsString('## Key pages', $body);
+        $this->assertStringContainsString(route('weddings.index'), $body);
+        $this->assertStringContainsString(route('collections.index'), $body);
+        $this->assertStringContainsString(route('journal.index'), $body);
+        $this->assertStringContainsString(route('inquiry.create'), $body);
+        $this->assertStringContainsString('## Recent wedding stories', $body);
+        $this->assertStringContainsString('Lighthouse Wedding', $body);
+        $this->assertStringContainsString(route('weddings.show', $story->slug), $body);
+        $this->assertStringContainsString('## Recent journal posts', $body);
+        $this->assertStringContainsString('Wedding Timeline Tips', $body);
+        $this->assertStringContainsString(route('journal.show', $post->slug), $body);
+        $this->assertStringContainsString('## Coverage collections', $body);
+        $this->assertStringContainsString('Essential Coverage', $body);
+        $this->assertStringContainsString(route('sitemap'), $body);
+        $this->assertStringContainsString(route('journal.feed'), $body);
+    }
+
+    public function test_journal_atom_feed_lists_published_posts_with_metadata(): void
+    {
+        $post = JournalPost::create([
+            'title' => 'Sunset Engagement Notes',
+            'slug' => 'sunset-engagement-notes',
+            'status' => 'published',
+            'post_type' => 'engagement',
+            'excerpt' => 'A short note about a sunset engagement session.',
+            'author_name' => 'Donald Sexton',
+            'body' => '<p>Body.</p>',
+            'published_at' => now()->subDay(),
+        ]);
+
+        WeddingStory::create([
+            'title' => 'Should Not Appear',
+            'slug' => 'should-not-appear',
+            'status' => 'published',
+            'published_at' => now()->subHour(),
+        ]);
+
+        JournalPost::create([
+            'title' => 'Should Not Appear',
+            'slug' => 'should-not-appear',
+            'status' => 'published',
+            'post_type' => 'real_wedding',
+            'body' => '<p>Body.</p>',
+            'published_at' => now()->subHour(),
+        ]);
+
+        $response = $this->get('/journal/feed.atom')
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/atom+xml; charset=UTF-8');
+
+        $body = $response->getContent();
+
+        $this->assertStringContainsString('<feed xmlns="http://www.w3.org/2005/Atom">', $body);
+        $this->assertStringContainsString('<title>Sunset Engagement Notes</title>', $body);
+        $this->assertStringContainsString('<name>Donald Sexton</name>', $body);
+        $this->assertStringContainsString(route('journal.show', $post->slug), $body);
+        $this->assertStringContainsString('A short note about a sunset engagement session.', $body);
+        $this->assertStringNotContainsString('<title>Should Not Appear</title>', $body);
+    }
+
+    public function test_layout_advertises_atom_feed_for_autodiscovery(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('rel="alternate" type="application/atom+xml"', false)
+            ->assertSee('href="'.route('journal.feed').'"', false);
+    }
+
     public function test_journal_post_renders_og_image_and_article_metadata(): void
     {
         $hero = Media::create([

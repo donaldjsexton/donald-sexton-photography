@@ -6,6 +6,20 @@
 @section('og_image', $page?->heroMedia?->publicUrl() ?: '')
 @section('og_image_alt', $page?->title ?: 'Collections')
 
+@push('json_ld')
+    @php
+        $offerCatalogSchema = \App\Support\StructuredData::collectionOfferCatalog($collections);
+        $collectionsBreadcrumbSchema = \App\Support\StructuredData::breadcrumbList([
+            ['name' => 'Home', 'url' => route('home')],
+            ['name' => 'Collections', 'url' => route('collections.index')],
+        ]);
+    @endphp
+    @if (! empty($offerCatalogSchema))
+        <script type="application/ld+json">{!! json_encode($offerCatalogSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    @endif
+    <script type="application/ld+json">{!! json_encode($collectionsBreadcrumbSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+@endpush
+
 @section('content')
     <x-editorial.page-hero
         class="page-hero--archive-intro"
