@@ -49,6 +49,8 @@
                 <p class="eyebrow">What To Share</p>
                 <p class="section-copy">Your date, venue, and what matters most are enough to start.</p>
                 <p class="meta">You do not need every detail yet. We can fill in the rest later.</p>
+
+                <x-editorial.google-reviews variant="aside" :limit="2" />
             </div>
 
             <div class="form-panel">

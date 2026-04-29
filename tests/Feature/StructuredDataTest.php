@@ -188,6 +188,7 @@ class StructuredDataTest extends TestCase
                     ],
                 ],
             ]);
+            $mock->shouldReceive('publicListingUrl')->andReturn(null);
         });
 
         $this->get('/')
@@ -197,6 +198,69 @@ class StructuredDataTest extends TestCase
             ->assertSee('"reviewCount":42', false)
             ->assertSee('"@type":"Review"', false)
             ->assertSee('Calm, kind, and the photos are unreal.', false);
+    }
+
+    public function test_homepage_renders_google_reviews_block_when_snapshot_available(): void
+    {
+        $this->mock(GoogleBusinessProfile::class, function ($mock): void {
+            $mock->shouldReceive('snapshot')->andReturn([
+                'rating' => 4.9,
+                'reviewCount' => 42,
+                'recentReviews' => [
+                    [
+                        'author' => 'Avery K.',
+                        'rating' => 5,
+                        'excerpt' => 'Calm, kind, and the photos are unreal.',
+                        'date' => 'Mar 5, 2026',
+                    ],
+                ],
+            ]);
+            $mock->shouldReceive('publicListingUrl')->andReturn('https://www.google.com/search?q=test');
+        });
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('google-reviews', false)
+            ->assertSee('42 reviews on Google', false)
+            ->assertSee('Calm, kind, and the photos are unreal.')
+            ->assertSee('Avery K.');
+    }
+
+    public function test_inquiry_page_renders_google_reviews_aside_when_snapshot_available(): void
+    {
+        $this->mock(GoogleBusinessProfile::class, function ($mock): void {
+            $mock->shouldReceive('snapshot')->andReturn([
+                'rating' => 5.0,
+                'reviewCount' => 12,
+                'recentReviews' => [
+                    [
+                        'author' => 'Jamie R.',
+                        'rating' => 5,
+                        'excerpt' => 'Felt like a friend with a camera.',
+                        'date' => 'Apr 2, 2026',
+                    ],
+                ],
+            ]);
+            $mock->shouldReceive('publicListingUrl')->andReturn(null);
+        });
+
+        $this->get(route('inquiry.create'))
+            ->assertOk()
+            ->assertSee('google-reviews--aside', false)
+            ->assertSee('12 reviews on Google', false)
+            ->assertSee('Felt like a friend with a camera.');
+    }
+
+    public function test_homepage_does_not_render_google_reviews_block_when_no_snapshot(): void
+    {
+        $this->mock(GoogleBusinessProfile::class, function ($mock): void {
+            $mock->shouldReceive('snapshot')->andReturn(null);
+            $mock->shouldReceive('publicListingUrl')->andReturn(null);
+        });
+
+        $this->get('/')
+            ->assertOk()
+            ->assertDontSee('google-reviews', false);
     }
 
     public function test_layout_renders_verification_meta_tags_when_codes_are_set(): void

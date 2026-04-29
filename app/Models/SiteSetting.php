@@ -21,6 +21,8 @@ class SiteSetting extends Model
         'gmail_last_synced_at',
         'gbp_account_name',
         'gbp_location_name',
+        'gbp_snapshot',
+        'gbp_snapshot_fetched_at',
         'instagram_url',
         'pinterest_url',
         'facebook_url',
@@ -36,6 +38,8 @@ class SiteSetting extends Model
     protected $casts = [
         'google_granted_scopes' => 'array',
         'gmail_last_synced_at' => 'datetime',
+        'gbp_snapshot' => 'array',
+        'gbp_snapshot_fetched_at' => 'datetime',
     ];
 
     protected $hidden = [

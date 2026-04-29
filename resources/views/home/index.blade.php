@@ -246,6 +246,8 @@
         </div>
     </section>
 
+    <x-editorial.google-reviews />
+
     <x-editorial.page-closing
         eyebrow="Next Step"
         title="Have a date in mind?"
