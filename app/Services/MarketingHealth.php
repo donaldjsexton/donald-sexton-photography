@@ -63,7 +63,7 @@ class MarketingHealth
                 'description' => 'Generated from published pages, stories, and journal posts at /sitemap.xml.',
                 'tone' => 'positive',
             ],
-            $this->reputationSignal($googleConnected, $gbpData),
+            $this->reputationSignal($googleConnected, $siteSettings, $gbpData),
         ];
     }
 
@@ -106,7 +106,7 @@ class MarketingHealth
      * @param  array{rating: float, reviewCount: int, recentReviews: array<int, array{author: string, rating: int, excerpt: string, date: string}>}|null  $data
      * @return array{label: string, value: string, description: string, tone: string}
      */
-    private function reputationSignal(bool $googleConnected, ?array $data): array
+    private function reputationSignal(bool $googleConnected, SiteSetting $siteSettings, ?array $data): array
     {
         if (! $googleConnected) {
             return [
@@ -117,12 +117,23 @@ class MarketingHealth
             ];
         }
 
+        $listingSelected = filled($siteSettings->gbp_account_name) && filled($siteSettings->gbp_location_name);
+
         if ($data === null) {
+            if (! $listingSelected) {
+                return [
+                    'label' => 'Reputation',
+                    'value' => 'No listing selected',
+                    'description' => 'Pick the Business Profile listing to track in Settings → Integrations.',
+                    'tone' => 'warning',
+                ];
+            }
+
             return [
                 'label' => 'Reputation',
-                'value' => 'No listing found',
-                'description' => 'Connected but no Google Business Profile listing was found for this account.',
-                'tone' => 'warning',
+                'value' => 'Awaiting data',
+                'description' => 'Listing saved. Google Business Profile has not returned reviews yet — this can take a few hours, or longer while API approval is pending.',
+                'tone' => 'neutral',
             ];
         }
 
