@@ -111,40 +111,79 @@ class GoogleBusinessProfile
 
         $cacheKey = 'google_business_profile_snapshot:'.md5($locationName);
 
-        return Cache::remember($cacheKey, now()->addHours(6), function () use ($token, $locationName) {
-            try {
-                $reviewsResponse = Http::withToken($token)
-                    ->get("https://mybusiness.googleapis.com/v4/{$locationName}/reviews", [
-                        'pageSize' => 5,
-                        'orderBy' => 'updateTime desc',
-                    ]);
+        return Cache::remember($cacheKey, now()->addHours(6), function () use ($token, $locationName, $settings) {
+            $fresh = $this->fetchSnapshot($token, $locationName);
 
-                if ($reviewsResponse->failed()) {
-                    Log::warning("GBP reviews fetch failed for {$locationName}: ".$reviewsResponse->body());
+            if ($fresh !== null) {
+                $settings->forceFill([
+                    'gbp_snapshot' => $fresh,
+                    'gbp_snapshot_fetched_at' => now(),
+                ])->save();
 
-                    return null;
-                }
+                return $fresh;
+            }
 
-                $reviewData = $reviewsResponse->json();
+            // Fall back to the persisted snapshot so the public widget never
+            // goes blank when the API is rate-limited or temporarily down.
+            return $settings->gbp_snapshot ?: null;
+        });
+    }
 
-                return [
-                    'rating' => (float) ($reviewData['averageRating'] ?? 0),
-                    'reviewCount' => (int) ($reviewData['totalReviewCount'] ?? 0),
-                    'recentReviews' => collect($reviewData['reviews'] ?? [])
-                        ->map(fn ($r) => [
-                            'author' => $r['reviewer']['displayName'] ?? 'Anonymous',
-                            'rating' => $this->starRatingToInt($r['starRating'] ?? 'ZERO'),
-                            'excerpt' => str($r['comment'] ?? '')->limit(120)->toString(),
-                            'date' => isset($r['updateTime']) ? Carbon::parse($r['updateTime'])->format('M j, Y') : '',
-                        ])
-                        ->all(),
-                ];
-            } catch (\Throwable $e) {
-                Log::warning('Google Business Profile API error: '.$e->getMessage());
+    /**
+     * @return array{rating: float, reviewCount: int, recentReviews: array<int, array{author: string, rating: int, excerpt: string, date: string}>}|null
+     */
+    private function fetchSnapshot(string $token, string $locationName): ?array
+    {
+        try {
+            $reviewsResponse = Http::withToken($token)
+                ->get("https://mybusiness.googleapis.com/v4/{$locationName}/reviews", [
+                    'pageSize' => 5,
+                    'orderBy' => 'updateTime desc',
+                ]);
+
+            if ($reviewsResponse->failed()) {
+                Log::warning("GBP reviews fetch failed for {$locationName}: ".$reviewsResponse->body());
 
                 return null;
             }
-        });
+
+            $reviewData = $reviewsResponse->json();
+
+            return [
+                'rating' => (float) ($reviewData['averageRating'] ?? 0),
+                'reviewCount' => (int) ($reviewData['totalReviewCount'] ?? 0),
+                'recentReviews' => collect($reviewData['reviews'] ?? [])
+                    ->map(fn ($r) => [
+                        'author' => $r['reviewer']['displayName'] ?? 'Anonymous',
+                        'rating' => $this->starRatingToInt($r['starRating'] ?? 'ZERO'),
+                        'excerpt' => str($r['comment'] ?? '')->limit(180)->toString(),
+                        'date' => isset($r['updateTime']) ? Carbon::parse($r['updateTime'])->format('M j, Y') : '',
+                    ])
+                    ->all(),
+            ];
+        } catch (\Throwable $e) {
+            Log::warning('Google Business Profile API error: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * Public Google search URL that lands on the studio's reviews panel.
+     * The GBP API exposes a resource name (accounts/X/locations/Y) rather
+     * than a Maps place_id, so a name-scoped search is the dependable link.
+     */
+    public function publicListingUrl(): ?string
+    {
+        $settings = SiteSetting::current();
+
+        if (! $settings->gbp_location_name) {
+            return null;
+        }
+
+        $studioName = (string) config('app.name', 'Donald Sexton Photography');
+
+        return 'https://www.google.com/search?q='.urlencode($studioName.' reviews');
     }
 
     public function forgetCaches(): void
