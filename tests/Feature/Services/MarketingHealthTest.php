@@ -40,6 +40,38 @@ class MarketingHealthTest extends TestCase
         $this->assertSame('positive', $connected['tone']);
     }
 
+    public function test_reputation_signal_says_no_listing_selected_when_google_connected_without_selection(): void
+    {
+        $connected = new SiteSetting([
+            'google_connected_email' => 'studio@example.com',
+            'google_refresh_token' => 'refresh-token',
+            'google_granted_scopes' => ['https://www.googleapis.com/auth/business.manage'],
+        ]);
+
+        $reputation = collect(app(MarketingHealth::class)->snapshot($connected)['signals'])
+            ->firstWhere('label', 'Reputation');
+
+        $this->assertSame('No listing selected', $reputation['value']);
+        $this->assertSame('warning', $reputation['tone']);
+    }
+
+    public function test_reputation_signal_reports_awaiting_data_when_listing_saved_but_snapshot_empty(): void
+    {
+        $connected = new SiteSetting([
+            'google_connected_email' => 'studio@example.com',
+            'google_refresh_token' => 'refresh-token',
+            'google_granted_scopes' => ['https://www.googleapis.com/auth/business.manage'],
+            'gbp_account_name' => 'accounts/111',
+            'gbp_location_name' => 'accounts/111/locations/222',
+        ]);
+
+        $reputation = collect(app(MarketingHealth::class)->snapshot($connected)['signals'])
+            ->firstWhere('label', 'Reputation');
+
+        $this->assertSame('Awaiting data', $reputation['value']);
+        $this->assertSame('neutral', $reputation['tone']);
+    }
+
     public function test_seo_coverage_reports_percentage_of_records_with_title_and_description(): void
     {
         Page::create([
