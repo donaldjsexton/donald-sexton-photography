@@ -3,7 +3,7 @@
 @section('title', 'Booked Jobs')
 @section('eyebrow', 'Calendar')
 @section('heading', 'Booked Jobs')
-@section('subheading', 'Wedding calendar synced from Google. Events update automatically every 30 minutes.')
+@section('subheading', 'Wedding calendar synced from Google. Refreshes when you load this page.')
 @section('content')
     @php
         $monthDate = \Carbon\Carbon::createFromDate($year, $month, 1);
@@ -20,6 +20,10 @@
             {{ $nextMonth->format('M') }} &rarr;
         </a>
     </section>
+
+    @if ($lastSyncedAt)
+        <p class="meta cal-sync-status">Last synced {{ $lastSyncedAt->diffForHumans() }}.</p>
+    @endif
 
     {{-- Desktop calendar grid --}}
     <section class="cal-grid-wrap">
