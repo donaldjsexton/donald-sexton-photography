@@ -7,6 +7,7 @@ use App\Mail\InquiryReply;
 use App\Models\Inquiry;
 use App\Models\Venue;
 use App\Models\WeddingQuestionnaire;
+use App\Services\CalendarSyncOutcome;
 use App\Services\GoogleCalendar;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -157,17 +158,27 @@ class InquiryController extends Controller
             'status' => ['required', Rule::in(array_keys(Inquiry::statusOptions()))],
         ]);
 
-        $wasBooked = $inquiry->status !== 'booked' && ($validated['status'] ?? '') === 'booked';
-
         $inquiry->update($validated);
 
-        if ($wasBooked) {
-            $this->calendar->upsertBookingEvent($inquiry);
+        $redirect = redirect()->route('admin.inquiries.edit', $inquiry);
+
+        if ($inquiry->status === 'booked') {
+            return $redirect->with('status', $this->bookedFlashMessage(
+                $this->calendar->upsertBookingEvent($inquiry)
+            ));
         }
 
-        return redirect()
-            ->route('admin.inquiries.edit', $inquiry)
-            ->with('status', 'Inquiry updated.');
+        return $redirect->with('status', 'Inquiry updated.');
+    }
+
+    private function bookedFlashMessage(CalendarSyncOutcome $outcome): string
+    {
+        return match ($outcome) {
+            CalendarSyncOutcome::Synced => 'Inquiry updated and synced to Google Calendar.',
+            CalendarSyncOutcome::MissingEventDate => 'Inquiry updated. Add an event date to sync this booking to Google Calendar.',
+            CalendarSyncOutcome::NotConnected => 'Inquiry updated. Connect Google Calendar to sync booked events.',
+            CalendarSyncOutcome::Failed => 'Inquiry updated, but Google Calendar sync failed. Check the logs and retry.',
+        };
     }
 
     public function destroy(Inquiry $inquiry): RedirectResponse

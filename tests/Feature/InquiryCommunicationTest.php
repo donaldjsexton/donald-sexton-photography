@@ -7,9 +7,12 @@ use App\Mail\InquiryReply;
 use App\Models\BookedJob;
 use App\Models\Inquiry;
 use App\Models\User;
+use App\Services\CalendarSyncOutcome;
+use App\Services\GoogleCalendar;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
+use Mockery;
 use Tests\TestCase;
 
 class InquiryCommunicationTest extends TestCase
@@ -286,6 +289,116 @@ class InquiryCommunicationTest extends TestCase
         $response->assertRedirect(route('admin.inquiries.index'));
         $this->assertDatabaseMissing('inquiries', ['id' => $inquiry->id]);
         $this->assertDatabaseMissing('inquiry_messages', ['inquiry_id' => $inquiry->id]);
+    }
+
+    public function test_marking_inquiry_booked_pushes_event_to_google_calendar(): void
+    {
+        $calendar = Mockery::mock(GoogleCalendar::class);
+        $calendar->shouldReceive('upsertBookingEvent')
+            ->once()
+            ->andReturn(CalendarSyncOutcome::Synced);
+        $this->app->instance(GoogleCalendar::class, $calendar);
+
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->active()->create(['event_date' => '2027-09-11']);
+
+        $response = $this->actingAs($user)->put(route('admin.inquiries.update', $inquiry), [
+            'status' => 'booked',
+        ]);
+
+        $response->assertRedirect(route('admin.inquiries.edit', $inquiry));
+        $response->assertSessionHas('status', 'Inquiry updated and synced to Google Calendar.');
+    }
+
+    public function test_resaving_booked_inquiry_still_syncs_calendar(): void
+    {
+        // The earlier bug: upsert only fired on transition into booked, so
+        // re-saving an already-booked inquiry never pushed updates.
+        $calendar = Mockery::mock(GoogleCalendar::class);
+        $calendar->shouldReceive('upsertBookingEvent')
+            ->once()
+            ->andReturn(CalendarSyncOutcome::Synced);
+        $this->app->instance(GoogleCalendar::class, $calendar);
+
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->booked()->create([
+            'event_date' => '2027-09-11',
+            'calendar_event_id' => 'evt-existing',
+        ]);
+
+        $this->actingAs($user)->put(route('admin.inquiries.update', $inquiry), [
+            'status' => 'booked',
+        ]);
+    }
+
+    public function test_booked_save_without_event_date_warns_admin(): void
+    {
+        $calendar = Mockery::mock(GoogleCalendar::class);
+        $calendar->shouldReceive('upsertBookingEvent')
+            ->once()
+            ->andReturn(CalendarSyncOutcome::MissingEventDate);
+        $this->app->instance(GoogleCalendar::class, $calendar);
+
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->active()->create(['event_date' => null]);
+
+        $response = $this->actingAs($user)->put(route('admin.inquiries.update', $inquiry), [
+            'status' => 'booked',
+        ]);
+
+        $response->assertSessionHas('status', 'Inquiry updated. Add an event date to sync this booking to Google Calendar.');
+    }
+
+    public function test_booked_save_when_calendar_disconnected_warns_admin(): void
+    {
+        $calendar = Mockery::mock(GoogleCalendar::class);
+        $calendar->shouldReceive('upsertBookingEvent')
+            ->once()
+            ->andReturn(CalendarSyncOutcome::NotConnected);
+        $this->app->instance(GoogleCalendar::class, $calendar);
+
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->active()->create(['event_date' => '2027-09-11']);
+
+        $response = $this->actingAs($user)->put(route('admin.inquiries.update', $inquiry), [
+            'status' => 'booked',
+        ]);
+
+        $response->assertSessionHas('status', 'Inquiry updated. Connect Google Calendar to sync booked events.');
+    }
+
+    public function test_booked_save_surfaces_failure_message(): void
+    {
+        $calendar = Mockery::mock(GoogleCalendar::class);
+        $calendar->shouldReceive('upsertBookingEvent')
+            ->once()
+            ->andReturn(CalendarSyncOutcome::Failed);
+        $this->app->instance(GoogleCalendar::class, $calendar);
+
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->active()->create(['event_date' => '2027-09-11']);
+
+        $response = $this->actingAs($user)->put(route('admin.inquiries.update', $inquiry), [
+            'status' => 'booked',
+        ]);
+
+        $response->assertSessionHas('status', 'Inquiry updated, but Google Calendar sync failed. Check the logs and retry.');
+    }
+
+    public function test_non_booked_status_change_does_not_call_calendar(): void
+    {
+        $calendar = Mockery::mock(GoogleCalendar::class);
+        $calendar->shouldNotReceive('upsertBookingEvent');
+        $this->app->instance(GoogleCalendar::class, $calendar);
+
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->create(['status' => 'new']);
+
+        $response = $this->actingAs($user)->put(route('admin.inquiries.update', $inquiry), [
+            'status' => 'follow_up',
+        ]);
+
+        $response->assertSessionHas('status', 'Inquiry updated.');
     }
 
     public function test_edit_view_shows_message_timeline(): void

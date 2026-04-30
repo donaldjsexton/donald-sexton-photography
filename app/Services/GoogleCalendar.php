@@ -16,18 +16,17 @@ class GoogleCalendar
 
     /**
      * Create or update a calendar event for a booked inquiry.
-     * Returns the event HTML link, or null on failure / when Calendar is not connected.
      */
-    public function upsertBookingEvent(Inquiry $inquiry): ?string
+    public function upsertBookingEvent(Inquiry $inquiry): CalendarSyncOutcome
     {
         $calendar = $this->googleClient->calendar();
 
         if ($calendar === null) {
-            return null;
+            return CalendarSyncOutcome::NotConnected;
         }
 
         if (! $inquiry->event_date) {
-            return null;
+            return CalendarSyncOutcome::MissingEventDate;
         }
 
         try {
@@ -47,29 +46,47 @@ class GoogleCalendar
 
             $eventDate = $inquiry->event_date->toDateString();
 
+            // Note: Google\Service\Calendar setters do not return $this, so set
+            // these properties imperatively rather than chaining.
+            $start = new EventDateTime;
+            $start->setDate($eventDate);
+            $start->setTimeZone('America/New_York');
+
+            $end = new EventDateTime;
+            $end->setDate($eventDate);
+            $end->setTimeZone('America/New_York');
+
             $event = new Event([
                 'summary' => $summary,
                 'description' => $description,
-                'start' => (new EventDateTime)->setDate($eventDate)->setTimeZone('America/New_York'),
-                'end' => (new EventDateTime)->setDate($eventDate)->setTimeZone('America/New_York'),
+                'start' => $start,
+                'end' => $end,
             ]);
 
-            // Use the existing calendar_event_id if one was already created.
             if ($inquiry->calendar_event_id) {
-                $updated = $calendar->events->update(self::CALENDAR_ID, $inquiry->calendar_event_id, $event);
+                try {
+                    $calendar->events->update(self::CALENDAR_ID, $inquiry->calendar_event_id, $event);
 
-                return $updated->getHtmlLink();
+                    return CalendarSyncOutcome::Synced;
+                } catch (\Throwable $updateException) {
+                    // The stored event id may point at an event that was deleted in
+                    // Google Calendar. Fall through and recreate so admins are not
+                    // permanently blocked from syncing.
+                    Log::warning('Google Calendar event update failed, recreating: '.$updateException->getMessage());
+
+                    $inquiry->update(['calendar_event_id' => null]);
+                }
             }
 
             $created = $calendar->events->insert(self::CALENDAR_ID, $event);
 
             $inquiry->update(['calendar_event_id' => $created->getId()]);
 
-            return $created->getHtmlLink();
+            return CalendarSyncOutcome::Synced;
         } catch (\Throwable $e) {
             Log::warning('Google Calendar event upsert failed: '.$e->getMessage());
 
-            return null;
+            return CalendarSyncOutcome::Failed;
         }
     }
 }
