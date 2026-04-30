@@ -4,7 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\BookedJob;
 use App\Models\User;
+use App\Services\CalendarSync;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Mockery;
 use Tests\TestCase;
 
 class BookedJobTest extends TestCase
@@ -134,5 +137,42 @@ class BookedJobTest extends TestCase
         $julyJobs = BookedJob::inMonth(2026, 7)->get();
 
         $this->assertCount(1, $julyJobs);
+    }
+
+    public function test_calendar_page_triggers_on_demand_sync_when_throttle_is_clear(): void
+    {
+        Cache::forget('calendar:sync:throttle');
+        $user = User::factory()->create();
+
+        $sync = Mockery::mock(CalendarSync::class);
+        $sync->shouldReceive('sync')->once()->andReturn(0);
+        $this->app->instance(CalendarSync::class, $sync);
+
+        $this->actingAs($user)->get(route('admin.booked-jobs.index'))->assertOk();
+    }
+
+    public function test_calendar_page_does_not_resync_within_throttle_window(): void
+    {
+        Cache::forget('calendar:sync:throttle');
+        $user = User::factory()->create();
+
+        $sync = Mockery::mock(CalendarSync::class);
+        $sync->shouldReceive('sync')->once()->andReturn(0);
+        $this->app->instance(CalendarSync::class, $sync);
+
+        $this->actingAs($user)->get(route('admin.booked-jobs.index'))->assertOk();
+        $this->actingAs($user)->get(route('admin.booked-jobs.index'))->assertOk();
+    }
+
+    public function test_calendar_page_renders_when_sync_throws(): void
+    {
+        Cache::forget('calendar:sync:throttle');
+        $user = User::factory()->create();
+
+        $sync = Mockery::mock(CalendarSync::class);
+        $sync->shouldReceive('sync')->once()->andThrow(new \RuntimeException('Google down'));
+        $this->app->instance(CalendarSync::class, $sync);
+
+        $this->actingAs($user)->get(route('admin.booked-jobs.index'))->assertOk();
     }
 }
