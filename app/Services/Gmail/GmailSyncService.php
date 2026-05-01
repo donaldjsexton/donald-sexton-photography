@@ -88,10 +88,27 @@ class GmailSyncService
                 $body = '(empty message)';
             }
 
+            $senderName = $message->fromName ?? Str::before($message->fromEmail, '@');
+
+            if ($isOutbound) {
+                $local = $this->findLocallyCreatedOutbound($inquiry, $message);
+
+                if ($local !== null) {
+                    $local->update([
+                        'sender_name' => $senderName,
+                        'sender_email' => $message->fromEmail,
+                        'sent_at' => $message->sentAt,
+                        'gmail_message_id' => $message->id,
+                    ]);
+
+                    continue;
+                }
+            }
+
             $inquiry->messages()->create([
                 'direction' => $isOutbound ? 'outbound' : 'inbound',
                 'body' => $body,
-                'sender_name' => $message->fromName ?? Str::before($message->fromEmail, '@'),
+                'sender_name' => $senderName,
                 'sender_email' => $message->fromEmail,
                 'sent_at' => $message->sentAt,
                 'gmail_message_id' => $message->id,
@@ -102,6 +119,26 @@ class GmailSyncService
         }
 
         return $created;
+    }
+
+    /**
+     * When the admin sends a reply through the app, an outbound InquiryMessage
+     * is created before the email leaves the building, so it has no Gmail ID.
+     * The next Gmail sync would otherwise insert a second row for the same
+     * email. Match it back to the locally-created row by direction + sent_at
+     * proximity so we update in place instead of duplicating.
+     */
+    private function findLocallyCreatedOutbound(Inquiry $inquiry, ParsedGmailMessage $message): ?InquiryMessage
+    {
+        return $inquiry->messages()
+            ->where('direction', 'outbound')
+            ->whereNull('gmail_message_id')
+            ->whereBetween('sent_at', [
+                $message->sentAt->copy()->subMinutes(10),
+                $message->sentAt->copy()->addMinutes(10),
+            ])
+            ->orderBy('sent_at', 'desc')
+            ->first();
     }
 
     private function applySideEffects(Inquiry $inquiry, bool $isOutbound, Carbon $sentAt): void

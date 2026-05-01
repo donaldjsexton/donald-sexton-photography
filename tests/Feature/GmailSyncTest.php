@@ -143,6 +143,111 @@ class GmailSyncTest extends TestCase
 
         $this->assertSame(['checked' => 0, 'linked' => 0, 'new_messages' => 0], $result);
     }
+
+    public function test_sync_claims_locally_created_outbound_message_instead_of_duplicating(): void
+    {
+        $inquiry = Inquiry::factory()->create([
+            'email' => 'client@example.com',
+            'gmail_thread_id' => 'thr_1',
+        ]);
+
+        $sentAt = Carbon::parse('2026-04-10 14:00:00');
+
+        $local = $inquiry->messages()->create([
+            'direction' => 'outbound',
+            'body' => 'Thanks for reaching out!',
+            'sender_name' => 'Donald Sexton',
+            'sender_email' => 'donald@example.com',
+            'sent_at' => $sentAt->copy()->subSeconds(30),
+        ]);
+
+        $reader = new FakeGmailReader(
+            connectedEmail: 'donald@example.com',
+            messagesByThread: [
+                'thr_1' => [
+                    new ParsedGmailMessage('m_outbound', 'thr_1', 'donald@example.com', 'Donald Sexton', 'Re: Hi', 'Thanks for reaching out!', $sentAt, false),
+                ],
+            ],
+        );
+
+        $result = (new GmailSyncService($reader))->sync();
+
+        $this->assertSame(0, $result['new_messages']);
+        $this->assertDatabaseCount('inquiry_messages', 1);
+
+        $local->refresh();
+        $this->assertSame('m_outbound', $local->gmail_message_id);
+        $this->assertSame($sentAt->format('Y-m-d H:i:s'), $local->sent_at->format('Y-m-d H:i:s'));
+    }
+
+    public function test_sync_does_not_claim_outbound_message_outside_time_window(): void
+    {
+        $inquiry = Inquiry::factory()->create([
+            'email' => 'client@example.com',
+            'gmail_thread_id' => 'thr_1',
+        ]);
+
+        $inquiry->messages()->create([
+            'direction' => 'outbound',
+            'body' => 'An older note.',
+            'sender_name' => 'Donald Sexton',
+            'sender_email' => 'donald@example.com',
+            'sent_at' => Carbon::parse('2026-04-10 10:00:00'),
+        ]);
+
+        $reader = new FakeGmailReader(
+            connectedEmail: 'donald@example.com',
+            messagesByThread: [
+                'thr_1' => [
+                    new ParsedGmailMessage('m_outbound', 'thr_1', 'donald@example.com', 'Donald Sexton', 'Re: Hi', 'Newer reply body.', Carbon::parse('2026-04-10 14:00:00'), false),
+                ],
+            ],
+        );
+
+        (new GmailSyncService($reader))->sync();
+
+        $this->assertDatabaseCount('inquiry_messages', 2);
+        $this->assertDatabaseHas('inquiry_messages', [
+            'inquiry_id' => $inquiry->id,
+            'gmail_message_id' => 'm_outbound',
+        ]);
+    }
+
+    public function test_sync_does_not_claim_inbound_message_with_local_outbound(): void
+    {
+        $inquiry = Inquiry::factory()->create([
+            'email' => 'client@example.com',
+            'gmail_thread_id' => 'thr_1',
+        ]);
+
+        $sentAt = Carbon::parse('2026-04-10 14:00:00');
+
+        $inquiry->messages()->create([
+            'direction' => 'outbound',
+            'body' => 'Pending outbound.',
+            'sender_name' => 'Donald Sexton',
+            'sender_email' => 'donald@example.com',
+            'sent_at' => $sentAt->copy()->subSeconds(30),
+        ]);
+
+        $reader = new FakeGmailReader(
+            connectedEmail: 'donald@example.com',
+            messagesByThread: [
+                'thr_1' => [
+                    new ParsedGmailMessage('m_inbound', 'thr_1', 'client@example.com', 'Jane Client', 'Hi', 'Inbound from client.', $sentAt, false),
+                ],
+            ],
+        );
+
+        (new GmailSyncService($reader))->sync();
+
+        $this->assertDatabaseCount('inquiry_messages', 2);
+        $this->assertDatabaseHas('inquiry_messages', [
+            'inquiry_id' => $inquiry->id,
+            'gmail_message_id' => 'm_inbound',
+            'direction' => 'inbound',
+        ]);
+    }
 }
 
 class FakeGmailReader implements GmailReader
