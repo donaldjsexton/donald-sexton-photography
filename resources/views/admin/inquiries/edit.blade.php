@@ -194,7 +194,12 @@
             @endforeach
         </div>
 
-        <form method="POST" action="{{ route('admin.inquiries.reply', $inquiry) }}" class="admin-form inquiry-reply-form">
+        <form
+            method="POST"
+            action="{{ route('admin.inquiries.reply', $inquiry) }}"
+            class="admin-form inquiry-reply-form"
+            data-prevent-double-submit
+        >
             @csrf
             <label>
                 Reply to {{ $inquiry->primary_name }}
@@ -204,9 +209,30 @@
                 <p class="admin-form__error">{{ $message }}</p>
             @enderror
             <div class="inquiry-reply-form__actions">
-                <button class="cta" type="submit" style="border: 0; cursor: pointer;">Send Reply</button>
+                <button
+                    class="cta"
+                    type="submit"
+                    style="border: 0; cursor: pointer;"
+                    data-sending-label="Sending..."
+                >Send Reply</button>
                 <span class="meta">Sends to {{ $inquiry->email }}</span>
             </div>
         </form>
+        <script>
+            (function () {
+                var form = document.querySelector('form[data-prevent-double-submit]');
+                if (!form) {
+                    return;
+                }
+                form.addEventListener('submit', function () {
+                    var button = form.querySelector('button[type="submit"]');
+                    if (!button || button.disabled) {
+                        return;
+                    }
+                    button.disabled = true;
+                    button.textContent = button.dataset.sendingLabel || 'Sending...';
+                });
+            })();
+        </script>
     </section>
 @endsection
