@@ -4147,8 +4147,7 @@ body.media-picker-modal-open {
     border-radius: 10px;
     background: #fff;
     padding: 0;
-    display: grid;
-    grid-template-rows: auto auto;
+    display: block;
     min-width: 0;
     overflow: hidden;
     cursor: pointer;
@@ -4182,23 +4181,17 @@ body.media-picker-modal-open {
     display: block;
 }
 
-.media-picker-tile__meta {
-    display: grid;
-    gap: 0.15rem;
-    padding: 0.55rem 0.7rem 0.7rem;
-    min-width: 0;
-}
-
-.media-picker-tile__meta strong {
-    font-size: 0.85rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.media-picker-tile__meta .meta {
-    font-size: 0.75rem;
-    opacity: 0.65;
+.media-picker-tile__id {
+    position: absolute;
+    bottom: 0.35rem;
+    left: 0.4rem;
+    font-size: 0.7rem;
+    line-height: 1;
+    background: rgba(0, 0, 0, 0.45);
+    color: #fff;
+    padding: 0.15rem 0.35rem;
+    border-radius: 4px;
+    pointer-events: none;
 }
 
 .media-picker-modal__footer {

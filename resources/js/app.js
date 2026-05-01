@@ -690,15 +690,12 @@ if (mediaPickers.length > 0) {
                 figure.appendChild(img);
             }
 
-            const meta = document.createElement('span');
-            meta.className = 'media-picker-tile__meta';
-            meta.innerHTML = `
-                <strong>${escapeHtml(media.filename || 'Untitled')}</strong>
-                <span class="meta">#${media.id}</span>
-            `;
+            const idBadge = document.createElement('span');
+            idBadge.className = 'media-picker-tile__id';
+            idBadge.textContent = `#${media.id}`;
+            figure.appendChild(idBadge);
 
             tile.appendChild(figure);
-            tile.appendChild(meta);
             modalGrid.appendChild(tile);
         });
     };
