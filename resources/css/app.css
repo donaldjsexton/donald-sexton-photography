@@ -2765,10 +2765,6 @@ textarea {
     color: #fff;
 }
 
-.editorial-pagination__link.is-disabled {
-    color: rgba(50, 42, 37, 0.45);
-}
-
 .home-page .site-header {
     background: rgba(40, 34, 30, 0.78);
     border-bottom-color: rgba(255, 255, 255, 0.06);
