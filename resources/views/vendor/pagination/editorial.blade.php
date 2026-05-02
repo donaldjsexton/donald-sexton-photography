@@ -5,11 +5,9 @@
         </p>
 
         <div class="editorial-pagination__links">
-            @if ($paginator->onFirstPage())
-                <span class="editorial-pagination__link is-disabled">Previous</span>
-            @else
+            @unless ($paginator->onFirstPage())
                 <a class="editorial-pagination__link" href="{{ $paginator->previousPageUrl() }}" rel="prev">Previous</a>
-            @endif
+            @endunless
 
             @foreach ($elements as $element)
                 @if (is_string($element))
@@ -29,8 +27,6 @@
 
             @if ($paginator->hasMorePages())
                 <a class="editorial-pagination__link" href="{{ $paginator->nextPageUrl() }}" rel="next">Next</a>
-            @else
-                <span class="editorial-pagination__link is-disabled">Next</span>
             @endif
         </div>
     </nav>

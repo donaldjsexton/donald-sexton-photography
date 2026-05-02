@@ -264,6 +264,27 @@ class PublicRoutesTest extends TestCase
             ->assertSeeInOrder(['Newest Journal Post', 'Older Journal Post'], false);
     }
 
+    public function test_journal_pagination_hides_previous_on_first_page_and_next_on_last_page(): void
+    {
+        for ($index = 0; $index < 12; $index++) {
+            JournalPost::create([
+                'title' => "Journal Post {$index}",
+                'slug' => "journal-post-{$index}",
+                'status' => 'published',
+                'post_type' => 'advice',
+                'published_at' => now()->subDays(12 - $index),
+            ]);
+        }
+
+        $firstPage = $this->get('/journal')->assertOk();
+        $this->assertStringNotContainsString('>Previous<', $firstPage->getContent());
+        $this->assertStringContainsString('rel="next"', $firstPage->getContent());
+
+        $lastPage = $this->get('/journal?page=2')->assertOk();
+        $this->assertStringContainsString('rel="prev"', $lastPage->getContent());
+        $this->assertStringNotContainsString('>Next<', $lastPage->getContent());
+    }
+
     public function test_homepage_does_not_emit_legacy_wordpress_upload_images(): void
     {
         $story = WeddingStory::create([
