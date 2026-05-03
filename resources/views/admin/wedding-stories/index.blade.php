@@ -35,7 +35,10 @@
         </table>
     </div>
 
-    <div class="pagination">
-        {{ $stories->links() }}
-    </div>
+    @if ($stories->hasPages())
+        <div class="pagination">
+            {{ $stories->links() }}
+        </div>
+    @endif
 @endsection
+

@@ -131,7 +131,9 @@
         </table>
     </div>
 
-    <div class="pagination">
-        {{ $inquiries->links() }}
-    </div>
+    @if ($inquiries->hasPages())
+        <div class="pagination">
+            {{ $inquiries->links() }}
+        </div>
+    @endif
 @endsection

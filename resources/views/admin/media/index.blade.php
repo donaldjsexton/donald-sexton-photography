@@ -24,7 +24,9 @@
         @endforeach
     </section>
 
-    <div class="pagination">
-        {{ $mediaItems->links() }}
-    </div>
+    @if ($mediaItems->hasPages())
+        <div class="pagination">
+            {{ $mediaItems->links() }}
+        </div>
+    @endif
 @endsection

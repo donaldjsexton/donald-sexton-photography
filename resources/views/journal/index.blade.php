@@ -70,9 +70,11 @@
                 />
             @endif
 
-            <div class="pagination">
-                {{ $posts->links() }}
-            </div>
+            @if ($posts->hasPages())
+                <div class="pagination">
+                    {{ $posts->links() }}
+                </div>
+            @endif
         </div>
     </section>
 

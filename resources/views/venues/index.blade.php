@@ -43,9 +43,11 @@
                 />
             @endif
 
-            <div class="pagination">
-                {{ $venues->links() }}
-            </div>
+            @if ($venues->hasPages())
+                <div class="pagination">
+                    {{ $venues->links() }}
+                </div>
+            @endif
         </div>
     </section>
 

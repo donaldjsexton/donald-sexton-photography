@@ -85,7 +85,9 @@
         </table>
     </div>
 
-    <div class="pagination">
-        {{ $importRuns->links() }}
-    </div>
+    @if ($importRuns->hasPages())
+        <div class="pagination">
+            {{ $importRuns->links() }}
+        </div>
+    @endif
 @endsection

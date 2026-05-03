@@ -79,7 +79,9 @@
         </table>
     </div>
 
-    <div class="pagination">
-        {{ $venues->links() }}
-    </div>
+    @if ($venues->hasPages())
+        <div class="pagination">
+            {{ $venues->links() }}
+        </div>
+    @endif
 @endsection
