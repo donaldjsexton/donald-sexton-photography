@@ -420,6 +420,225 @@ class MediaOptimizer
         return preg_replace('/\.[^.]+$/', '.webp', $path);
     }
 
+    /**
+     * Generate downscaled WebP variants of $media at each width in $widths.
+     *
+     * Output paths follow the pattern path/foo-{width}.webp next to the
+     * original. Widths greater than or equal to the source width are skipped
+     * to avoid upscaling.
+     *
+     * @param  array<int>  $widths
+     * @param  array<string,mixed>  $options  webp_quality, force, dry_run
+     * @return array{status:string,reason:?string,variants:array<int,array<string,mixed>>}
+     */
+    public function generateWebpVariants(Media $media, array $widths, array $options = []): array
+    {
+        $disk = $media->disk ?: 'public';
+        $path = trim((string) $media->path);
+
+        if ($path === '') {
+            return $this->skipVariants('missing_path');
+        }
+
+        $storage = Storage::disk($disk);
+
+        if (! $storage->exists($path)) {
+            return $this->skipVariants('missing_file');
+        }
+
+        $absolutePath = $storage->path($path);
+        $imageInfo = @getimagesize($absolutePath);
+
+        if (! is_array($imageInfo)) {
+            return $this->skipVariants('unreadable_image');
+        }
+
+        $mime = (string) ($imageInfo['mime'] ?? $media->mime_type ?? '');
+
+        if (! in_array($mime, ['image/jpeg', 'image/png', 'image/webp'], true)) {
+            return $this->skipVariants('unsupported_mime');
+        }
+
+        if (! function_exists('imagewebp')) {
+            return $this->skipVariants('webp_unsupported');
+        }
+
+        $widths = collect($widths)
+            ->map(fn ($width) => (int) $width)
+            ->filter(fn (int $width) => $width > 0)
+            ->unique()
+            ->sort()
+            ->values()
+            ->all();
+
+        if ($widths === []) {
+            return $this->skipVariants('no_widths');
+        }
+
+        $quality = max(1, min(100, (int) ($options['webp_quality'] ?? 80)));
+        $force = (bool) ($options['force'] ?? false);
+        $dryRun = (bool) ($options['dry_run'] ?? false);
+
+        $source = $this->createImageResource($absolutePath, $mime);
+
+        if (! $source instanceof \GdImage) {
+            return $this->skipVariants('decoder_failed');
+        }
+
+        $results = [];
+
+        try {
+            $source = $this->applyExifOrientation($source, $absolutePath, $mime);
+            $sourceWidth = imagesx($source);
+            $sourceHeight = imagesy($source);
+
+            foreach ($widths as $width) {
+                if ($width >= $sourceWidth) {
+                    $results[] = [
+                        'width' => $width,
+                        'created' => false,
+                        'updated' => false,
+                        'bytes' => null,
+                        'reason' => 'source_smaller_than_target',
+                    ];
+
+                    continue;
+                }
+
+                $variantPath = $media->webpVariantPath($width);
+
+                if ($variantPath === null) {
+                    $results[] = [
+                        'width' => $width,
+                        'created' => false,
+                        'updated' => false,
+                        'bytes' => null,
+                        'reason' => 'unsupported_extension',
+                    ];
+
+                    continue;
+                }
+
+                $exists = $storage->exists($variantPath);
+
+                if ($exists && ! $force) {
+                    $results[] = [
+                        'width' => $width,
+                        'created' => false,
+                        'updated' => false,
+                        'bytes' => (int) $storage->size($variantPath),
+                        'reason' => 'already_exists',
+                    ];
+
+                    continue;
+                }
+
+                $targetHeight = max(1, (int) round($sourceHeight * ($width / $sourceWidth)));
+                $canvas = $this->makeCanvas($source, 'image/webp', $width, $targetHeight);
+
+                if (! $canvas instanceof \GdImage) {
+                    $results[] = [
+                        'width' => $width,
+                        'created' => false,
+                        'updated' => false,
+                        'bytes' => null,
+                        'reason' => 'canvas_failed',
+                    ];
+
+                    continue;
+                }
+
+                $tempPath = tempnam(sys_get_temp_dir(), 'media-variant-');
+
+                try {
+                    if ($tempPath === false || ! imagewebp($canvas, $tempPath, $quality)) {
+                        $results[] = [
+                            'width' => $width,
+                            'created' => false,
+                            'updated' => false,
+                            'bytes' => null,
+                            'reason' => 'encode_failed',
+                        ];
+
+                        continue;
+                    }
+
+                    $variantBytes = filesize($tempPath);
+
+                    if ($variantBytes === false) {
+                        $results[] = [
+                            'width' => $width,
+                            'created' => false,
+                            'updated' => false,
+                            'bytes' => null,
+                            'reason' => 'missing_variant_size',
+                        ];
+
+                        continue;
+                    }
+
+                    if (! $dryRun) {
+                        $stream = fopen($tempPath, 'rb');
+
+                        if ($stream === false) {
+                            $results[] = [
+                                'width' => $width,
+                                'created' => false,
+                                'updated' => false,
+                                'bytes' => null,
+                                'reason' => 'stream_failed',
+                            ];
+
+                            continue;
+                        }
+
+                        try {
+                            $storage->writeStream($variantPath, $stream);
+                        } finally {
+                            fclose($stream);
+                        }
+                    }
+
+                    $results[] = [
+                        'width' => $width,
+                        'created' => ! $exists,
+                        'updated' => $exists,
+                        'bytes' => (int) $variantBytes,
+                        'reason' => null,
+                    ];
+                } finally {
+                    if ($tempPath !== false) {
+                        @unlink($tempPath);
+                    }
+
+                    imagedestroy($canvas);
+                }
+            }
+        } finally {
+            imagedestroy($source);
+        }
+
+        $changed = collect($results)->contains(fn (array $row) => $row['created'] || $row['updated']);
+
+        return [
+            'status' => $changed ? 'optimized' : 'skipped',
+            'reason' => $changed ? null : 'no_change',
+            'variants' => $results,
+        ];
+    }
+
+    /**
+     * @return array{status:string,reason:?string,variants:array<int,array<string,mixed>>}
+     */
+    private function skipVariants(string $reason): array
+    {
+        return [
+            'status' => 'skipped',
+            'reason' => $reason,
+            'variants' => [],
+        ];
+    }
+
     private function skip(string $reason): array
     {
         return [

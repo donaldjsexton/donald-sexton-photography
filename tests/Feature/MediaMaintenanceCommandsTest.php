@@ -123,6 +123,110 @@ class MediaMaintenanceCommandsTest extends TestCase
         $this->assertStringContainsString('/storage/imports/pictime/optimize/source.jpg', $html);
     }
 
+    public function test_media_generate_variants_creates_downscaled_webp_files_and_powers_srcset_in_media_frame(): void
+    {
+        Storage::fake('public');
+
+        $path = 'imports/pictime/variants/source.jpg';
+        $bytes = $this->makeJpegBytes(1600, 1066, 90);
+        Storage::disk('public')->put($path, $bytes);
+
+        // Stand in for the optimizer-produced full-size WebP at the
+        // original resolution, which webpSrcset() includes as the
+        // largest candidate.
+        Storage::disk('public')->put('imports/pictime/variants/source.webp', $bytes);
+
+        $media = Media::create([
+            'disk' => 'public',
+            'path' => $path,
+            'filename' => 'source.jpg',
+            'mime_type' => 'image/jpeg',
+            'width' => 1600,
+            'height' => 1066,
+        ]);
+
+        Artisan::call('media:generate-variants', [
+            '--disk' => 'public',
+            '--path-prefix' => 'imports/pictime/variants',
+            '--widths' => '640,1080,1600',
+            '--webp-quality' => 70,
+        ]);
+
+        $this->assertTrue(Storage::disk('public')->exists('imports/pictime/variants/source-640.webp'));
+        $this->assertTrue(Storage::disk('public')->exists('imports/pictime/variants/source-1080.webp'));
+        $this->assertFalse(
+            Storage::disk('public')->exists('imports/pictime/variants/source-1600.webp'),
+            'Variants must not upscale past the source width.'
+        );
+
+        [$variantWidth] = getimagesize(Storage::disk('public')->path('imports/pictime/variants/source-640.webp'));
+        $this->assertSame(640, $variantWidth);
+
+        $srcset = $media->webpSrcset();
+
+        $this->assertNotNull($srcset);
+        $this->assertStringContainsString('/storage/imports/pictime/variants/source-640.webp 640w', $srcset);
+        $this->assertStringContainsString('/storage/imports/pictime/variants/source-1080.webp 1080w', $srcset);
+        $this->assertStringContainsString('/storage/imports/pictime/variants/source.webp 1600w', $srcset);
+
+        $html = Blade::render('<x-editorial.media-frame :media="$media" sizes="(min-width: 981px) 33vw, 100vw" />', [
+            'media' => $media,
+        ]);
+
+        $this->assertStringContainsString('type="image/webp"', $html);
+        $this->assertStringContainsString('source-640.webp 640w', $html);
+        $this->assertStringContainsString('source-1080.webp 1080w', $html);
+        $this->assertStringContainsString('sizes="(min-width: 981px) 33vw, 100vw"', $html);
+    }
+
+    public function test_media_generate_variants_skips_existing_files_unless_forced(): void
+    {
+        Storage::fake('public');
+
+        $path = 'imports/pictime/variants/skip.jpg';
+        $bytes = $this->makeJpegBytes(1600, 1066, 90);
+        Storage::disk('public')->put($path, $bytes);
+
+        Media::create([
+            'disk' => 'public',
+            'path' => $path,
+            'filename' => 'skip.jpg',
+            'mime_type' => 'image/jpeg',
+            'width' => 1600,
+            'height' => 1066,
+        ]);
+
+        Artisan::call('media:generate-variants', [
+            '--disk' => 'public',
+            '--path-prefix' => 'imports/pictime/variants',
+            '--widths' => '640',
+        ]);
+
+        $variantPath = 'imports/pictime/variants/skip-640.webp';
+        $firstWriteBytes = Storage::disk('public')->size($variantPath);
+
+        // Mutate the existing variant so we can detect a re-write.
+        Storage::disk('public')->put($variantPath, 'sentinel');
+
+        Artisan::call('media:generate-variants', [
+            '--disk' => 'public',
+            '--path-prefix' => 'imports/pictime/variants',
+            '--widths' => '640',
+        ]);
+
+        $this->assertSame('sentinel', Storage::disk('public')->get($variantPath));
+
+        Artisan::call('media:generate-variants', [
+            '--disk' => 'public',
+            '--path-prefix' => 'imports/pictime/variants',
+            '--widths' => '640',
+            '--force' => true,
+        ]);
+
+        $this->assertNotSame('sentinel', Storage::disk('public')->get($variantPath));
+        $this->assertGreaterThan(0, $firstWriteBytes);
+    }
+
     private function makeJpegBytes(int $width, int $height, int $quality): string
     {
         $image = imagecreatetruecolor($width, $height);
