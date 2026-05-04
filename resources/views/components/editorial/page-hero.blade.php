@@ -8,12 +8,35 @@
     'ratio' => 'portrait',
     'shell' => 'wide',
     'mediaAlt' => null,
+    'sizes' => '(min-width: 1081px) 45vw, 100vw',
 ])
 
 @php
     $hasMedia = filled($media) || filled($src);
     $hasActions = trim((string) $slot) !== '';
+
+    $heroWebpSrcset = $hasMedia && $media && method_exists($media, 'webpSrcset')
+        ? $media->webpSrcset()
+        : null;
+    $heroWebpUrl = $hasMedia && $media && method_exists($media, 'webpPublicUrl')
+        ? $media->webpPublicUrl()
+        : null;
+    $heroFallbackUrl = $hasMedia
+        ? ($src ?: ($media && method_exists($media, 'publicUrl') ? $media->publicUrl() : null))
+        : null;
 @endphp
+
+@if ($hasMedia)
+    @push('head_preload')
+        @if ($heroWebpSrcset)
+            <link rel="preload" as="image" type="image/webp" imagesrcset="{{ $heroWebpSrcset }}" imagesizes="{{ $sizes }}" fetchpriority="high">
+        @elseif ($heroWebpUrl)
+            <link rel="preload" as="image" href="{{ $heroWebpUrl }}" type="image/webp" fetchpriority="high">
+        @elseif ($heroFallbackUrl)
+            <link rel="preload" as="image" href="{{ $heroFallbackUrl }}" fetchpriority="high">
+        @endif
+    @endpush
+@endif
 
 <section {{ $attributes->class([
     'page-hero',
@@ -54,8 +77,8 @@
                     :src="$src"
                     :ratio="$ratio"
                     :alt="$mediaAlt ?: $title"
+                    :sizes="$sizes"
                     loading="eager"
-                    fetchpriority="high"
                 />
             </div>
         @endif
