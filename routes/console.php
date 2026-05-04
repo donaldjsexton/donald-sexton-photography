@@ -1525,3 +1525,13 @@ Schedule::command('calendar:sync')
     ->everyThirtyMinutes()
     ->withoutOverlapping()
     ->runInBackground();
+
+Schedule::command('media:optimize --generate-webp --only-missing-webp --summary-only')
+    ->monthlyOn(1, '03:00')
+    ->withoutOverlapping(360)
+    ->runInBackground();
+
+Schedule::command('media:generate-variants --summary-only')
+    ->monthlyOn(1, '04:00')
+    ->withoutOverlapping(360)
+    ->runInBackground();
