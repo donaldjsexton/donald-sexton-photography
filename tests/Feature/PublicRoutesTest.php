@@ -591,6 +591,50 @@ HTML,
             ->assertSee('archive-card__media', false);
     }
 
+    public function test_page_hero_preloads_lcp_image_when_media_is_present(): void
+    {
+        $hero = Media::create([
+            'disk' => 'public',
+            'path' => 'media/test/preload-hero.jpg',
+            'filename' => 'preload-hero.jpg',
+            'mime_type' => 'image/jpeg',
+            'width' => 1600,
+            'height' => 1066,
+        ]);
+
+        $venue = Venue::create([
+            'name' => 'Cliffside Estate',
+            'slug' => 'cliffside-estate',
+            'summary' => 'Cliffside summary.',
+            'hero_media_id' => $hero->id,
+        ]);
+
+        $body = $this->get('/venues/'.$venue->slug)
+            ->assertOk()
+            ->getContent();
+
+        $headEnd = strpos($body, '</head>');
+        $this->assertNotFalse($headEnd, '<head> closing tag missing from response.');
+        $head = substr($body, 0, $headEnd);
+
+        $this->assertStringContainsString('<link rel="preload"', $head);
+        $this->assertStringContainsString('media/test/preload-hero.jpg', $head);
+        $this->assertStringContainsString('fetchpriority="high"', $head);
+    }
+
+    public function test_page_hero_skips_preload_when_no_media(): void
+    {
+        $body = $this->get('/inquire')
+            ->assertOk()
+            ->getContent();
+
+        $headEnd = strpos($body, '</head>');
+        $this->assertNotFalse($headEnd);
+        $head = substr($body, 0, $headEnd);
+
+        $this->assertStringNotContainsString('as="image"', $head);
+    }
+
     public function test_venue_show_renders_hero_image_for_related_stories_and_posts(): void
     {
         $venue = Venue::create([
