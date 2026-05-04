@@ -81,6 +81,76 @@ class JournalPost extends Model
             });
     }
 
+    /**
+     * Resolve up to $limit published journal posts conceptually related
+     * to $post. Match priority is shared tags, then shared venues, with
+     * recent published posts padding any remaining slots so every
+     * journal detail page has outgoing internal links.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int,self>
+     */
+    public static function relatedTo(self $post, int $limit = 3): \Illuminate\Database\Eloquent\Collection
+    {
+        if ($limit <= 0) {
+            return new \Illuminate\Database\Eloquent\Collection;
+        }
+
+        $tagIds = $post->relationLoaded('tags')
+            ? $post->tags->pluck('id')->all()
+            : $post->tags()->pluck('tags.id')->all();
+
+        $venueIds = $post->relationLoaded('venues')
+            ? $post->venues->pluck('id')->all()
+            : $post->venues()->pluck('venues.id')->all();
+
+        $base = fn () => self::published()
+            ->where('id', '!=', $post->id)
+            ->with(['heroMedia', 'categories']);
+
+        $results = new \Illuminate\Database\Eloquent\Collection;
+
+        if ($tagIds !== []) {
+            $tagMatches = $base()
+                ->whereHas('tags', fn ($query) => $query->whereIn('tags.id', $tagIds))
+                ->latest('published_at')
+                ->limit($limit)
+                ->get();
+
+            $results = $results->concat($tagMatches);
+        }
+
+        $remaining = $limit - $results->count();
+
+        if ($remaining > 0 && $venueIds !== []) {
+            $excluded = $results->pluck('id')->all();
+
+            $venueMatches = $base()
+                ->when($excluded !== [], fn ($query) => $query->whereNotIn('id', $excluded))
+                ->whereHas('venues', fn ($query) => $query->whereIn('venues.id', $venueIds))
+                ->latest('published_at')
+                ->limit($remaining)
+                ->get();
+
+            $results = $results->concat($venueMatches);
+        }
+
+        $remaining = $limit - $results->count();
+
+        if ($remaining > 0) {
+            $excluded = $results->pluck('id')->all();
+
+            $padding = $base()
+                ->when($excluded !== [], fn ($query) => $query->whereNotIn('id', $excluded))
+                ->latest('published_at')
+                ->limit($remaining)
+                ->get();
+
+            $results = $results->concat($padding);
+        }
+
+        return $results->values();
+    }
+
     public function getPostTypeLabelAttribute(): string
     {
         return Str::of($this->post_type)

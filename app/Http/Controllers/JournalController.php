@@ -68,6 +68,7 @@ class JournalController extends Controller
 
             return view('journal.show', [
                 'post' => $post,
+                'relatedPosts' => JournalPost::relatedTo($post, 3),
             ]);
         }
 

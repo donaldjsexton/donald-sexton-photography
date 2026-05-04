@@ -44,6 +44,7 @@ class WeddingStoryController extends Controller
 
         return view('weddings.show', [
             'story' => $story,
+            'relatedStories' => WeddingStory::similarTo($story, 3),
         ]);
     }
 }
