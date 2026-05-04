@@ -94,6 +94,73 @@ class WeddingStory extends Model
             });
     }
 
+    /**
+     * Resolve up to $limit published wedding stories that are conceptually
+     * similar to $story. Match priority is venue first (couples shopping
+     * a single venue care most about other weddings there), then tag
+     * overlap, with recent published stories padding any remaining slots
+     * so every detail page has outgoing internal links.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int,self>
+     */
+    public static function similarTo(self $story, int $limit = 3): \Illuminate\Database\Eloquent\Collection
+    {
+        if ($limit <= 0) {
+            return new \Illuminate\Database\Eloquent\Collection;
+        }
+
+        $tagIds = $story->relationLoaded('tags')
+            ? $story->tags->pluck('id')->all()
+            : $story->tags()->pluck('tags.id')->all();
+
+        $base = fn () => self::published()
+            ->where('id', '!=', $story->id)
+            ->with(['heroMedia', 'venue']);
+
+        $results = new \Illuminate\Database\Eloquent\Collection;
+
+        if ($story->venue_id) {
+            $venueMatches = $base()
+                ->where('venue_id', $story->venue_id)
+                ->latest('published_at')
+                ->limit($limit)
+                ->get();
+
+            $results = $results->concat($venueMatches);
+        }
+
+        $remaining = $limit - $results->count();
+
+        if ($remaining > 0 && $tagIds !== []) {
+            $excluded = $results->pluck('id')->all();
+
+            $tagMatches = $base()
+                ->when($excluded !== [], fn ($query) => $query->whereNotIn('id', $excluded))
+                ->whereHas('tags', fn ($query) => $query->whereIn('tags.id', $tagIds))
+                ->latest('published_at')
+                ->limit($remaining)
+                ->get();
+
+            $results = $results->concat($tagMatches);
+        }
+
+        $remaining = $limit - $results->count();
+
+        if ($remaining > 0) {
+            $excluded = $results->pluck('id')->all();
+
+            $padding = $base()
+                ->when($excluded !== [], fn ($query) => $query->whereNotIn('id', $excluded))
+                ->latest('published_at')
+                ->limit($remaining)
+                ->get();
+
+            $results = $results->concat($padding);
+        }
+
+        return $results->values();
+    }
+
     public function getStoryTypeLabelAttribute(): string
     {
         return Str::of($this->story_type)

@@ -102,6 +102,37 @@
         </section>
     @endif
 
+    @if (! empty($relatedStories) && $relatedStories->isNotEmpty())
+        <section class="section" aria-labelledby="related-stories-heading">
+            <div class="page-shell--wide page-stack">
+                <x-editorial.section-heading
+                    eyebrow="More Wedding Stories"
+                    title="Other weddings to explore."
+                />
+
+                <div class="archive-grid">
+                    @foreach ($relatedStories as $related)
+                        @php
+                            $relatedMeta = collect([
+                                $related->venue?->name ?? $related->location_name,
+                                $related->event_date?->format('F Y'),
+                            ])->filter()->implode(' · ');
+                        @endphp
+                        <x-editorial.archive-card
+                            :title="$related->title"
+                            :href="route('weddings.show', $related->slug)"
+                            :meta="$relatedMeta ?: null"
+                            :copy="method_exists($related, 'summaryText') ? $related->summaryText(24) : $related->excerpt"
+                            :media="$related->heroMedia"
+                            :media-src="method_exists($related, 'featuredImageUrl') ? $related->featuredImageUrl() : null"
+                            :media-alt="$related->title"
+                        />
+                    @endforeach
+                </div>
+            </div>
+        </section>
+    @endif
+
     <x-editorial.page-closing
         eyebrow="Inquiry"
         title="Planning your own wedding?"

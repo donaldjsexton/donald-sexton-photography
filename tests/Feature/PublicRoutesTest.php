@@ -1667,4 +1667,143 @@ HTML,
             ->assertOk()
             ->assertSee('The gallery from this post is shown below.');
     }
+
+    public function test_wedding_story_show_renders_related_stories_block_prioritizing_same_venue(): void
+    {
+        $venue = Venue::create([
+            'name' => 'Sunset Estate',
+            'slug' => 'sunset-estate',
+            'summary' => 'Test venue.',
+        ]);
+
+        $tag = Tag::create(['name' => 'beach', 'slug' => 'beach']);
+
+        $current = WeddingStory::create([
+            'title' => 'Aria and Cole',
+            'slug' => 'aria-and-cole',
+            'status' => 'published',
+            'venue_id' => $venue->id,
+            'published_at' => now()->subDays(2),
+        ]);
+        $current->tags()->attach($tag);
+
+        $sameVenue = WeddingStory::create([
+            'title' => 'Sunset Estate Couple',
+            'slug' => 'sunset-estate-couple',
+            'status' => 'published',
+            'venue_id' => $venue->id,
+            'published_at' => now()->subDays(10),
+        ]);
+
+        $sharedTag = WeddingStory::create([
+            'title' => 'Beach Venue Couple',
+            'slug' => 'beach-venue-couple',
+            'status' => 'published',
+            'published_at' => now()->subDays(5),
+        ]);
+        $sharedTag->tags()->attach($tag);
+
+        $unrelated = WeddingStory::create([
+            'title' => 'Mountain Couple',
+            'slug' => 'mountain-couple',
+            'status' => 'published',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $body = $this->get(route('weddings.show', $current->slug))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('More Wedding Stories', $body);
+
+        $sameVenueLink = route('weddings.show', $sameVenue->slug);
+        $sharedTagLink = route('weddings.show', $sharedTag->slug);
+        $unrelatedLink = route('weddings.show', $unrelated->slug);
+
+        $sameVenuePos = strpos($body, $sameVenueLink);
+        $sharedTagPos = strpos($body, $sharedTagLink);
+
+        $this->assertNotFalse($sameVenuePos, 'Same-venue story should appear in related block.');
+        $this->assertNotFalse($sharedTagPos, 'Shared-tag story should appear in related block.');
+        $this->assertLessThan($sharedTagPos, $sameVenuePos, 'Same-venue story should outrank shared-tag story.');
+        $this->assertStringNotContainsString($current->slug.'"', substr($body, strpos($body, 'More Wedding Stories')), 'Current story should not link to itself.');
+        $this->assertStringContainsString($unrelatedLink, $body, 'Padding should fill remaining slots with recent stories.');
+    }
+
+    public function test_wedding_story_show_omits_related_block_when_no_other_stories_exist(): void
+    {
+        $story = WeddingStory::create([
+            'title' => 'Solo Story',
+            'slug' => 'solo-story',
+            'status' => 'published',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $this->get(route('weddings.show', $story->slug))
+            ->assertOk()
+            ->assertDontSee('More Wedding Stories', false);
+    }
+
+    public function test_journal_post_show_renders_related_posts_block_prioritizing_shared_tags(): void
+    {
+        $tag = Tag::create(['name' => 'planning', 'slug' => 'planning']);
+        $venue = Venue::create([
+            'name' => 'Garden Hall',
+            'slug' => 'garden-hall',
+            'summary' => 'Test venue.',
+        ]);
+
+        $current = JournalPost::create([
+            'title' => 'Planning Your First Look',
+            'slug' => 'planning-first-look',
+            'status' => 'published',
+            'post_type' => 'advice',
+            'published_at' => now()->subDays(2),
+        ]);
+        $current->tags()->attach($tag);
+        $current->venues()->attach($venue);
+
+        $sharedTagPost = JournalPost::create([
+            'title' => 'Planning the Timeline',
+            'slug' => 'planning-the-timeline',
+            'status' => 'published',
+            'post_type' => 'advice',
+            'published_at' => now()->subDays(10),
+        ]);
+        $sharedTagPost->tags()->attach($tag);
+
+        $sharedVenuePost = JournalPost::create([
+            'title' => 'Garden Hall Visit',
+            'slug' => 'garden-hall-visit',
+            'status' => 'published',
+            'post_type' => 'advice',
+            'published_at' => now()->subDays(5),
+        ]);
+        $sharedVenuePost->venues()->attach($venue);
+
+        $unrelated = JournalPost::create([
+            'title' => 'Random Recent Post',
+            'slug' => 'random-recent-post',
+            'status' => 'published',
+            'post_type' => 'advice',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $body = $this->get(route('journal.show', $current->slug))
+            ->assertOk()
+            ->getContent();
+
+        $this->assertStringContainsString('More from the Journal', $body);
+
+        $sharedTagLink = route('journal.show', $sharedTagPost->slug);
+        $sharedVenueLink = route('journal.show', $sharedVenuePost->slug);
+
+        $sharedTagPos = strpos($body, $sharedTagLink);
+        $sharedVenuePos = strpos($body, $sharedVenueLink);
+
+        $this->assertNotFalse($sharedTagPos, 'Shared-tag post should appear in related block.');
+        $this->assertNotFalse($sharedVenuePos, 'Shared-venue post should appear in related block.');
+        $this->assertLessThan($sharedVenuePos, $sharedTagPos, 'Shared-tag post should outrank shared-venue post.');
+        $this->assertStringContainsString(route('journal.show', $unrelated->slug), $body, 'Padding should fill remaining slots with recent posts.');
+    }
 }
