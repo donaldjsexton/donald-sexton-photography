@@ -8,6 +8,7 @@
     'loading' => 'lazy',
     'decoding' => 'async',
     'fetchpriority' => null,
+    'sizes' => '100vw',
 ])
 
 @php
@@ -26,13 +27,20 @@
     $webpUrl = $media && method_exists($media, 'webpPublicUrl')
         ? $media->webpPublicUrl()
         : null;
+    $webpSrcset = $media && method_exists($media, 'webpSrcset')
+        ? $media->webpSrcset()
+        : null;
 @endphp
 
 <figure {{ $attributes->class(['media-frame', 'media-frame--'.$ratio]) }}>
     @if ($url)
-        @if ($webpUrl)
+        @if ($webpSrcset || $webpUrl)
             <picture>
-                <source srcset="{{ $webpUrl }}" type="image/webp">
+                @if ($webpSrcset)
+                    <source srcset="{{ $webpSrcset }}" sizes="{{ $sizes }}" type="image/webp">
+                @else
+                    <source srcset="{{ $webpUrl }}" type="image/webp">
+                @endif
         @endif
                 <img
                     class="media-frame__image"
@@ -45,7 +53,7 @@
                     @if ($objectPosition) style="object-position: {{ $objectPosition }};" @endif
                     @if ($fetchpriority) fetchpriority="{{ $fetchpriority }}" @endif
                 >
-        @if ($webpUrl)
+        @if ($webpSrcset || $webpUrl)
             </picture>
         @endif
     @else

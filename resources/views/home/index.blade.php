@@ -12,6 +12,10 @@
     $homeLeadWebp = $homeLeadMedia && method_exists($homeLeadMedia, 'webpPublicUrl')
         ? $homeLeadMedia->webpPublicUrl()
         : null;
+    $homeLeadWebpSrcset = $homeLeadMedia && method_exists($homeLeadMedia, 'webpSrcset')
+        ? $homeLeadMedia->webpSrcset()
+        : null;
+    $homeHeroSizes = '(min-width: 981px) 33vw, 100vw';
 @endphp
 
 @section('title', 'Donald Sexton Photography')
@@ -22,7 +26,9 @@
 @section('body_class', 'home-page')
 
 @push('head_preload')
-    @if ($homeLeadWebp)
+    @if ($homeLeadWebpSrcset)
+        <link rel="preload" as="image" type="image/webp" imagesrcset="{{ $homeLeadWebpSrcset }}" imagesizes="{{ $homeHeroSizes }}" fetchpriority="high">
+    @elseif ($homeLeadWebp)
         <link rel="preload" as="image" href="{{ $homeLeadWebp }}" type="image/webp" fetchpriority="high">
     @elseif ($homeLeadImage)
         <link rel="preload" as="image" href="{{ $homeLeadImage }}" fetchpriority="high">
@@ -62,6 +68,7 @@
                             :src="$leadStoryImage"
                             ratio="portrait"
                             :alt="$leadStory?->title"
+                            :sizes="$homeHeroSizes"
                         />
                     @endif
                     @if ($secondStoryImage)
@@ -71,6 +78,7 @@
                             :src="$secondStoryImage"
                             ratio="portrait"
                             :alt="$secondStory?->title ?? $leadStory?->title"
+                            :sizes="$homeHeroSizes"
                         />
                     @endif
                     @if ($thirdStoryImage)
@@ -80,6 +88,7 @@
                             :src="$thirdStoryImage"
                             ratio="portrait"
                             :alt="$thirdStory?->title ?? $secondStory?->title"
+                            :sizes="$homeHeroSizes"
                         />
                     @endif
                 </div>
@@ -93,6 +102,7 @@
                         :src="$leadStoryImage"
                         ratio="cinema"
                         :alt="$leadStory?->title"
+                        :sizes="$homeHeroSizes"
                     />
                 </div>
             @endif

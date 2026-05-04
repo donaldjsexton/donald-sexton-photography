@@ -85,6 +85,92 @@ class Media extends Model
         return Storage::disk($disk)->url($path);
     }
 
+    public function webpVariantPath(int $width): ?string
+    {
+        $path = trim((string) $this->path);
+
+        if ($path === '' || $width <= 0) {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+
+        if (! in_array($extension, ['jpg', 'jpeg', 'png', 'webp'], true)) {
+            return null;
+        }
+
+        return preg_replace('/\.[^.]+$/', '-'.$width.'.webp', $path);
+    }
+
+    public function webpVariantUrl(int $width): ?string
+    {
+        $path = $this->webpVariantPath($width);
+
+        if ($path === null) {
+            return null;
+        }
+
+        $disk = $this->disk ?? 'public';
+
+        if (! Storage::disk($disk)->exists($path)) {
+            return null;
+        }
+
+        if ($disk === 'public') {
+            return '/storage/'.ltrim($path, '/');
+        }
+
+        return Storage::disk($disk)->url($path);
+    }
+
+    /**
+     * Build a `srcset` string of WebP variants whose files exist on disk.
+     *
+     * The full-size WebP at the original width is included as the largest
+     * candidate when present. Returns null if no variants are available.
+     *
+     * @param  array<int>  $candidateWidths  widths to probe for variant files
+     */
+    public function webpSrcset(array $candidateWidths = [640, 1080, 1600]): ?string
+    {
+        $entries = [];
+        $sourceWidth = (int) ($this->width ?? 0);
+
+        foreach ($candidateWidths as $width) {
+            $width = (int) $width;
+
+            if ($width <= 0) {
+                continue;
+            }
+
+            if ($sourceWidth > 0 && $width >= $sourceWidth) {
+                continue;
+            }
+
+            $url = $this->webpVariantUrl($width);
+
+            if ($url === null) {
+                continue;
+            }
+
+            $entries[$width] = $url.' '.$width.'w';
+        }
+
+        if ($entries === []) {
+            return null;
+        }
+
+        $fullWebp = $this->webpPublicUrl();
+
+        if ($fullWebp !== null && $sourceWidth > 0) {
+            $entries[$sourceWidth] = $fullWebp.' '.$sourceWidth.'w';
+        }
+
+        ksort($entries);
+
+        return implode(', ', $entries);
+    }
+
     public function objectPositionValue(): string
     {
         $x = $this->focal_point_x !== null ? max(0, min(1, (float) $this->focal_point_x)) : 0.5;

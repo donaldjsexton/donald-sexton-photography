@@ -250,6 +250,136 @@ Artisan::command('media:optimize {--disk=public} {--path-prefix=} {--from-id=0} 
     return $summary['errors'] === 0 ? 0 : 1;
 })->purpose('Resize and recompress media files, with optional WebP generation');
 
+Artisan::command('media:generate-variants {--disk=public} {--path-prefix=} {--from-id=0} {--to-id=0} {--limit=0} {--widths=640,1080} {--webp-quality=80} {--force} {--dry-run} {--summary-only}', function (MediaOptimizer $optimizer) {
+    $disk = (string) $this->option('disk');
+    $pathPrefix = trim((string) $this->option('path-prefix'));
+    $fromId = max(0, (int) $this->option('from-id'));
+    $toId = max(0, (int) $this->option('to-id'));
+    $limit = max(0, (int) $this->option('limit'));
+    $summaryOnly = (bool) $this->option('summary-only');
+    $widths = collect(explode(',', (string) $this->option('widths')))
+        ->map(fn ($value) => (int) trim((string) $value))
+        ->filter(fn (int $width) => $width > 0)
+        ->unique()
+        ->sort()
+        ->values()
+        ->all();
+
+    if ($widths === []) {
+        $this->components->error('At least one positive width is required.');
+
+        return 1;
+    }
+
+    $options = [
+        'webp_quality' => (int) $this->option('webp-quality'),
+        'force' => (bool) $this->option('force'),
+        'dry_run' => (bool) $this->option('dry-run'),
+    ];
+
+    $query = Media::query()
+        ->where('disk', $disk)
+        ->orderBy('id');
+
+    if ($pathPrefix !== '') {
+        $query->where('path', 'like', rtrim($pathPrefix, '/').'%');
+    }
+
+    if ($fromId > 0) {
+        $query->where('id', '>=', $fromId);
+    }
+
+    if ($toId > 0) {
+        $query->where('id', '<=', $toId);
+    }
+
+    if ($limit > 0) {
+        $query->limit($limit);
+    }
+
+    $mediaItems = $query->get();
+
+    $summary = [
+        'files_seen' => 0,
+        'files_changed' => 0,
+        'errors' => 0,
+        'variants_created' => 0,
+        'variants_updated' => 0,
+        'variants_skipped' => 0,
+        'variant_bytes_written' => 0,
+    ];
+
+    foreach ($mediaItems as $media) {
+        $summary['files_seen']++;
+
+        try {
+            $result = $optimizer->generateWebpVariants($media, $widths, $options);
+        } catch (Throwable $throwable) {
+            $summary['errors']++;
+
+            if (! $summaryOnly) {
+                $this->line("- {$media->id}: error {$throwable->getMessage()}");
+            }
+
+            continue;
+        }
+
+        $changed = false;
+
+        foreach ($result['variants'] as $variant) {
+            if ($variant['created'] ?? false) {
+                $summary['variants_created']++;
+                $changed = true;
+            } elseif ($variant['updated'] ?? false) {
+                $summary['variants_updated']++;
+                $changed = true;
+            } else {
+                $summary['variants_skipped']++;
+            }
+
+            if (($variant['created'] ?? false) || ($variant['updated'] ?? false)) {
+                $summary['variant_bytes_written'] += (int) ($variant['bytes'] ?? 0);
+            }
+        }
+
+        if ($changed) {
+            $summary['files_changed']++;
+        }
+
+        if (! $summaryOnly) {
+            $line = "- {$media->id}: {$result['status']}";
+
+            if (($result['reason'] ?? null) !== null) {
+                $line .= " ({$result['reason']})";
+            }
+
+            $line .= " {$media->path}";
+
+            foreach ($result['variants'] as $variant) {
+                $width = $variant['width'];
+                $tag = ($variant['created'] ?? false) ? '+' : (($variant['updated'] ?? false) ? '~' : '·');
+                $bytes = $variant['bytes'] !== null ? $variant['bytes'].'b' : '-';
+                $line .= " [{$tag}{$width}w {$bytes}]";
+            }
+
+            $this->line($line);
+        }
+    }
+
+    $label = $options['dry_run'] ? 'Variant generation dry run complete.' : 'Variant generation complete.';
+    $this->components->info($label);
+    $this->line('- widths: '.implode(',', $widths));
+    $this->line("- files seen: {$summary['files_seen']}");
+    $this->line("- files changed: {$summary['files_changed']}");
+    $this->line("- errors: {$summary['errors']}");
+    $this->line("- variants created: {$summary['variants_created']}");
+    $this->line("- variants updated: {$summary['variants_updated']}");
+    $this->line("- variants skipped: {$summary['variants_skipped']}");
+    $this->line("- variant bytes written: {$summary['variant_bytes_written']}");
+
+    return $summary['errors'] === 0 ? 0 : 1;
+})->purpose('Generate downscaled WebP variants for responsive image delivery');
+
 Artisan::command('wordpress:import {path}', function (WordPressJournalImporter $importer) {
     $path = (string) $this->argument('path');
 
