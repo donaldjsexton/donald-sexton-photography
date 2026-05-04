@@ -6,7 +6,12 @@
         ->unique('id')
         ->filter(fn ($story) => filled($story?->featuredImageUrl()))
         ->values();
-    $homeLeadImage = $homeVisualStoryPool->first()?->featuredImageUrl();
+    $homeLeadStory = $homeVisualStoryPool->get(0) ?? $homeStories->get(0) ?? $featuredStories->get(0);
+    $homeLeadImage = $homeLeadStory?->featuredImageUrl();
+    $homeLeadMedia = $homeLeadStory?->heroMedia;
+    $homeLeadWebp = $homeLeadMedia && method_exists($homeLeadMedia, 'webpPublicUrl')
+        ? $homeLeadMedia->webpPublicUrl()
+        : null;
 @endphp
 
 @section('title', 'Donald Sexton Photography')
@@ -15,6 +20,14 @@
 @section('og_image', $homeLeadImage ?: '')
 @section('og_image_alt', 'Donald Sexton Photography')
 @section('body_class', 'home-page')
+
+@push('head_preload')
+    @if ($homeLeadWebp)
+        <link rel="preload" as="image" href="{{ $homeLeadWebp }}" type="image/webp" fetchpriority="high">
+    @elseif ($homeLeadImage)
+        <link rel="preload" as="image" href="{{ $homeLeadImage }}" fetchpriority="high">
+    @endif
+@endpush
 
 @section('content')
     @php
@@ -49,9 +62,6 @@
                             :src="$leadStoryImage"
                             ratio="portrait"
                             :alt="$leadStory?->title"
-                            loading="eager"
-                            decoding="sync"
-                            fetchpriority="high"
                         />
                     @endif
                     @if ($secondStoryImage)
@@ -61,9 +71,6 @@
                             :src="$secondStoryImage"
                             ratio="portrait"
                             :alt="$secondStory?->title ?? $leadStory?->title"
-                            loading="eager"
-                            decoding="sync"
-                            fetchpriority="high"
                         />
                     @endif
                     @if ($thirdStoryImage)
@@ -73,9 +80,6 @@
                             :src="$thirdStoryImage"
                             ratio="portrait"
                             :alt="$thirdStory?->title ?? $secondStory?->title"
-                            loading="eager"
-                            decoding="sync"
-                            fetchpriority="high"
                         />
                     @endif
                 </div>
@@ -89,9 +93,6 @@
                         :src="$leadStoryImage"
                         ratio="cinema"
                         :alt="$leadStory?->title"
-                        loading="eager"
-                        decoding="sync"
-                        fetchpriority="high"
                     />
                 </div>
             @endif
