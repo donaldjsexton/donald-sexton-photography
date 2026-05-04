@@ -7,6 +7,52 @@ use Illuminate\Support\Facades\Storage;
 
 class MediaOptimizer
 {
+    /**
+     * Standard upload pipeline: cap original dimensions, emit a full-size
+     * WebP, and generate responsive WebP variants. Designed to be called
+     * after a Media row has been saved with the original upload path.
+     *
+     * Failures are isolated per stage so a variant failure won't abort
+     * the rest of the pipeline. Returns a combined result describing
+     * what changed.
+     *
+     * @param  array<string,mixed>  $options  forwarded to optimize() and
+     *                                        generateWebpVariants(); the
+     *                                        optimizer-specific keys
+     *                                        (max_width, *_quality, etc.)
+     *                                        and `variant_widths` are
+     *                                        recognized.
+     * @return array{optimize:array<string,mixed>,variants:array<string,mixed>}
+     */
+    public function optimizeUpload(Media $media, array $options = []): array
+    {
+        $variantWidths = $options['variant_widths'] ?? [640, 1080];
+        unset($options['variant_widths']);
+
+        $optimizeOptions = array_merge([
+            'max_width' => 1600,
+            'jpeg_quality' => 82,
+            'webp_quality' => 80,
+            'min_bytes' => 0,
+            'generate_webp' => true,
+            'only_missing_webp' => true,
+        ], $options);
+
+        $optimizeResult = $this->optimize($media, $optimizeOptions);
+
+        // Re-fetch dimensions after optimize() may have mutated the row.
+        $media->refresh();
+
+        $variantResult = $this->generateWebpVariants($media, (array) $variantWidths, [
+            'webp_quality' => $optimizeOptions['webp_quality'],
+        ]);
+
+        return [
+            'optimize' => $optimizeResult,
+            'variants' => $variantResult,
+        ];
+    }
+
     public function optimize(Media $media, array $options = []): array
     {
         $disk = $media->disk ?: 'public';

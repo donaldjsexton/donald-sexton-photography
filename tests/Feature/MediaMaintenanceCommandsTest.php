@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Media;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\File;
@@ -225,6 +227,50 @@ class MediaMaintenanceCommandsTest extends TestCase
 
         $this->assertNotSame('sentinel', Storage::disk('public')->get($variantPath));
         $this->assertGreaterThan(0, $firstWriteBytes);
+    }
+
+    public function test_admin_media_upload_optimizes_original_and_generates_responsive_variants(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        $upload = UploadedFile::fake()->createWithContent(
+            'sample.jpg',
+            $this->makeJpegBytes(2400, 1600, 92)
+        );
+
+        $response = $this->actingAs($user)->post(route('admin.media.store'), [
+            'file' => $upload,
+            'alt_text' => 'Sample alt',
+        ]);
+
+        $response->assertRedirect();
+
+        $media = Media::query()->latest('id')->firstOrFail();
+
+        $this->assertSame(1600, (int) $media->width, 'Original should be capped at 1600px wide.');
+
+        $publicDisk = Storage::disk('public');
+
+        $this->assertTrue($publicDisk->exists($media->path), 'Original file should be on disk.');
+
+        $fullWebp = preg_replace('/\.[^.]+$/', '.webp', $media->path);
+        $this->assertTrue($publicDisk->exists($fullWebp), 'Full-size webp should be generated.');
+
+        $variant640 = preg_replace('/\.[^.]+$/', '-640.webp', $media->path);
+        $variant1080 = preg_replace('/\.[^.]+$/', '-1080.webp', $media->path);
+
+        $this->assertTrue($publicDisk->exists($variant640), '640w webp variant should exist.');
+        $this->assertTrue($publicDisk->exists($variant1080), '1080w webp variant should exist.');
+
+        [$variantWidth] = getimagesize($publicDisk->path($variant640));
+        $this->assertSame(640, $variantWidth);
+
+        $srcset = $media->webpSrcset();
+        $this->assertNotNull($srcset);
+        $this->assertStringContainsString(' 640w', $srcset);
+        $this->assertStringContainsString(' 1080w', $srcset);
     }
 
     private function makeJpegBytes(int $width, int $height, int $quality): string

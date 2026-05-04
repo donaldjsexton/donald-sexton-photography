@@ -4,13 +4,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Media;
+use App\Services\Media\MediaOptimizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class MediaController extends Controller
 {
+    public function __construct(private readonly MediaOptimizer $optimizer) {}
+
     public function index(): View
     {
         return view('admin.media.index', [
@@ -112,7 +116,9 @@ class MediaController extends Controller
 
     private function fillMediaFromRequest(Media $media, Request $request, array $validated): void
     {
-        if ($request->hasFile('file')) {
+        $hasNewFile = $request->hasFile('file');
+
+        if ($hasNewFile) {
             $file = $request->file('file');
             $path = $file->store('media/'.now()->format('Y/m'), 'public');
             [$width, $height] = @getimagesize($file->getRealPath()) ?: [null, null];
@@ -131,5 +137,20 @@ class MediaController extends Controller
         $media->focal_point_x = $validated['focal_point_x'] ?? null;
         $media->focal_point_y = $validated['focal_point_y'] ?? null;
         $media->save();
+
+        if ($hasNewFile) {
+            try {
+                $this->optimizer->optimizeUpload($media);
+            } catch (\Throwable $throwable) {
+                // Optimization is best-effort; the upload itself succeeded
+                // and the original file is on disk. Log so an admin can
+                // re-run media:optimize / media:generate-variants later.
+                Log::warning('Media upload optimization failed.', [
+                    'media_id' => $media->id,
+                    'path' => $media->path,
+                    'exception' => $throwable->getMessage(),
+                ]);
+            }
+        }
     }
 }
