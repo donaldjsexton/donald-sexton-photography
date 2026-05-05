@@ -7,6 +7,7 @@ use App\Mail\InquiryReply;
 use App\Models\Inquiry;
 use App\Models\Venue;
 use App\Models\WeddingQuestionnaire;
+use App\Services\BookedJobSync;
 use App\Services\CalendarSyncOutcome;
 use App\Services\GoogleCalendar;
 use Illuminate\Http\RedirectResponse;
@@ -17,7 +18,10 @@ use Illuminate\View\View;
 
 class InquiryController extends Controller
 {
-    public function __construct(private readonly GoogleCalendar $calendar) {}
+    public function __construct(
+        private readonly GoogleCalendar $calendar,
+        private readonly BookedJobSync $bookedJobSync,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -163,9 +167,10 @@ class InquiryController extends Controller
         $redirect = redirect()->route('admin.inquiries.edit', $inquiry);
 
         if ($inquiry->status === 'booked') {
-            return $redirect->with('status', $this->bookedFlashMessage(
-                $this->calendar->upsertBookingEvent($inquiry)
-            ));
+            $outcome = $this->calendar->upsertBookingEvent($inquiry);
+            $this->bookedJobSync->syncFromInquiry($inquiry->refresh());
+
+            return $redirect->with('status', $this->bookedFlashMessage($outcome));
         }
 
         return $redirect->with('status', 'Inquiry updated.');

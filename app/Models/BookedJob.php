@@ -6,6 +6,7 @@ use Database\Factories\BookedJobFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BookedJob extends Model
 {
@@ -13,6 +14,7 @@ class BookedJob extends Model
     use HasFactory;
 
     protected $fillable = [
+        'inquiry_id',
         'google_event_id',
         'summary',
         'couple_names',
@@ -25,6 +27,11 @@ class BookedJob extends Model
         'raw_description',
         'synced_at',
     ];
+
+    public function inquiry(): BelongsTo
+    {
+        return $this->belongsTo(Inquiry::class);
+    }
 
     protected function casts(): array
     {

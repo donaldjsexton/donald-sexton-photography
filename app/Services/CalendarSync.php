@@ -91,6 +91,7 @@ class CalendarSync
         return BookedJob::query()
             ->whereBetween('event_date', [$windowStart, $windowEnd])
             ->whereNotNull('google_event_id')
+            ->whereNull('inquiry_id')
             ->where('status', 'confirmed')
             ->when($seenEventIds !== [], fn ($query) => $query->whereNotIn('google_event_id', $seenEventIds))
             ->update([
