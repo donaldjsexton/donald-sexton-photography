@@ -166,6 +166,25 @@ class PublicRoutesTest extends TestCase
             ->assertSee('"addressLocality":"Clearwater"', false);
     }
 
+    public function test_wedding_show_does_not_double_encode_ampersands_in_meta_tags(): void
+    {
+        $story = WeddingStory::create([
+            'title' => 'Christopher & Jennifer at the Club',
+            'slug' => 'christopher-jennifer-club',
+            'status' => 'published',
+            'excerpt' => 'Sunset & shuffleboard.',
+            'seo_description' => 'Coastal wedding with food & dancing.',
+            'published_at' => now(),
+        ]);
+
+        $response = $this->get('/weddings/'.$story->slug)->assertOk();
+
+        $response->assertSee('<title>Christopher &amp; Jennifer at the Club</title>', false);
+        $response->assertDontSee('&amp;amp;', false);
+        $response->assertSee('content="Christopher &amp; Jennifer at the Club"', false);
+        $response->assertSee('content="Coastal wedding with food &amp; dancing."', false);
+    }
+
     public function test_public_layout_renders_google_analytics_when_platform_setting_exists(): void
     {
         SiteSetting::create([
