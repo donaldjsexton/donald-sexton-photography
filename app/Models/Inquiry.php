@@ -101,6 +101,11 @@ class Inquiry extends Model
         return $this->hasOne(WeddingQuestionnaire::class);
     }
 
+    public function bookedJob(): HasOne
+    {
+        return $this->hasOne(BookedJob::class);
+    }
+
     public function ensureQuestionnaire(): WeddingQuestionnaire
     {
         return $this->questionnaire()->firstOrCreate([], [
