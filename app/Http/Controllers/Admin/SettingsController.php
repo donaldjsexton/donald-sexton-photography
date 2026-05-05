@@ -132,21 +132,29 @@ class SettingsController extends Controller
 
         $siteSettings = SiteSetting::query()->first() ?? new SiteSetting;
 
-        $siteSettings->google_analytics_measurement_id = filled($validated['google_analytics_measurement_id'] ?? null)
-            ? strtoupper(trim((string) $validated['google_analytics_measurement_id']))
-            : null;
+        if ($request->has('google_analytics_measurement_id')) {
+            $siteSettings->google_analytics_measurement_id = filled($validated['google_analytics_measurement_id'] ?? null)
+                ? strtoupper(trim((string) $validated['google_analytics_measurement_id']))
+                : null;
+        }
 
         foreach (['instagram_url', 'pinterest_url', 'facebook_url', 'youtube_url', 'tiktok_url', 'x_url'] as $field) {
-            $siteSettings->{$field} = filled($validated[$field] ?? null) ? trim((string) $validated[$field]) : null;
+            if ($request->has($field)) {
+                $siteSettings->{$field} = filled($validated[$field] ?? null) ? trim((string) $validated[$field]) : null;
+            }
         }
 
         foreach (['google_site_verification', 'bing_site_verification', 'pinterest_site_verification'] as $field) {
-            $siteSettings->{$field} = filled($validated[$field] ?? null) ? trim((string) $validated[$field]) : null;
+            if ($request->has($field)) {
+                $siteSettings->{$field} = filled($validated[$field] ?? null) ? trim((string) $validated[$field]) : null;
+            }
         }
 
-        $siteSettings->indexnow_key = filled($validated['indexnow_key'] ?? null)
-            ? strtolower(trim((string) $validated['indexnow_key']))
-            : null;
+        if ($request->has('indexnow_key')) {
+            $siteSettings->indexnow_key = filled($validated['indexnow_key'] ?? null)
+                ? strtolower(trim((string) $validated['indexnow_key']))
+                : null;
+        }
 
         $siteSettings->save();
 

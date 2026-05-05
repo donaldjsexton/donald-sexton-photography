@@ -91,6 +91,65 @@ class AdminCmsTest extends TestCase
         $this->assertSame('G-TEST12345', $settings->analyticsMeasurementId());
     }
 
+    public function test_saving_analytics_does_not_clear_discovery_fields(): void
+    {
+        $user = User::factory()->create();
+
+        SiteSetting::query()->create([
+            'instagram_url' => 'https://instagram.com/donaldsexton',
+            'facebook_url' => 'https://facebook.com/donaldsexton',
+            'google_site_verification' => 'gsv-token',
+            'indexnow_key' => 'abcdef0123456789',
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('admin.settings.update'), [
+                'google_analytics_measurement_id' => 'G-NEWID12345',
+            ])
+            ->assertRedirect(route('admin.settings.edit', ['tab' => 'analytics']));
+
+        $settings = SiteSetting::query()->first();
+
+        $this->assertSame('G-NEWID12345', $settings->google_analytics_measurement_id);
+        $this->assertSame('https://instagram.com/donaldsexton', $settings->instagram_url);
+        $this->assertSame('https://facebook.com/donaldsexton', $settings->facebook_url);
+        $this->assertSame('gsv-token', $settings->google_site_verification);
+        $this->assertSame('abcdef0123456789', $settings->indexnow_key);
+    }
+
+    public function test_saving_discovery_does_not_clear_analytics_id(): void
+    {
+        $user = User::factory()->create();
+
+        SiteSetting::query()->create([
+            'google_analytics_measurement_id' => 'G-EXISTING99',
+        ]);
+
+        $this->actingAs($user)
+            ->put(route('admin.settings.update'), [
+                'return_tab' => 'discovery',
+                'instagram_url' => 'https://instagram.com/donaldsexton',
+                'pinterest_url' => 'https://pinterest.com/donaldsexton',
+                'facebook_url' => '',
+                'youtube_url' => '',
+                'tiktok_url' => '',
+                'x_url' => '',
+                'google_site_verification' => 'gsv-token',
+                'bing_site_verification' => '',
+                'pinterest_site_verification' => '',
+                'indexnow_key' => 'abcdef0123456789',
+            ])
+            ->assertRedirect(route('admin.settings.edit', ['tab' => 'discovery']));
+
+        $settings = SiteSetting::query()->first();
+
+        $this->assertSame('G-EXISTING99', $settings->google_analytics_measurement_id);
+        $this->assertSame('https://instagram.com/donaldsexton', $settings->instagram_url);
+        $this->assertSame('https://pinterest.com/donaldsexton', $settings->pinterest_url);
+        $this->assertSame('gsv-token', $settings->google_site_verification);
+        $this->assertSame('abcdef0123456789', $settings->indexnow_key);
+    }
+
     public function test_admin_settings_page_uses_settings_specific_layout_hooks(): void
     {
         $user = User::factory()->create();
