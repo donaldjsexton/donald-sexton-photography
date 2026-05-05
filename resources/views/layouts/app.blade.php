@@ -4,6 +4,9 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     @php
+        // Inline `@section('name', $value)` runs $value through e() at startSection time,
+        // so yieldContent here returns HTML-escaped strings. Emit them with {!! !!} to avoid
+        // double-encoding (e.g. `&` becoming `&amp;amp;` and rendering as literal `&amp;`).
         $defaultDescription = 'Calm wedding photography for Clearwater, Tampa, and beyond.';
         $metaTitle = trim($__env->yieldContent('title', 'Donald Sexton Photography'));
         $metaDescription = trim($__env->yieldContent('meta_description', $defaultDescription));
@@ -14,9 +17,14 @@
         $rawOgImage = trim($__env->yieldContent('og_image', (string) config('seo.default_og_image', '')));
         $ogImage = '';
         if ($rawOgImage !== '') {
-            $ogImage = preg_match('#^https?://#i', $rawOgImage) ? $rawOgImage : url($rawOgImage);
+            // yieldContent escapes via e(), so decode before url() so a relative
+            // path is treated as a path and not as already-escaped HTML.
+            $decodedOgImage = htmlspecialchars_decode($rawOgImage, ENT_QUOTES | ENT_HTML5);
+            $ogImage = e(preg_match('#^https?://#i', $decodedOgImage)
+                ? $decodedOgImage
+                : url($decodedOgImage));
         }
-        $ogImageAlt = trim($__env->yieldContent('og_image_alt', $metaTitle));
+        $ogImageAlt = trim($__env->yieldContent('og_image_alt', $siteName));
         $ogArticlePublishedTime = trim($__env->yieldContent('og_article_published_time'));
         $ogArticleModifiedTime = trim($__env->yieldContent('og_article_modified_time'));
         $ogArticleAuthor = trim($__env->yieldContent('og_article_author'));
@@ -29,10 +37,10 @@
         ];
         $businessSchema = \App\Support\StructuredData::organization();
     @endphp
-    <title>{{ $metaTitle }}</title>
-    <meta name="description" content="{{ $metaDescription }}">
+    <title>{!! $metaTitle !!}</title>
+    <meta name="description" content="{!! $metaDescription !!}">
     @if ($canonicalUrl !== '')
-        <link rel="canonical" href="{{ $canonicalUrl }}">
+        <link rel="canonical" href="{!! $canonicalUrl !!}">
     @endif
     <meta name="robots" content="index,follow,max-image-preview:large">
     <meta name="author" content="Donald Sexton Photography">
@@ -40,38 +48,38 @@
         <meta name="{{ $name }}" content="{{ $content }}">
     @endforeach
     <meta name="theme-color" content="#f9f7f4">
-    <meta property="og:type" content="{{ $ogType }}">
+    <meta property="og:type" content="{!! $ogType !!}">
     <meta property="og:site_name" content="{{ $siteName }}">
     <meta property="og:locale" content="en_US">
-    <meta property="og:title" content="{{ $metaTitle }}">
-    <meta property="og:description" content="{{ $metaDescription }}">
-    <meta name="twitter:description" content="{{ $metaDescription }}">
+    <meta property="og:title" content="{!! $metaTitle !!}">
+    <meta property="og:description" content="{!! $metaDescription !!}">
+    <meta name="twitter:description" content="{!! $metaDescription !!}">
     @if ($canonicalUrl !== '')
-        <meta property="og:url" content="{{ $canonicalUrl }}">
+        <meta property="og:url" content="{!! $canonicalUrl !!}">
     @endif
     @if ($ogImage !== '')
-        <meta property="og:image" content="{{ $ogImage }}">
+        <meta property="og:image" content="{!! $ogImage !!}">
         @if ($ogImageAlt !== '')
-            <meta property="og:image:alt" content="{{ $ogImageAlt }}">
+            <meta property="og:image:alt" content="{!! $ogImageAlt !!}">
         @endif
-        <meta name="twitter:image" content="{{ $ogImage }}">
+        <meta name="twitter:image" content="{!! $ogImage !!}">
         @if ($ogImageAlt !== '')
-            <meta name="twitter:image:alt" content="{{ $ogImageAlt }}">
+            <meta name="twitter:image:alt" content="{!! $ogImageAlt !!}">
         @endif
     @endif
     @if ($ogType === 'article')
         @if ($ogArticlePublishedTime !== '')
-            <meta property="article:published_time" content="{{ $ogArticlePublishedTime }}">
+            <meta property="article:published_time" content="{!! $ogArticlePublishedTime !!}">
         @endif
         @if ($ogArticleModifiedTime !== '')
-            <meta property="article:modified_time" content="{{ $ogArticleModifiedTime }}">
+            <meta property="article:modified_time" content="{!! $ogArticleModifiedTime !!}">
         @endif
         @if ($ogArticleAuthor !== '')
-            <meta property="article:author" content="{{ $ogArticleAuthor }}">
+            <meta property="article:author" content="{!! $ogArticleAuthor !!}">
         @endif
     @endif
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="{{ $metaTitle }}">
+    <meta name="twitter:title" content="{!! $metaTitle !!}">
     <link rel="alternate" type="application/atom+xml" title="{{ $siteName }} — Journal" href="{{ route('journal.feed') }}">
     @stack('head_preload')
     <link rel="preconnect" href="https://fonts.bunny.net">
