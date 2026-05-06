@@ -52,7 +52,7 @@
     <section class="admin-dashboard-row">
         <x-admin.section-header
             eyebrow="On Your Plate"
-            title="Needs reply &amp; this week"
+            title="Needs reply & this week"
             description="Leads waiting on a first response, plus shoots in the next seven days."
         />
 
@@ -61,20 +61,18 @@
                 @if ($needsReply['count'] === 0)
                     <p class="meta">All current leads have a first reply on the books.</p>
                 @else
-                    <p class="admin-stat">
-                        {{ $needsReply['count'] }}
-                        <span class="meta">
-                            {{ \Illuminate\Support\Str::plural('lead', $needsReply['count']) }} waiting
-                            @if ($needsReply['oldestHours'] !== null)
-                                · oldest {{ $needsReply['oldestHours'] }}h
-                            @endif
-                        </span>
+                    <p class="admin-stat">{{ $needsReply['count'] }}</p>
+                    <p class="meta">
+                        {{ \Illuminate\Support\Str::plural('lead', $needsReply['count']) }} waiting
+                        @if ($needsReply['oldestHours'] !== null)
+                            · oldest {{ $needsReply['oldestHours'] }}h
+                        @endif
                     </p>
                     <x-admin.list>
                         @foreach ($needsReply['items'] as $inquiry)
                             <x-admin.list-item
                                 :title="$inquiry->primary_name.' · '.($inquiry->event_date?->format('M j, Y') ?: 'No date')"
-                                :meta="$inquiry->email.' · received '.$inquiry->created_at?->diffForHumans()"
+                                :meta="$inquiry->email.' · received '.($inquiry->created_at?->isFuture() ? 'just now' : $inquiry->created_at?->diffForHumans())"
                                 :href="route('admin.inquiries.edit', $inquiry)"
                             />
                         @endforeach
@@ -87,10 +85,8 @@
                 @if ($thisWeek->isEmpty())
                     <p class="meta">No confirmed shoots in the next seven days.</p>
                 @else
-                    <p class="admin-stat">
-                        {{ $thisWeek->count() }}
-                        <span class="meta">{{ \Illuminate\Support\Str::plural('shoot', $thisWeek->count()) }} through {{ today()->copy()->addDays(6)->format('M j') }}</span>
-                    </p>
+                    <p class="admin-stat">{{ $thisWeek->count() }}</p>
+                    <p class="meta">{{ \Illuminate\Support\Str::plural('shoot', $thisWeek->count()) }} through {{ today()->copy()->addDays(6)->format('M j') }}</p>
                     <x-admin.list>
                         @foreach ($thisWeek as $job)
                             <x-admin.list-item
