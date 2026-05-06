@@ -46,14 +46,101 @@ class GmailSyncTest extends TestCase
         $this->assertDatabaseHas('inquiry_messages', [
             'inquiry_id' => $inquiry->id,
             'gmail_message_id' => 'm1',
+            'gmail_thread_id' => 'thr_1',
+            'subject' => 'Hi',
             'direction' => 'inbound',
             'sender_email' => 'client@example.com',
         ]);
         $this->assertDatabaseHas('inquiry_messages', [
             'inquiry_id' => $inquiry->id,
             'gmail_message_id' => 'm2',
+            'gmail_thread_id' => 'thr_1',
             'direction' => 'outbound',
             'sender_email' => 'donald@example.com',
+        ]);
+    }
+
+    public function test_sync_imports_messages_from_multiple_threads_per_inquiry(): void
+    {
+        $inquiry = Inquiry::factory()->create([
+            'email' => 'client@example.com',
+            'status' => 'new',
+            'first_responded_at' => null,
+        ]);
+
+        $reader = new FakeGmailReader(
+            connectedEmail: 'donald@example.com',
+            threadIdByEmail: ['client@example.com' => ['thr_recent', 'thr_old']],
+            messagesByThread: [
+                'thr_recent' => [
+                    new ParsedGmailMessage('m_new_in', 'thr_recent', 'client@example.com', 'Jane Client', 'Engagement session pricing', 'Need pricing.', Carbon::parse('2026-04-20 09:00:00'), false),
+                    new ParsedGmailMessage('m_new_out', 'thr_recent', 'donald@example.com', 'Donald Sexton', 'Re: Engagement session pricing', 'Here you go.', Carbon::parse('2026-04-20 11:00:00'), false),
+                ],
+                'thr_old' => [
+                    new ParsedGmailMessage('m_old_in', 'thr_old', 'client@example.com', 'Jane Client', 'Wedding inquiry', 'Original ask.', Carbon::parse('2026-03-01 09:00:00'), false),
+                ],
+            ],
+        );
+
+        $result = (new GmailSyncService($reader))->sync(90);
+
+        $this->assertSame(3, $result['new_messages']);
+        $this->assertSame(1, $result['linked']);
+
+        $inquiry->refresh();
+        $this->assertSame('thr_recent', $inquiry->gmail_thread_id);
+
+        $this->assertDatabaseHas('inquiry_messages', [
+            'inquiry_id' => $inquiry->id,
+            'gmail_message_id' => 'm_new_in',
+            'gmail_thread_id' => 'thr_recent',
+            'subject' => 'Engagement session pricing',
+        ]);
+        $this->assertDatabaseHas('inquiry_messages', [
+            'inquiry_id' => $inquiry->id,
+            'gmail_message_id' => 'm_old_in',
+            'gmail_thread_id' => 'thr_old',
+            'subject' => 'Wedding inquiry',
+        ]);
+
+        $threadIds = $inquiry->messages()->pluck('gmail_thread_id')->unique()->sort()->values()->all();
+        $this->assertSame(['thr_old', 'thr_recent'], $threadIds);
+    }
+
+    public function test_sync_picks_up_a_new_thread_for_already_linked_inquiry(): void
+    {
+        $inquiry = Inquiry::factory()->create([
+            'email' => 'client@example.com',
+            'gmail_thread_id' => 'thr_old',
+        ]);
+
+        $reader = new FakeGmailReader(
+            connectedEmail: 'donald@example.com',
+            threadIdByEmail: ['client@example.com' => ['thr_new', 'thr_old']],
+            messagesByThread: [
+                'thr_old' => [
+                    new ParsedGmailMessage('m_old', 'thr_old', 'client@example.com', null, 'Old', 'Body', Carbon::parse('2026-03-01 09:00:00'), false),
+                ],
+                'thr_new' => [
+                    new ParsedGmailMessage('m_new', 'thr_new', 'client@example.com', null, 'Follow up', 'Body', Carbon::parse('2026-04-01 09:00:00'), false),
+                ],
+            ],
+        );
+
+        (new GmailSyncService($reader))->sync(90);
+
+        $inquiry->refresh();
+        $this->assertSame('thr_old', $inquiry->gmail_thread_id, 'Existing primary thread is preserved.');
+
+        $this->assertDatabaseHas('inquiry_messages', [
+            'inquiry_id' => $inquiry->id,
+            'gmail_message_id' => 'm_new',
+            'gmail_thread_id' => 'thr_new',
+        ]);
+        $this->assertDatabaseHas('inquiry_messages', [
+            'inquiry_id' => $inquiry->id,
+            'gmail_message_id' => 'm_old',
+            'gmail_thread_id' => 'thr_old',
         ]);
     }
 
@@ -252,16 +339,27 @@ class GmailSyncTest extends TestCase
 
 class FakeGmailReader implements GmailReader
 {
+    /** @var array<string, array<int, string>> */
+    private readonly array $threadIdsByEmail;
+
     /**
-     * @param  array<string, string>  $threadIdByEmail
+     * @param  array<string, string|array<int, string>>  $threadIdByEmail
      * @param  array<string, array<int, ParsedGmailMessage>>  $messagesByThread
      */
     public function __construct(
         private readonly string $connectedEmail,
-        private readonly array $threadIdByEmail = [],
+        array $threadIdByEmail = [],
         private readonly array $messagesByThread = [],
         private readonly bool $available = true,
-    ) {}
+    ) {
+        $normalised = [];
+
+        foreach ($threadIdByEmail as $email => $value) {
+            $normalised[$email] = is_array($value) ? array_values($value) : [$value];
+        }
+
+        $this->threadIdsByEmail = $normalised;
+    }
 
     public function isAvailable(): bool
     {
@@ -273,9 +371,9 @@ class FakeGmailReader implements GmailReader
         return $this->connectedEmail;
     }
 
-    public function findThreadIdForEmail(string $email, int $withinDays): ?string
+    public function findThreadIdsForEmail(string $email, int $withinDays, int $maxThreads = 25): array
     {
-        return $this->threadIdByEmail[$email] ?? null;
+        return $this->threadIdsByEmail[$email] ?? [];
     }
 
     public function fetchThreadMessages(string $threadId): array

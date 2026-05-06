@@ -25,12 +25,12 @@ class GmailApiReader implements GmailReader
         return $this->googleClient->connectedEmail();
     }
 
-    public function findThreadIdForEmail(string $email, int $withinDays): ?string
+    public function findThreadIdsForEmail(string $email, int $withinDays, int $maxThreads = 25): array
     {
         $gmail = $this->gmail();
 
         if ($gmail === null) {
-            return null;
+            return [];
         }
 
         $query = sprintf('(from:%s OR to:%s) newer_than:%dd', $email, $email, $withinDays);
@@ -38,21 +38,35 @@ class GmailApiReader implements GmailReader
         try {
             $response = $gmail->users_messages->listUsersMessages('me', [
                 'q' => $query,
-                'maxResults' => 1,
+                'maxResults' => $maxThreads * 5,
             ]);
         } catch (\Throwable $e) {
             Log::warning('Gmail thread lookup failed: '.$e->getMessage());
 
-            return null;
+            return [];
         }
 
-        $messages = $response->getMessages() ?? [];
+        $threadIds = [];
 
-        if ($messages === []) {
-            return null;
+        foreach ($response->getMessages() ?? [] as $message) {
+            $threadId = $message->getThreadId();
+
+            if ($threadId === null || $threadId === '') {
+                continue;
+            }
+
+            if (in_array($threadId, $threadIds, true)) {
+                continue;
+            }
+
+            $threadIds[] = $threadId;
+
+            if (count($threadIds) >= $maxThreads) {
+                break;
+            }
         }
 
-        return $messages[0]->getThreadId();
+        return $threadIds;
     }
 
     public function fetchThreadMessages(string $threadId): array

@@ -9,10 +9,12 @@ interface GmailReader
     public function connectedEmail(): ?string;
 
     /**
-     * Find the most recent Gmail thread exchanged with the given email
-     * within the last $withinDays. Returns the threadId or null.
+     * Find all Gmail threads exchanged with the given email within the last
+     * $withinDays. Newest thread first.
+     *
+     * @return array<int, string>
      */
-    public function findThreadIdForEmail(string $email, int $withinDays): ?string;
+    public function findThreadIdsForEmail(string $email, int $withinDays, int $maxThreads = 25): array;
 
     /**
      * Fetch all messages in a thread, ordered oldest-first.
