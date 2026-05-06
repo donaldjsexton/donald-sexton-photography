@@ -35,18 +35,24 @@ class GmailSyncService
                 foreach ($inquiries as $inquiry) {
                     $checked++;
 
+                    $threadIds = $this->reader->findThreadIdsForEmail($inquiry->email, $withinDays);
+
+                    if ($inquiry->gmail_thread_id && ! in_array($inquiry->gmail_thread_id, $threadIds, true)) {
+                        $threadIds[] = $inquiry->gmail_thread_id;
+                    }
+
+                    if ($threadIds === []) {
+                        continue;
+                    }
+
                     if (! $inquiry->gmail_thread_id) {
-                        $threadId = $this->reader->findThreadIdForEmail($inquiry->email, $withinDays);
-
-                        if ($threadId === null) {
-                            continue;
-                        }
-
-                        $inquiry->update(['gmail_thread_id' => $threadId]);
+                        $inquiry->update(['gmail_thread_id' => $threadIds[0]]);
                         $linked++;
                     }
 
-                    $newMessages += $this->upsertThread($inquiry, $connectedEmail);
+                    foreach ($threadIds as $threadId) {
+                        $newMessages += $this->upsertThread($inquiry, $threadId, $connectedEmail);
+                    }
                 }
             });
 
@@ -55,9 +61,9 @@ class GmailSyncService
         return ['checked' => $checked, 'linked' => $linked, 'new_messages' => $newMessages];
     }
 
-    private function upsertThread(Inquiry $inquiry, string $connectedEmail): int
+    private function upsertThread(Inquiry $inquiry, string $threadId, string $connectedEmail): int
     {
-        $messages = $this->reader->fetchThreadMessages($inquiry->gmail_thread_id);
+        $messages = $this->reader->fetchThreadMessages($threadId);
 
         if ($messages === []) {
             return 0;
@@ -91,7 +97,7 @@ class GmailSyncService
             $senderName = $message->fromName ?? Str::before($message->fromEmail, '@');
 
             if ($isOutbound) {
-                $local = $this->findLocallyCreatedOutbound($inquiry, $message);
+                $local = $this->findLocallyCreatedOutbound($inquiry, $threadId, $message);
 
                 if ($local !== null) {
                     $local->update([
@@ -99,6 +105,8 @@ class GmailSyncService
                         'sender_email' => $message->fromEmail,
                         'sent_at' => $message->sentAt,
                         'gmail_message_id' => $message->id,
+                        'gmail_thread_id' => $threadId,
+                        'subject' => $message->subject ?: $local->subject,
                     ]);
 
                     continue;
@@ -112,6 +120,8 @@ class GmailSyncService
                 'sender_email' => $message->fromEmail,
                 'sent_at' => $message->sentAt,
                 'gmail_message_id' => $message->id,
+                'gmail_thread_id' => $threadId,
+                'subject' => $message->subject,
             ]);
 
             $this->applySideEffects($inquiry, $isOutbound, $message->sentAt);
@@ -126,19 +136,26 @@ class GmailSyncService
      * is created before the email leaves the building, so it has no Gmail ID.
      * The next Gmail sync would otherwise insert a second row for the same
      * email. Match it back to the locally-created row by direction + sent_at
-     * proximity so we update in place instead of duplicating.
+     * proximity so we update in place instead of duplicating. Prefer rows
+     * already attached to this thread, then fall back to unattached ones.
      */
-    private function findLocallyCreatedOutbound(Inquiry $inquiry, ParsedGmailMessage $message): ?InquiryMessage
+    private function findLocallyCreatedOutbound(Inquiry $inquiry, string $threadId, ParsedGmailMessage $message): ?InquiryMessage
     {
-        return $inquiry->messages()
+        $candidates = $inquiry->messages()
             ->where('direction', 'outbound')
             ->whereNull('gmail_message_id')
             ->whereBetween('sent_at', [
                 $message->sentAt->copy()->subMinutes(10),
                 $message->sentAt->copy()->addMinutes(10),
             ])
+            ->where(function ($query) use ($threadId): void {
+                $query->whereNull('gmail_thread_id')->orWhere('gmail_thread_id', $threadId);
+            })
+            ->orderByRaw('case when gmail_thread_id is null then 1 else 0 end')
             ->orderBy('sent_at', 'desc')
-            ->first();
+            ->get();
+
+        return $candidates->first();
     }
 
     private function applySideEffects(Inquiry $inquiry, bool $isOutbound, Carbon $sentAt): void

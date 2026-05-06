@@ -419,4 +419,52 @@ class InquiryCommunicationTest extends TestCase
         $response->assertSee('Thanks for your interest!');
         $response->assertSee('Reply to');
     }
+
+    public function test_edit_view_groups_messages_into_separate_thread_cards(): void
+    {
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->create([
+            'message' => 'Interested in wedding photography.',
+            'gmail_thread_id' => 'thr_recent',
+        ]);
+
+        $inquiry->messages()->create([
+            'direction' => 'inbound',
+            'body' => 'First contact body.',
+            'sender_name' => 'Jane Client',
+            'sent_at' => Carbon::parse('2026-03-01 09:00:00'),
+            'gmail_message_id' => 'm_old_in',
+            'gmail_thread_id' => 'thr_old',
+            'subject' => 'Original wedding inquiry',
+        ]);
+        $inquiry->messages()->create([
+            'direction' => 'inbound',
+            'body' => 'Different topic body.',
+            'sender_name' => 'Jane Client',
+            'sent_at' => Carbon::parse('2026-04-15 09:00:00'),
+            'gmail_message_id' => 'm_new_in',
+            'gmail_thread_id' => 'thr_recent',
+            'subject' => 'Re: Engagement session pricing',
+        ]);
+
+        $response = $this->actingAs($user)->get(route('admin.inquiries.edit', $inquiry));
+
+        $response->assertStatus(200);
+        $response->assertSee('Engagement session pricing');
+        $response->assertSee('Original wedding inquiry');
+        $response->assertSee('Initial inquiry');
+        $response->assertSee('Mar 1, 2026');
+        $response->assertSee('Apr 15, 2026');
+
+        $content = $response->getContent();
+        $newest = strpos($content, 'Engagement session pricing');
+        $older = strpos($content, 'Original wedding inquiry');
+        $initial = strpos($content, 'submitted ');
+
+        $this->assertNotFalse($newest);
+        $this->assertNotFalse($older);
+        $this->assertNotFalse($initial);
+        $this->assertLessThan($older, $newest, 'Newer thread should appear before older thread.');
+        $this->assertLessThan($initial, $older, 'Gmail threads should appear before the initial form submission card.');
+    }
 }

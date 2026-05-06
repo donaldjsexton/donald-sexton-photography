@@ -172,26 +172,71 @@
     </section>
 
     <section class="admin-card">
-        <p class="eyebrow">Conversation</p>
+        <p class="eyebrow">Conversations</p>
 
-        <div class="inquiry-timeline">
-            <div class="inquiry-timeline__entry inquiry-timeline__entry--inbound">
-                <div class="inquiry-timeline__meta">
-                    <strong>{{ $inquiry->primary_name }}</strong>
-                    <span class="meta">{{ $inquiry->created_at?->format('M j, Y g:i A') }} · Initial inquiry</span>
-                </div>
-                <div class="inquiry-timeline__body">{{ $inquiry->message ?: 'No message was included.' }}</div>
-            </div>
+        @php
+            $threadGroups = $inquiry->messages
+                ->groupBy(fn ($msg) => $msg->gmail_thread_id ?: 'local:'.$msg->id)
+                ->map(function ($msgs) {
+                    $ordered = $msgs->sortBy(fn ($m) => $m->sent_at ?? $m->created_at)->values();
+                    $rawSubject = optional($ordered->firstWhere(fn ($m) => filled($m->subject)))->subject;
+                    $subject = $rawSubject
+                        ? trim(preg_replace('/^(re|fwd|fw):\s*/i', '', (string) $rawSubject))
+                        : null;
 
-            @foreach ($inquiry->messages as $msg)
-                <div class="inquiry-timeline__entry inquiry-timeline__entry--{{ $msg->direction }}">
-                    <div class="inquiry-timeline__meta">
-                        <strong>{{ $msg->direction === 'outbound' ? ($msg->sender_name ?: 'Studio') : $inquiry->primary_name }}</strong>
-                        <span class="meta">{{ $msg->created_at->format('M j, Y g:i A') }}</span>
+                    return [
+                        'subject' => $subject ?: 'Conversation',
+                        'last_at' => $ordered->max(fn ($m) => $m->sent_at ?? $m->created_at),
+                        'messages' => $ordered,
+                    ];
+                })
+                ->sortByDesc('last_at')
+                ->values();
+
+            $initialAt = $inquiry->created_at;
+        @endphp
+
+        <div class="inquiry-threads">
+            @foreach ($threadGroups as $thread)
+                <article class="inquiry-thread">
+                    <header class="inquiry-thread__header">
+                        <strong class="inquiry-thread__subject">{{ $thread['subject'] }}</strong>
+                        <span class="meta">
+                            {{ $thread['messages']->count() }} {{ Str::plural('message', $thread['messages']->count()) }}
+                            · last activity {{ optional($thread['last_at'])->format('M j, Y g:i A') }}
+                        </span>
+                    </header>
+
+                    <div class="inquiry-timeline">
+                        @foreach ($thread['messages'] as $msg)
+                            @php $stamp = $msg->sent_at ?? $msg->created_at; @endphp
+                            <div class="inquiry-timeline__entry inquiry-timeline__entry--{{ $msg->direction }}">
+                                <div class="inquiry-timeline__meta">
+                                    <strong>{{ $msg->direction === 'outbound' ? ($msg->sender_name ?: 'Studio') : ($msg->sender_name ?: $inquiry->primary_name) }}</strong>
+                                    <span class="meta">{{ optional($stamp)->format('M j, Y g:i A') }}</span>
+                                </div>
+                                <div class="inquiry-timeline__body">{{ $msg->body }}</div>
+                            </div>
+                        @endforeach
                     </div>
-                    <div class="inquiry-timeline__body">{{ $msg->body }}</div>
-                </div>
+                </article>
             @endforeach
+
+            <article class="inquiry-thread inquiry-thread--initial">
+                <header class="inquiry-thread__header">
+                    <strong class="inquiry-thread__subject">Initial inquiry</strong>
+                    <span class="meta">submitted {{ optional($initialAt)->format('M j, Y g:i A') }}</span>
+                </header>
+                <div class="inquiry-timeline">
+                    <div class="inquiry-timeline__entry inquiry-timeline__entry--inbound">
+                        <div class="inquiry-timeline__meta">
+                            <strong>{{ $inquiry->primary_name }}</strong>
+                            <span class="meta">{{ optional($initialAt)->format('M j, Y g:i A') }} · form submission</span>
+                        </div>
+                        <div class="inquiry-timeline__body">{{ $inquiry->message ?: 'No message was included.' }}</div>
+                    </div>
+                </div>
+            </article>
         </div>
 
         <form

@@ -271,9 +271,9 @@ class VenueReferralIngestorTest extends TestCase
                 return 'donald@donaldsextonphotography.com';
             }
 
-            public function findThreadIdForEmail(string $email, int $withinDays): ?string
+            public function findThreadIdsForEmail(string $email, int $withinDays, int $maxThreads = 25): array
             {
-                return null;
+                return [];
             }
 
             public function fetchThreadMessages(string $threadId): array
