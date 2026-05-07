@@ -3,7 +3,7 @@
     $contact = trim((string) $venue->referral_contact_name);
     $venueName = trim((string) $venue->name);
     $referrer = $contact !== '' ? "{$contact} at {$venueName}" : "The team at {$venueName}";
-    $preheader = "{$referrer} just connected us — a quick hello and what to expect next.";
+    $preheader = "{$referrer} just connected us — a quick hello and what to expect from here.";
 @endphp
 <!DOCTYPE html>
 <html lang="en">
@@ -27,12 +27,12 @@
             @endif
         </h1>
 
-        <p style="margin:0 0 16px; color:#4a3f36;">{{ $referrer }} passed your details along — congratulations on choosing such a beautiful spot for your wedding.</p>
+        <p style="margin:0 0 16px; color:#4a3f36;">{{ $referrer }} passed your details along — congratulations on choosing such a beautiful spot for your wedding, and thank you for booking me to be part of the day.</p>
 
         @if ($inquiry->event_date)
-            <p style="margin:0 0 16px; color:#4a3f36;">I have your date down as <strong>{{ $inquiry->event_date->format('F j, Y') }}</strong>. I will check the calendar and reply within one business day with availability and next steps.</p>
+            <p style="margin:0 0 16px; color:#4a3f36;">I have your date down as <strong>{{ $inquiry->event_date->format('F j, Y') }}</strong>. I'll follow up shortly with the planning details and next steps from my side.</p>
         @else
-            <p style="margin:0 0 16px; color:#4a3f36;">I will check the calendar and reply within one business day with next steps.</p>
+            <p style="margin:0 0 16px; color:#4a3f36;">I'll follow up shortly with the planning details and next steps from my side.</p>
         @endif
 
         <p style="margin:0 0 16px; color:#4a3f36;">In the meantime, a few recent wedding stories are the easiest way to get a feel for how I work.</p>
