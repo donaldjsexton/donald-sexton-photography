@@ -149,6 +149,7 @@
 
             <div class="actions">
                 <a class="btn btn-secondary" href="{{ \Illuminate\Support\Facades\URL::temporarySignedRoute('invoices.public.pdf', now()->addDays((int) config('payments.invoice_signed_url_ttl_days', 90)), ['invoice' => $invoice->uuid]) }}">Download PDF</a>
+                <a class="btn btn-secondary" href="{{ route('portal.login') }}">Sign in to your portal</a>
                 @if ($invoice->amountDueCents() > 0 && $invoice->status !== \App\Models\Invoice::STATUS_VOID)
                     <span class="btn btn-primary" aria-disabled="true" title="Online payment options are coming soon">Pay Online (coming soon)</span>
                 @endif
