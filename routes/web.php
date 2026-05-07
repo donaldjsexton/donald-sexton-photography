@@ -23,6 +23,7 @@ use App\Http\Controllers\Admin\WordPressImportController as AdminWordPressImport
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InquiryController;
+use App\Http\Controllers\InvoicePublicController;
 use App\Http\Controllers\JournalController;
 use App\Http\Controllers\JournalFeedController;
 use App\Http\Controllers\LegacyRedirectController;
@@ -85,6 +86,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('/invoices/{invoice}', [AdminInvoiceController::class, 'destroy'])->name('invoices.destroy');
         Route::post('/invoices/{invoice}/send', [AdminInvoiceController::class, 'send'])->name('invoices.send');
         Route::post('/invoices/{invoice}/void', [AdminInvoiceController::class, 'void'])->name('invoices.void');
+        Route::get('/invoices/{invoice}/pdf', [AdminInvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
         Route::post('/invoices/{invoice}/payments', [AdminInvoiceController::class, 'recordPayment'])->name('invoices.payments.store');
 
         Route::post('/push/subscribe', [AdminPushSubscriptionController::class, 'store'])->name('push.subscribe');
@@ -164,6 +166,11 @@ Route::get('/thank-you', [InquiryController::class, 'thankYou'])->name('inquiry.
 Route::get('/questionnaire/thank-you', [QuestionnaireController::class, 'thankYou'])->name('questionnaire.thank-you');
 Route::get('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'show'])->name('questionnaire.show');
 Route::put('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'update'])->name('questionnaire.update');
+
+Route::middleware('signed')->group(function () {
+    Route::get('/invoices/{invoice}', [InvoicePublicController::class, 'show'])->name('invoices.public.show');
+    Route::get('/invoices/{invoice}/pdf', [InvoicePublicController::class, 'downloadPdf'])->name('invoices.public.pdf');
+});
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/llms.txt', LlmsTxtController::class)->name('llms');

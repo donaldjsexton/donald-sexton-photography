@@ -5,6 +5,7 @@
 @section('heading', $invoice->number)
 @section('subheading', $invoice->client?->displayName().' · '.\App\Models\Invoice::statusOptions()[$invoice->status])
 @section('header_actions')
+    <a class="cta-secondary" href="{{ route('admin.invoices.pdf', $invoice) }}" target="_blank" rel="noopener">Download PDF</a>
     @if ($invoice->isEditable())
         <a class="cta-secondary" href="{{ route('admin.invoices.edit', $invoice) }}">Edit</a>
     @endif

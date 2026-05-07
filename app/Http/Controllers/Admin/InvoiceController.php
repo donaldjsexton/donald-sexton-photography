@@ -12,6 +12,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceInstallment;
 use App\Models\InvoiceLineItem;
 use App\Models\Payment;
+use App\Services\Invoicing\InvoicePdfRenderer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -221,6 +222,11 @@ class InvoiceController extends Controller
         return redirect()
             ->route('admin.invoices.show', $invoice)
             ->with('status', 'Invoice voided.');
+    }
+
+    public function downloadPdf(Invoice $invoice, InvoicePdfRenderer $renderer)
+    {
+        return $renderer->build($invoice)->download();
     }
 
     public function recordPayment(RecordPaymentRequest $request, Invoice $invoice): RedirectResponse
