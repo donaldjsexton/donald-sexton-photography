@@ -128,9 +128,78 @@
 
         <div style="display:flex; flex-wrap:wrap; gap:12px;">
             <a class="btn btn-secondary" href="{{ route('portal.invoices.pdf', ['invoice' => $invoice->uuid]) }}" target="_blank" rel="noopener">Download PDF</a>
-            @if ($invoice->amountDueCents() > 0 && $invoice->status !== \App\Models\Invoice::STATUS_VOID)
-                <span class="btn btn-primary" aria-disabled="true" title="Online payment options are coming soon">Pay Online (coming soon)</span>
+            @if (! $squareEnabled && $invoice->amountDueCents() > 0 && $invoice->status !== \App\Models\Invoice::STATUS_VOID)
+                <span class="btn btn-secondary" aria-disabled="true" title="Online payments are not enabled yet">Online payments coming soon</span>
             @endif
         </div>
     </section>
+
+    @if ($squareEnabled)
+        <section class="card stack">
+            <div>
+                <h3>Pay with card</h3>
+                <p style="margin:0;">
+                    Pay <strong>${{ number_format($invoice->amountDueCents() / 100, 2) }}</strong> securely with Square. Cards are processed in their PCI-compliant iframe — your card details never touch our server.
+                </p>
+            </div>
+
+            <div id="square-payment-form" data-app-id="{{ $squareApplicationId }}" data-location-id="{{ $squareLocationId }}">
+                <div id="square-card-container" style="padding:14px; border:1px solid #d9c8b8; border-radius:8px; background:#fff; min-height:90px;"></div>
+                <p id="square-error" style="color:#a03030; margin:12px 0 0; min-height:1em;"></p>
+                <button id="square-pay-button" type="button" class="btn btn-primary" style="margin-top:14px; width:100%;" disabled>
+                    Pay ${{ number_format($invoice->amountDueCents() / 100, 2) }}
+                </button>
+            </div>
+
+            <form id="square-payment-form-post" method="POST" action="{{ route('portal.invoices.pay.square', ['invoice' => $invoice->uuid]) }}" style="display:none;">
+                @csrf
+                <input type="hidden" name="source_id" id="square-source-id">
+                <input type="hidden" name="verification_token" id="square-verification-token">
+            </form>
+        </section>
+
+        <script src="{{ $squareSdkUrl }}"></script>
+        <script>
+        (function () {
+            var formEl = document.getElementById('square-payment-form');
+            var btn = document.getElementById('square-pay-button');
+            var errEl = document.getElementById('square-error');
+            var postForm = document.getElementById('square-payment-form-post');
+            var sourceField = document.getElementById('square-source-id');
+            var verificationField = document.getElementById('square-verification-token');
+
+            if (!window.Square) {
+                errEl.textContent = 'Card payment unavailable: Square SDK failed to load.';
+                return;
+            }
+
+            var payments = window.Square.payments(formEl.dataset.appId, formEl.dataset.locationId);
+
+            payments.card().then(function (card) {
+                return card.attach('#square-card-container').then(function () {
+                    btn.disabled = false;
+                    btn.addEventListener('click', function () {
+                        btn.disabled = true;
+                        errEl.textContent = '';
+                        card.tokenize().then(function (result) {
+                            if (result.status !== 'OK') {
+                                errEl.textContent = (result.errors || []).map(function (e) { return e.message; }).join(' ') || 'Card could not be processed.';
+                                btn.disabled = false;
+                                return;
+                            }
+                            sourceField.value = result.token;
+                            verificationField.value = result.verificationToken || '';
+                            postForm.submit();
+                        }).catch(function (err) {
+                            errEl.textContent = err && err.message ? err.message : 'Card processing failed.';
+                            btn.disabled = false;
+                        });
+                    });
+                });
+            }).catch(function (err) {
+                errEl.textContent = 'Could not initialise the card form: ' + (err && err.message ? err.message : 'unknown error');
+            });
+        })();
+        </script>
+    @endif
 @endsection
