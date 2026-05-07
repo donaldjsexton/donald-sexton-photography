@@ -1260,26 +1260,21 @@ img {
 
     .collapsible-body {
         display: grid;
-        gap: 1rem;
-        overflow: hidden;
+        grid-template-rows: 1fr;
         transition: grid-template-rows 0.3s ease, opacity 0.25s ease;
+    }
+
+    .collapsible-body__inner {
+        display: grid;
+        gap: 1rem;
+        min-height: 0;
+        overflow: hidden;
     }
 
     [data-collapsed="true"] > .collapsible-body {
         grid-template-rows: 0fr;
         opacity: 0;
         pointer-events: none;
-    }
-
-    [data-collapsed="false"] > .collapsible-body,
-    :not([data-collapsed]) > .collapsible-body {
-        grid-template-rows: 1fr;
-        opacity: 1;
-    }
-
-    [data-collapsed="true"] > .collapsible-body > * {
-        min-height: 0;
-        overflow: hidden;
     }
 }
 
@@ -1288,7 +1283,8 @@ img {
         display: none;
     }
 
-    .collapsible-body {
+    .collapsible-body,
+    .collapsible-body__inner {
         display: contents;
     }
 }
