@@ -8,6 +8,7 @@ use App\Models\InvoiceInstallment;
 use App\Models\Payment;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 class InvoiceAdminCrudTest extends TestCase
@@ -162,6 +163,7 @@ class InvoiceAdminCrudTest extends TestCase
 
     public function test_send_marks_draft_invoice_as_sent(): void
     {
+        Mail::fake();
         $admin = User::factory()->create();
         $invoice = Invoice::factory()->create();
 

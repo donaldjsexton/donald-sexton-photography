@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RecordPaymentRequest;
 use App\Http\Requests\Admin\StoreInvoiceRequest;
 use App\Http\Requests\Admin\UpdateInvoiceRequest;
+use App\Mail\InvoiceSent;
 use App\Models\BookedJob;
 use App\Models\Client;
 use App\Models\Invoice;
@@ -16,6 +17,7 @@ use App\Services\Invoicing\InvoicePdfRenderer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 class InvoiceController extends Controller
@@ -190,22 +192,36 @@ class InvoiceController extends Controller
             ->with('status', 'Invoice deleted.');
     }
 
-    public function send(Invoice $invoice): RedirectResponse
+    public function send(Invoice $invoice, InvoicePdfRenderer $renderer): RedirectResponse
     {
-        if ($invoice->status !== Invoice::STATUS_DRAFT) {
+        if (! in_array($invoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_SENT], true)) {
             return redirect()
                 ->route('admin.invoices.show', $invoice)
-                ->with('status', 'Only draft invoices can be sent.');
+                ->with('status', 'This invoice cannot be sent in its current state.');
         }
+
+        $invoice->loadMissing('client');
+        $clientEmail = $invoice->client?->email;
+
+        if (! $clientEmail) {
+            return redirect()
+                ->route('admin.invoices.show', $invoice)
+                ->with('status', 'Cannot send: client has no email on file.');
+        }
+
+        Mail::to($clientEmail)->send(new InvoiceSent(
+            invoice: $invoice,
+            payUrl: $renderer->signedPayUrl($invoice),
+        ));
 
         $invoice->update([
             'status' => Invoice::STATUS_SENT,
-            'sent_at' => now(),
+            'sent_at' => $invoice->sent_at ?? now(),
         ]);
 
         return redirect()
             ->route('admin.invoices.show', $invoice)
-            ->with('status', 'Invoice marked as sent.');
+            ->with('status', 'Invoice emailed to '.$clientEmail.'.');
     }
 
     public function void(Invoice $invoice): RedirectResponse

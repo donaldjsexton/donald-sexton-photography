@@ -218,9 +218,14 @@
         <h3>Actions</h3>
         <div class="form-actions" style="flex-wrap:wrap; gap:0.75rem;">
             @if ($invoice->status === \App\Models\Invoice::STATUS_DRAFT)
-                <form method="POST" action="{{ route('admin.invoices.send', $invoice) }}">
+                <form method="POST" action="{{ route('admin.invoices.send', $invoice) }}" onsubmit="return confirm('Email this invoice to {{ $invoice->client?->email }}?');">
                     @csrf
-                    <button class="cta" type="submit">Mark as Sent</button>
+                    <button class="cta" type="submit">Send to Client</button>
+                </form>
+            @elseif ($invoice->status === \App\Models\Invoice::STATUS_SENT)
+                <form method="POST" action="{{ route('admin.invoices.send', $invoice) }}" onsubmit="return confirm('Re-send this invoice to {{ $invoice->client?->email }}?');">
+                    @csrf
+                    <button class="cta-secondary" type="submit">Re-send</button>
                 </form>
             @endif
 
