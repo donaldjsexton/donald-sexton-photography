@@ -260,15 +260,19 @@
                 chevron.setAttribute('aria-hidden', 'true');
                 header.appendChild(chevron);
 
-                // Wrap non-header children in a container for collapsing
+                // Wrap non-header children in a single-track grid so the
+                // collapse animation can drive the whole body to 0 height.
                 const body = document.createElement('div');
                 body.className = 'collapsible-body';
+                const inner = document.createElement('div');
+                inner.className = 'collapsible-body__inner';
                 const children = Array.from(section.children).filter(function (el) {
                     return el !== header;
                 });
                 children.forEach(function (child) {
-                    body.appendChild(child);
+                    inner.appendChild(child);
                 });
+                body.appendChild(inner);
                 section.appendChild(body);
 
                 header.addEventListener('click', function () {
