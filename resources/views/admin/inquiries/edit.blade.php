@@ -100,6 +100,19 @@
                 <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Inquiry</button>
             </form>
 
+            <div style="margin-top:1.5rem; border-top:1px solid #efe3d7; padding-top:1.5rem;">
+                @if ($inquiry->client)
+                    <p class="meta">Linked client:</p>
+                    <a class="cta-secondary" href="{{ route('admin.clients.show', $inquiry->client) }}">View Client → {{ $inquiry->client->displayName() }}</a>
+                @else
+                    <form method="POST" action="{{ route('admin.clients.convert-from-inquiry', $inquiry) }}" class="admin-form">
+                        @csrf
+                        <p class="meta">Ready to invoice? Convert this inquiry into a client to issue invoices and accept payments.</p>
+                        <button class="cta" type="submit" style="border: 0; cursor: pointer;">Convert to Client</button>
+                    </form>
+                @endif
+            </div>
+
             <form method="POST" action="{{ route('admin.inquiries.destroy', $inquiry) }}" class="admin-form" style="margin-top:1.5rem; border-top:1px solid #efe3d7; padding-top:1.5rem;" onsubmit="return confirm('Delete this inquiry permanently? This cannot be undone.');">
                 @csrf
                 @method('DELETE')

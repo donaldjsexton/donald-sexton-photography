@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\BookedJobController as AdminBookedJobController;
+use App\Http\Controllers\Admin\ClientController as AdminClientController;
 use App\Http\Controllers\Admin\ConsoleCommandController as AdminConsoleCommandController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
@@ -64,6 +65,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/booked-jobs', [AdminBookedJobController::class, 'index'])->name('booked-jobs.index');
         Route::get('/booked-jobs/{bookedJob}', [AdminBookedJobController::class, 'show'])->name('booked-jobs.show');
         Route::put('/booked-jobs/{bookedJob}', [AdminBookedJobController::class, 'update'])->name('booked-jobs.update');
+
+        Route::get('/clients', [AdminClientController::class, 'index'])->name('clients.index');
+        Route::get('/clients/create', [AdminClientController::class, 'create'])->name('clients.create');
+        Route::post('/clients', [AdminClientController::class, 'store'])->name('clients.store');
+        Route::get('/clients/{client}', [AdminClientController::class, 'show'])->name('clients.show');
+        Route::get('/clients/{client}/edit', [AdminClientController::class, 'edit'])->name('clients.edit');
+        Route::put('/clients/{client}', [AdminClientController::class, 'update'])->name('clients.update');
+        Route::delete('/clients/{client}', [AdminClientController::class, 'destroy'])->name('clients.destroy');
+        Route::post('/inquiries/{inquiry}/convert-to-client', [AdminClientController::class, 'convertFromInquiry'])->name('clients.convert-from-inquiry');
 
         Route::post('/push/subscribe', [AdminPushSubscriptionController::class, 'store'])->name('push.subscribe');
         Route::post('/push/unsubscribe', [AdminPushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
