@@ -13,7 +13,7 @@ class VenueReferralIntroTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_rendered_email_includes_preheader_named_route_cta_and_response_promise(): void
+    public function test_rendered_email_includes_preheader_named_route_cta_and_booking_confirmation(): void
     {
         $venue = Venue::factory()->create([
             'name' => 'Knotted Roots on the Lake',
@@ -31,10 +31,13 @@ class VenueReferralIntroTest extends TestCase
 
         $this->assertStringContainsString('Tara Hardin at Knotted Roots on the Lake just connected us', $html);
         $this->assertStringContainsString('href="'.route('weddings.index').'"', $html);
-        $this->assertStringContainsString('within one business day', $html);
+        $this->assertStringContainsString('thank you for booking me', $html);
+        $this->assertStringContainsString("I'll follow up shortly with the planning details", $html);
         $this->assertStringContainsString('Hi Stephanie,', $html);
         $this->assertStringContainsString('March 20, 2027', $html);
         $this->assertStringContainsString('name="viewport"', $html);
+        $this->assertStringNotContainsString('check the calendar', $html);
+        $this->assertStringNotContainsString('availability and next steps', $html);
     }
 
     public function test_rendered_email_falls_back_when_contact_name_missing(): void
@@ -53,6 +56,7 @@ class VenueReferralIntroTest extends TestCase
         $html = (new VenueReferralIntro($inquiry, $venue))->render();
 
         $this->assertStringContainsString('The team at Sandpiper Hall', $html);
-        $this->assertStringContainsString('within one business day', $html);
+        $this->assertStringContainsString("I'll follow up shortly with the planning details", $html);
+        $this->assertStringNotContainsString('check the calendar', $html);
     }
 }
