@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthControll
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
 use App\Http\Controllers\Admin\ImportRunController as AdminImportRunController;
 use App\Http\Controllers\Admin\InquiryController as AdminInquiryController;
+use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
 use App\Http\Controllers\Admin\JournalPostController as AdminJournalPostController;
 use App\Http\Controllers\Admin\LogController as AdminLogController;
 use App\Http\Controllers\Admin\MediaController as AdminMediaController;
@@ -74,6 +75,17 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/clients/{client}', [AdminClientController::class, 'update'])->name('clients.update');
         Route::delete('/clients/{client}', [AdminClientController::class, 'destroy'])->name('clients.destroy');
         Route::post('/inquiries/{inquiry}/convert-to-client', [AdminClientController::class, 'convertFromInquiry'])->name('clients.convert-from-inquiry');
+
+        Route::get('/invoices', [AdminInvoiceController::class, 'index'])->name('invoices.index');
+        Route::get('/invoices/create', [AdminInvoiceController::class, 'create'])->name('invoices.create');
+        Route::post('/invoices', [AdminInvoiceController::class, 'store'])->name('invoices.store');
+        Route::get('/invoices/{invoice}', [AdminInvoiceController::class, 'show'])->name('invoices.show');
+        Route::get('/invoices/{invoice}/edit', [AdminInvoiceController::class, 'edit'])->name('invoices.edit');
+        Route::put('/invoices/{invoice}', [AdminInvoiceController::class, 'update'])->name('invoices.update');
+        Route::delete('/invoices/{invoice}', [AdminInvoiceController::class, 'destroy'])->name('invoices.destroy');
+        Route::post('/invoices/{invoice}/send', [AdminInvoiceController::class, 'send'])->name('invoices.send');
+        Route::post('/invoices/{invoice}/void', [AdminInvoiceController::class, 'void'])->name('invoices.void');
+        Route::post('/invoices/{invoice}/payments', [AdminInvoiceController::class, 'recordPayment'])->name('invoices.payments.store');
 
         Route::post('/push/subscribe', [AdminPushSubscriptionController::class, 'store'])->name('push.subscribe');
         Route::post('/push/unsubscribe', [AdminPushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');

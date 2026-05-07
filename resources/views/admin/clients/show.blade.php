@@ -5,6 +5,7 @@
 @section('heading', $client->displayName())
 @section('subheading', $client->email)
 @section('header_actions')
+    <a class="cta" href="{{ route('admin.invoices.create', ['client_id' => $client->id]) }}">New Invoice</a>
     <a class="cta-secondary" href="{{ route('admin.clients.edit', $client) }}">Edit</a>
 @endsection
 @section('content')
@@ -71,7 +72,7 @@
                     <tbody>
                         @foreach ($client->invoices as $invoice)
                             <tr>
-                                <td>{{ $invoice->number }}</td>
+                                <td><a href="{{ route('admin.invoices.show', $invoice) }}">{{ $invoice->number }}</a></td>
                                 <td>{{ $invoice->issue_date?->format('M j, Y') ?: '—' }}</td>
                                 <td>{{ \App\Models\Invoice::statusOptions()[$invoice->status] ?? $invoice->status }}</td>
                                 <td>${{ number_format($invoice->total_cents / 100, 2) }}</td>
