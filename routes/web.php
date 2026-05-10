@@ -182,7 +182,7 @@ Route::middleware('signed')->group(function () {
 });
 
 Route::prefix('portal')->name('portal.')->group(function () {
-    Route::middleware('guest:client')->group(function () {
+    Route::middleware('guest:client,venue')->group(function () {
         Route::get('/login', [PortalAuthController::class, 'create'])->name('login');
         Route::post('/login', [PortalAuthController::class, 'store'])->name('login.store');
         Route::get('/forgot-password', [PortalPasswordResetController::class, 'request'])->name('password.request');
@@ -191,7 +191,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/reset-password', [PortalPasswordResetController::class, 'update'])->name('password.update');
     });
 
-    Route::middleware('auth:client')->group(function () {
+    Route::middleware('auth:client,venue')->group(function () {
         Route::post('/logout', [PortalAuthController::class, 'destroy'])->name('logout');
         Route::get('/', PortalDashboardController::class)->name('dashboard');
         Route::get('/invoices', [PortalInvoiceController::class, 'index'])->name('invoices.index');

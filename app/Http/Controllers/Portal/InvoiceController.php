@@ -3,13 +3,12 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
-use App\Models\Client;
 use App\Models\Invoice;
 use App\Services\Invoicing\InvoicePdfRenderer;
 use App\Services\Payments\PayPalGateway;
 use App\Services\Payments\SquareGateway;
+use App\Support\Portal;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -17,11 +16,10 @@ class InvoiceController extends Controller
 {
     public function index(Request $request): View
     {
-        /** @var Client $client */
-        $client = Auth::guard('client')->user();
+        $billable = Portal::user();
 
         return view('portal.invoices.index', [
-            'invoices' => $client->invoices()
+            'invoices' => $billable->invoices()
                 ->whereNotIn('status', [Invoice::STATUS_DRAFT])
                 ->orderByDesc('issue_date')
                 ->orderByDesc('id')
@@ -37,10 +35,10 @@ class InvoiceController extends Controller
             $model->forceFill(['viewed_at' => now()])->save();
         }
 
-        $payable = $model->amountDueCents() > 0 && $model->status !== Invoice::STATUS_VOID;
+        $payable = $model->canPayOnline();
 
         return view('portal.invoices.show', [
-            'invoice' => $model->load(['client', 'lineItems', 'installments', 'payments']),
+            'invoice' => $model->load(['billable', 'lineItems', 'installments', 'payments']),
             'squareEnabled' => $payable && $square->isConfigured(),
             'squareApplicationId' => $square->applicationId(),
             'squareLocationId' => $square->locationId(),
@@ -59,11 +57,11 @@ class InvoiceController extends Controller
 
     private function locate(string $uuid): Invoice
     {
-        /** @var Client $client */
-        $client = Auth::guard('client')->user();
+        $billable = Portal::user();
 
         $invoice = Invoice::where('uuid', $uuid)
-            ->where('client_id', $client->id)
+            ->where('billable_type', $billable::class)
+            ->where('billable_id', $billable->id)
             ->whereNotIn('status', [Invoice::STATUS_DRAFT])
             ->first();
 

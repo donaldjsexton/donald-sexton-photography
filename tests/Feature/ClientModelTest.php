@@ -57,7 +57,7 @@ class ClientModelTest extends TestCase
     public function test_has_many_invoices(): void
     {
         $client = Client::factory()->create();
-        Invoice::factory()->count(3)->create(['client_id' => $client->id]);
+        Invoice::factory()->count(3)->create(['billable_type' => Client::class, 'billable_id' => $client->id]);
 
         $this->assertCount(3, $client->invoices);
     }

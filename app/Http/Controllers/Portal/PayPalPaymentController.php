@@ -9,10 +9,10 @@ use App\Models\InvoiceInstallment;
 use App\Models\Payment;
 use App\Services\Payments\PaymentResult;
 use App\Services\Payments\PayPalGateway;
+use App\Support\Portal;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -20,11 +20,11 @@ class PayPalPaymentController extends Controller
 {
     public function createOrder(Request $request, string $invoice, PayPalGateway $gateway): JsonResponse
     {
+        $invoiceModel = $this->locate($invoice);
+
         if (! $gateway->isConfigured()) {
             return response()->json(['error' => 'PayPal is not configured.'], 422);
         }
-
-        $invoiceModel = $this->locate($invoice);
 
         $result = $gateway->createOrder($invoiceModel);
 
@@ -102,11 +102,15 @@ class PayPalPaymentController extends Controller
 
     private function locate(string $uuid): Invoice
     {
-        /** @var Client $client */
-        $client = Auth::guard('client')->user();
+        $client = Portal::user();
+
+        if (! $client instanceof Client) {
+            throw new NotFoundHttpException;
+        }
 
         $invoice = Invoice::where('uuid', $uuid)
-            ->where('client_id', $client->id)
+            ->where('billable_type', Client::class)
+            ->where('billable_id', $client->id)
             ->whereNotIn('status', [Invoice::STATUS_DRAFT, Invoice::STATUS_VOID])
             ->first();
 

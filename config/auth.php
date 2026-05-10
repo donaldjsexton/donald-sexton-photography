@@ -2,6 +2,7 @@
 
 use App\Models\Client;
 use App\Models\User;
+use App\Models\Venue;
 
 return [
 
@@ -48,6 +49,11 @@ return [
             'driver' => 'session',
             'provider' => 'clients',
         ],
+
+        'venue' => [
+            'driver' => 'session',
+            'provider' => 'venues',
+        ],
     ],
 
     /*
@@ -76,6 +82,11 @@ return [
         'clients' => [
             'driver' => 'eloquent',
             'model' => Client::class,
+        ],
+
+        'venues' => [
+            'driver' => 'eloquent',
+            'model' => Venue::class,
         ],
     ],
 
@@ -109,6 +120,13 @@ return [
         'clients' => [
             'provider' => 'clients',
             'table' => 'client_password_reset_tokens',
+            'expire' => 60,
+            'throttle' => 60,
+        ],
+
+        'venues' => [
+            'provider' => 'venues',
+            'table' => 'venue_password_reset_tokens',
             'expire' => 60,
             'throttle' => 60,
         ],

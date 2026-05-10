@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Str;
@@ -36,7 +37,8 @@ class Invoice extends Model
     protected $fillable = [
         'uuid',
         'number',
-        'client_id',
+        'billable_type',
+        'billable_id',
         'booked_job_id',
         'status',
         'currency',
@@ -48,6 +50,7 @@ class Invoice extends Model
         'total_cents',
         'amount_paid_cents',
         'default_tax_rate',
+        'net_terms',
         'notes',
         'internal_notes',
         'terms',
@@ -122,14 +125,62 @@ class Invoice extends Model
         return sprintf('%s-%d-%04d', $prefix, $year, $sequence);
     }
 
-    public function client(): BelongsTo
+    public function billable(): MorphTo
     {
-        return $this->belongsTo(Client::class);
+        return $this->morphTo();
+    }
+
+    public function client(): MorphTo
+    {
+        return $this->billable();
     }
 
     public function bookedJob(): BelongsTo
     {
         return $this->belongsTo(BookedJob::class);
+    }
+
+    public function billableEmail(): ?string
+    {
+        $billable = $this->billable;
+
+        if ($billable instanceof Client) {
+            return $billable->email;
+        }
+
+        if ($billable instanceof Venue) {
+            return $billable->billing_email;
+        }
+
+        return null;
+    }
+
+    public function billableName(): string
+    {
+        $billable = $this->billable;
+
+        if ($billable && method_exists($billable, 'displayName')) {
+            return (string) $billable->displayName();
+        }
+
+        return $billable->name ?? '';
+    }
+
+    public function isVendorInvoice(): bool
+    {
+        return $this->billable instanceof Venue;
+    }
+
+    public function isClientInvoice(): bool
+    {
+        return $this->billable instanceof Client;
+    }
+
+    public function canPayOnline(): bool
+    {
+        return $this->isClientInvoice()
+            && $this->amountDueCents() > 0
+            && $this->status !== self::STATUS_VOID;
     }
 
     public function lineItems(): HasMany

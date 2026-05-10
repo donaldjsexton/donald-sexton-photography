@@ -57,7 +57,7 @@ class InvoiceAdminCrudTest extends TestCase
         $client = Client::factory()->create();
 
         $response = $this->actingAs($admin)->post(route('admin.invoices.store'), [
-            'client_id' => $client->id,
+            'billable_type' => 'client', 'billable_id' => $client->id,
             'issue_date' => '2026-05-01',
             'due_date' => '2026-05-15',
             'default_tax_rate' => 7,
@@ -72,7 +72,8 @@ class InvoiceAdminCrudTest extends TestCase
         $this->assertNotNull($invoice);
         $response->assertRedirect(route('admin.invoices.show', $invoice));
 
-        $this->assertSame($client->id, $invoice->client_id);
+        $this->assertSame($client->id, $invoice->billable_id);
+        $this->assertSame(Client::class, $invoice->billable_type);
         $this->assertCount(2, $invoice->lineItems);
         $this->assertSame(550000, $invoice->subtotal_cents);
         $this->assertSame(3500, $invoice->tax_cents);
@@ -85,7 +86,7 @@ class InvoiceAdminCrudTest extends TestCase
         $client = Client::factory()->create();
 
         $this->actingAs($admin)->post(route('admin.invoices.store'), [
-            'client_id' => $client->id,
+            'billable_type' => 'client', 'billable_id' => $client->id,
             'issue_date' => '2026-05-01',
             'discount' => 0,
             'line_items' => [
@@ -110,7 +111,7 @@ class InvoiceAdminCrudTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.invoices.store'), [
-                'client_id' => $client->id,
+                'billable_type' => 'client', 'billable_id' => $client->id,
                 'issue_date' => '2026-05-01',
             ])
             ->assertSessionHasErrors(['line_items']);
@@ -129,7 +130,7 @@ class InvoiceAdminCrudTest extends TestCase
         ]);
 
         $this->actingAs($admin)->put(route('admin.invoices.update', $invoice), [
-            'client_id' => $invoice->client_id,
+            'billable_type' => 'client', 'billable_id' => $invoice->billable_id,
             'issue_date' => '2026-05-01',
             'discount' => 0,
             'line_items' => [
@@ -149,7 +150,7 @@ class InvoiceAdminCrudTest extends TestCase
         $invoice = Invoice::factory()->sent()->create();
 
         $response = $this->actingAs($admin)->put(route('admin.invoices.update', $invoice), [
-            'client_id' => $invoice->client_id,
+            'billable_type' => 'client', 'billable_id' => $invoice->billable_id,
             'issue_date' => '2026-05-01',
             'discount' => 0,
             'line_items' => [

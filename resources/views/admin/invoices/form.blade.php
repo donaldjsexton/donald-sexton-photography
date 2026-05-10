@@ -3,8 +3,8 @@
 @section('title', $invoice->exists ? 'Edit Invoice' : 'New Invoice')
 @section('eyebrow', 'Studio')
 @section('heading', $invoice->exists ? 'Edit '.$invoice->number : 'New Invoice')
-@if ($client)
-    @section('subheading', 'For '.$client->displayName())
+@if ($invoice->billable)
+    @section('subheading', 'For '.$invoice->billable->displayName())
 @endif
 @section('content')
     @if ($errors->any())
@@ -26,23 +26,50 @@
         @endif
 
         <section class="admin-card">
-            <h3>Client &amp; dates</h3>
+            <h3>Bill to &amp; dates</h3>
+
+            @php
+                $currentBillableType = old('billable_type', $billableType ?? 'client');
+                $currentBillableId = (int) old('billable_id', $invoice->billable_id);
+            @endphp
+
+            <fieldset style="border:0; padding:0; margin:0 0 16px;">
+                <legend class="meta">Counterparty type</legend>
+                <label style="display:inline-flex; align-items:center; gap:6px; margin-right:18px;">
+                    <input type="radio" name="billable_type" value="client" data-billable-type="client" @checked($currentBillableType === 'client')>
+                    Client (couple)
+                </label>
+                <label style="display:inline-flex; align-items:center; gap:6px;">
+                    <input type="radio" name="billable_type" value="venue" data-billable-type="venue" @checked($currentBillableType === 'venue')>
+                    Vendor / venue
+                </label>
+            </fieldset>
 
             <div class="field-grid">
-                <label>
+                <label data-billable-picker="client" @if ($currentBillableType !== 'client') style="display:none;" @endif>
                     Client
-                    @if ($client && ! $invoice->exists)
-                        <input type="hidden" name="client_id" value="{{ $client->id }}">
-                        <input type="text" value="{{ $client->displayName() }} ({{ $client->email }})" disabled>
-                    @else
-                        <select name="client_id" required>
-                            <option value="">— Choose a client —</option>
-                            @foreach ($clients as $option)
-                                <option value="{{ $option->id }}" @selected(old('client_id', $invoice->client_id) == $option->id)>
-                                    {{ $option->displayName() }} ({{ $option->email }})
-                                </option>
-                            @endforeach
-                        </select>
+                    <select name="billable_id" data-billable-id="client" @if ($currentBillableType !== 'client') disabled @endif>
+                        <option value="">— Choose a client —</option>
+                        @foreach ($clients as $option)
+                            <option value="{{ $option->id }}" @selected($currentBillableType === 'client' && $currentBillableId === $option->id)>
+                                {{ $option->displayName() }} ({{ $option->email }})
+                            </option>
+                        @endforeach
+                    </select>
+                </label>
+
+                <label data-billable-picker="venue" @if ($currentBillableType !== 'venue') style="display:none;" @endif>
+                    Vendor / venue
+                    <select name="billable_id" data-billable-id="venue" @if ($currentBillableType !== 'venue') disabled @endif>
+                        <option value="">— Choose a venue —</option>
+                        @foreach ($venues as $option)
+                            <option value="{{ $option->id }}" @selected($currentBillableType === 'venue' && $currentBillableId === $option->id)>
+                                {{ $option->billingName() }} ({{ $option->billing_email }})
+                            </option>
+                        @endforeach
+                    </select>
+                    @if ($venues->isEmpty())
+                        <span class="meta">No venues with billing details yet — add billing fields to a venue first.</span>
                     @endif
                 </label>
 
@@ -71,6 +98,11 @@
                 </label>
 
                 <label>
+                    Net terms (vendor invoices)
+                    <input type="text" name="net_terms" maxlength="50" placeholder="e.g. Net 30" value="{{ old('net_terms', $invoice->net_terms) }}">
+                </label>
+
+                <label>
                     Default tax rate (%)
                     <input type="number" step="0.001" min="0" max="100" name="default_tax_rate" value="{{ old('default_tax_rate', $invoice->default_tax_rate ?? config('payments.default_tax_rate')) }}">
                 </label>
@@ -80,6 +112,22 @@
                     <input type="number" step="0.01" min="0" name="discount" value="{{ old('discount', number_format(($invoice->discount_cents ?? 0) / 100, 2, '.', '')) }}">
                 </label>
             </div>
+
+            <script>
+            (function () {
+                document.querySelectorAll('[data-billable-type]').forEach(function (radio) {
+                    radio.addEventListener('change', function () {
+                        var picked = radio.value;
+                        document.querySelectorAll('[data-billable-picker]').forEach(function (label) {
+                            var on = label.getAttribute('data-billable-picker') === picked;
+                            label.style.display = on ? '' : 'none';
+                            var select = label.querySelector('select');
+                            if (select) { select.disabled = ! on; if (! on) { select.value = ''; } }
+                        });
+                    });
+                });
+            })();
+            </script>
         </section>
 
         <section class="admin-card">

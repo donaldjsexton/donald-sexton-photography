@@ -17,7 +17,7 @@ class ClientPortalInvoiceTest extends TestCase
     {
         $client = Client::factory()->create();
         $sentInvoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'total_cents' => 100000,
             'amount_paid_cents' => 30000,
         ]);
@@ -28,7 +28,7 @@ class ClientPortalInvoiceTest extends TestCase
             'label' => 'Final balance',
         ]);
         Invoice::factory()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'status' => Invoice::STATUS_DRAFT,
         ]);
 
@@ -45,7 +45,7 @@ class ClientPortalInvoiceTest extends TestCase
     {
         $client = Client::factory()->create();
         $draft = Invoice::factory()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'status' => Invoice::STATUS_DRAFT,
         ]);
 
@@ -60,8 +60,8 @@ class ClientPortalInvoiceTest extends TestCase
         $client = Client::factory()->create();
         $other = Client::factory()->create();
 
-        $mine = Invoice::factory()->sent()->create(['client_id' => $client->id]);
-        $theirs = Invoice::factory()->sent()->create(['client_id' => $other->id]);
+        $mine = Invoice::factory()->sent()->create(['billable_type' => Client::class, 'billable_id' => $client->id]);
+        $theirs = Invoice::factory()->sent()->create(['billable_type' => Client::class, 'billable_id' => $other->id]);
 
         $response = $this->actingAs($client, 'client')->get(route('portal.invoices.index'));
 
@@ -74,7 +74,7 @@ class ClientPortalInvoiceTest extends TestCase
     {
         $client = Client::factory()->create();
         $invoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'viewed_at' => null,
         ]);
         $invoice->lineItems()->create([
@@ -98,7 +98,7 @@ class ClientPortalInvoiceTest extends TestCase
     {
         $client = Client::factory()->create();
         $other = Client::factory()->create();
-        $stranger = Invoice::factory()->sent()->create(['client_id' => $other->id]);
+        $stranger = Invoice::factory()->sent()->create(['billable_type' => Client::class, 'billable_id' => $other->id]);
 
         $this->actingAs($client, 'client')
             ->get(route('portal.invoices.show', ['invoice' => $stranger->uuid]))
@@ -109,7 +109,7 @@ class ClientPortalInvoiceTest extends TestCase
     {
         $client = Client::factory()->create();
         $draft = Invoice::factory()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'status' => Invoice::STATUS_DRAFT,
         ]);
 
@@ -122,7 +122,7 @@ class ClientPortalInvoiceTest extends TestCase
     {
         Pdf::fake();
         $client = Client::factory()->create();
-        $invoice = Invoice::factory()->sent()->create(['client_id' => $client->id]);
+        $invoice = Invoice::factory()->sent()->create(['billable_type' => Client::class, 'billable_id' => $client->id]);
 
         $this->actingAs($client, 'client')
             ->get(route('portal.invoices.pdf', ['invoice' => $invoice->uuid]))
@@ -134,7 +134,7 @@ class ClientPortalInvoiceTest extends TestCase
     public function test_invoice_routes_redirect_guests_to_portal_login(): void
     {
         $client = Client::factory()->create();
-        $invoice = Invoice::factory()->sent()->create(['client_id' => $client->id]);
+        $invoice = Invoice::factory()->sent()->create(['billable_type' => Client::class, 'billable_id' => $client->id]);
 
         $this->get(route('portal.invoices.show', ['invoice' => $invoice->uuid]))
             ->assertRedirect(route('portal.login'));

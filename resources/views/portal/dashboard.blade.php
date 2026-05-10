@@ -5,7 +5,7 @@
 @section('content')
     <section class="card stack">
         <div>
-            <h2>Hi, {{ $client->first_name }}.</h2>
+            <h2>Hi, {{ $billable->portalGreeting() }}.</h2>
             <p class="meta" style="margin:0;">Here&rsquo;s a quick look at your account.</p>
         </div>
 

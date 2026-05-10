@@ -34,7 +34,7 @@ class PayPalPaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $invoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'total_cents' => 50000,
         ]);
 
@@ -52,7 +52,7 @@ class PayPalPaymentControllerTest extends TestCase
     public function test_create_order_returns_422_when_gateway_failed(): void
     {
         $client = Client::factory()->create();
-        $invoice = Invoice::factory()->sent()->create(['client_id' => $client->id]);
+        $invoice = Invoice::factory()->sent()->create(['billable_type' => Client::class, 'billable_id' => $client->id]);
 
         $this->bindGatewayMock(function ($mock) {
             $mock->shouldReceive('isConfigured')->andReturnTrue();
@@ -68,7 +68,7 @@ class PayPalPaymentControllerTest extends TestCase
     public function test_create_order_returns_422_when_not_configured(): void
     {
         $client = Client::factory()->create();
-        $invoice = Invoice::factory()->sent()->create(['client_id' => $client->id]);
+        $invoice = Invoice::factory()->sent()->create(['billable_type' => Client::class, 'billable_id' => $client->id]);
 
         $this->bindGatewayMock(fn ($mock) => $mock->shouldReceive('isConfigured')->andReturnFalse());
 
@@ -81,7 +81,7 @@ class PayPalPaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $other = Client::factory()->create();
-        $stranger = Invoice::factory()->sent()->create(['client_id' => $other->id]);
+        $stranger = Invoice::factory()->sent()->create(['billable_type' => Client::class, 'billable_id' => $other->id]);
 
         $this->bindGatewayMock(fn ($mock) => $mock->shouldReceive('isConfigured')->andReturnTrue());
 
@@ -94,7 +94,7 @@ class PayPalPaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $invoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'total_cents' => 50000,
         ]);
 
@@ -128,7 +128,7 @@ class PayPalPaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $invoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'total_cents' => 30000,
         ]);
         $installment = InvoiceInstallment::factory()->create([
@@ -154,7 +154,7 @@ class PayPalPaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $invoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'total_cents' => 50000,
         ]);
 
@@ -174,7 +174,7 @@ class PayPalPaymentControllerTest extends TestCase
     public function test_capture_validates_order_id(): void
     {
         $client = Client::factory()->create();
-        $invoice = Invoice::factory()->sent()->create(['client_id' => $client->id]);
+        $invoice = Invoice::factory()->sent()->create(['billable_type' => Client::class, 'billable_id' => $client->id]);
 
         $this->actingAs($client, 'client')
             ->postJson(route('portal.invoices.pay.paypal.capture', ['invoice' => $invoice->uuid]), [])
@@ -186,7 +186,7 @@ class PayPalPaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $invoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'total_cents' => 50000,
         ]);
 
@@ -207,7 +207,7 @@ class PayPalPaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $invoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'total_cents' => 50000,
         ]);
 

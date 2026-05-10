@@ -9,7 +9,7 @@
         <p style="margin:0 0 4px; font-size:11px; letter-spacing:0.2em; text-transform:uppercase; color:#7a6555;">{{ $brandName }}</p>
         <h1 style="margin:0 0 24px; font-size:24px; line-height:1.2; font-weight:400;">Invoice {{ $invoice->number }}</h1>
 
-        <p style="margin:0 0 16px; color:#4a3f36;">Hi {{ $invoice->client?->first_name }},</p>
+        <p style="margin:0 0 16px; color:#4a3f36;">Hi {{ method_exists($invoice->billable, 'portalGreeting') ? $invoice->billable->portalGreeting() : $invoice->billableName() }},</p>
 
         <p style="margin:0 0 16px; color:#4a3f36;">
             Your invoice is ready. The full breakdown is attached as a PDF, and you can also view it online — that page is where you'll be able to pay once online payments are turned on.
