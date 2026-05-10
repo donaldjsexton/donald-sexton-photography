@@ -36,9 +36,14 @@
                     <tr>
                         <td><strong>{{ $invoice->number }}</strong></td>
                         <td>
-                            <a href="{{ route('admin.clients.show', $invoice->client) }}">
-                                {{ $invoice->client?->displayName() ?? '—' }}
-                            </a>
+                            @if ($invoice->billable instanceof \App\Models\Client)
+                                <a href="{{ route('admin.clients.show', $invoice->billable) }}">{{ $invoice->billableName() }}</a>
+                            @elseif ($invoice->billable instanceof \App\Models\Venue)
+                                <a href="{{ route('admin.venues.edit', $invoice->billable) }}">{{ $invoice->billableName() }}</a>
+                                <span class="meta"> · vendor</span>
+                            @else
+                                <span class="meta">—</span>
+                            @endif
                         </td>
                         <td>{{ $invoice->issue_date?->format('M j, Y') ?: '—' }}</td>
                         <td>{{ $invoice->due_date?->format('M j, Y') ?: '—' }}</td>

@@ -41,7 +41,7 @@ class InvoiceModelTest extends TestCase
         $client = Client::factory()->create();
         $bookedJob = BookedJob::factory()->create();
         $invoice = Invoice::factory()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'booked_job_id' => $bookedJob->id,
         ]);
 

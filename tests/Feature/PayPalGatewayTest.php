@@ -222,7 +222,8 @@ class PayPalGatewayTest extends TestCase
         $client = Client::factory()->create();
 
         return Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class,
+            'billable_id' => $client->id,
             'currency' => 'USD',
             'total_cents' => $amountDueCents,
             'amount_paid_cents' => 0,

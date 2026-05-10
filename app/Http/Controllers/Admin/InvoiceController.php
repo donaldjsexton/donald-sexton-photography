@@ -13,6 +13,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceInstallment;
 use App\Models\InvoiceLineItem;
 use App\Models\Payment;
+use App\Models\Venue;
 use App\Services\Invoicing\InvoicePdfRenderer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -31,7 +32,7 @@ class InvoiceController extends Controller
             $status = 'all';
         }
 
-        $query = Invoice::query()->with('client');
+        $query = Invoice::query()->with('billable');
 
         if ($status !== 'all') {
             $query->where('status', $status);
@@ -55,6 +56,14 @@ class InvoiceController extends Controller
         $client = $request->query('client_id')
             ? Client::find($request->integer('client_id'))
             : null;
+        $venue = $request->query('venue_id')
+            ? Venue::find($request->integer('venue_id'))
+            : null;
+
+        $billableType = $venue ? 'venue' : 'client';
+        $billable = $venue ?: $client;
+
+        $netTerms = $venue?->net_payment_terms;
 
         $invoice = new Invoice([
             'currency' => config('payments.currency', 'USD'),
@@ -62,20 +71,23 @@ class InvoiceController extends Controller
             'issue_date' => now()->toDateString(),
             'due_date' => now()->addDays(14)->toDateString(),
             'status' => Invoice::STATUS_DRAFT,
-            'client_id' => $client?->id,
+            'billable_type' => $billable ? $billable::class : null,
+            'billable_id' => $billable?->id,
+            'net_terms' => $netTerms,
         ]);
 
         return view('admin.invoices.form', [
             'invoice' => $invoice,
-            'client' => $client,
-            'clients' => $client ? collect([$client]) : Client::orderBy('last_name')->orderBy('first_name')->get(),
-            'bookedJobs' => $client && $client->inquiry
+            'billableType' => $billableType,
+            'clients' => Client::orderBy('last_name')->orderBy('first_name')->get(),
+            'venues' => Venue::query()->whereNotNull('billing_email')->orderBy('name')->get(),
+            'bookedJobs' => $client?->inquiry
                 ? BookedJob::where('inquiry_id', $client->inquiry_id)->get()
                 : collect(),
-            'lineItems' => collect([new InvoiceLineItem([
+            'lineItems' => collect([(new InvoiceLineItem([
                 'quantity' => 1,
                 'tax_rate' => (float) config('payments.default_tax_rate', 0),
-            ])]),
+            ]))]),
             'installments' => collect(),
         ]);
     }
@@ -83,10 +95,12 @@ class InvoiceController extends Controller
     public function store(StoreInvoiceRequest $request): RedirectResponse
     {
         $data = $request->validated();
+        $billableClass = $request->billableClass();
 
-        $invoice = DB::transaction(function () use ($data) {
+        $invoice = DB::transaction(function () use ($data, $billableClass) {
             $invoice = Invoice::create([
-                'client_id' => $data['client_id'],
+                'billable_type' => $billableClass,
+                'billable_id' => (int) $data['billable_id'],
                 'booked_job_id' => $data['booked_job_id'] ?? null,
                 'status' => Invoice::STATUS_DRAFT,
                 'currency' => config('payments.currency', 'USD'),
@@ -94,6 +108,7 @@ class InvoiceController extends Controller
                 'due_date' => $data['due_date'] ?? null,
                 'default_tax_rate' => $data['default_tax_rate'] ?? 0,
                 'discount_cents' => $this->dollarsToCents($data['discount'] ?? 0),
+                'net_terms' => $data['net_terms'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'internal_notes' => $data['internal_notes'] ?? null,
                 'terms' => $data['terms'] ?? null,
@@ -113,7 +128,7 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice): View
     {
-        $invoice->load(['client', 'bookedJob', 'lineItems', 'installments', 'payments']);
+        $invoice->load(['billable', 'bookedJob', 'lineItems', 'installments', 'payments']);
 
         return view('admin.invoices.show', [
             'invoice' => $invoice,
@@ -124,18 +139,22 @@ class InvoiceController extends Controller
     {
         if (! $invoice->isEditable()) {
             return view('admin.invoices.show', [
-                'invoice' => $invoice->load(['client', 'lineItems', 'installments', 'payments']),
+                'invoice' => $invoice->load(['billable', 'lineItems', 'installments', 'payments']),
             ]);
         }
 
-        $invoice->load(['lineItems', 'installments']);
+        $invoice->load(['lineItems', 'installments', 'billable']);
+
+        $billable = $invoice->billable;
+        $billableType = $billable instanceof Venue ? 'venue' : 'client';
 
         return view('admin.invoices.form', [
             'invoice' => $invoice,
-            'client' => $invoice->client,
+            'billableType' => $billableType,
             'clients' => Client::orderBy('last_name')->orderBy('first_name')->get(),
-            'bookedJobs' => $invoice->client?->inquiry
-                ? BookedJob::where('inquiry_id', $invoice->client->inquiry_id)->get()
+            'venues' => Venue::query()->whereNotNull('billing_email')->orderBy('name')->get(),
+            'bookedJobs' => $billable instanceof Client && $billable->inquiry
+                ? BookedJob::where('inquiry_id', $billable->inquiry_id)->get()
                 : collect(),
             'lineItems' => $invoice->lineItems,
             'installments' => $invoice->installments,
@@ -151,15 +170,18 @@ class InvoiceController extends Controller
         }
 
         $data = $request->validated();
+        $billableClass = $request->billableClass();
 
-        DB::transaction(function () use ($invoice, $data) {
+        DB::transaction(function () use ($invoice, $data, $billableClass) {
             $invoice->update([
-                'client_id' => $data['client_id'],
+                'billable_type' => $billableClass,
+                'billable_id' => (int) $data['billable_id'],
                 'booked_job_id' => $data['booked_job_id'] ?? null,
                 'issue_date' => $data['issue_date'],
                 'due_date' => $data['due_date'] ?? null,
                 'default_tax_rate' => $data['default_tax_rate'] ?? 0,
                 'discount_cents' => $this->dollarsToCents($data['discount'] ?? 0),
+                'net_terms' => $data['net_terms'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'internal_notes' => $data['internal_notes'] ?? null,
                 'terms' => $data['terms'] ?? null,
@@ -200,16 +222,18 @@ class InvoiceController extends Controller
                 ->with('status', 'This invoice cannot be sent in its current state.');
         }
 
-        $invoice->loadMissing('client');
-        $clientEmail = $invoice->client?->email;
+        $invoice->loadMissing('billable');
+        $recipientEmail = $invoice->billableEmail();
 
-        if (! $clientEmail) {
+        if (! $recipientEmail) {
+            $kind = $invoice->isVendorInvoice() ? 'venue' : 'client';
+
             return redirect()
                 ->route('admin.invoices.show', $invoice)
-                ->with('status', 'Cannot send: client has no email on file.');
+                ->with('status', "Cannot send: {$kind} has no billing email on file.");
         }
 
-        Mail::to($clientEmail)->send(new InvoiceSent(
+        Mail::to($recipientEmail)->send(new InvoiceSent(
             invoice: $invoice,
             payUrl: $renderer->signedPayUrl($invoice),
         ));
@@ -221,7 +245,7 @@ class InvoiceController extends Controller
 
         return redirect()
             ->route('admin.invoices.show', $invoice)
-            ->with('status', 'Invoice emailed to '.$clientEmail.'.');
+            ->with('status', 'Invoice emailed to '.$recipientEmail.'.');
     }
 
     public function void(Invoice $invoice): RedirectResponse

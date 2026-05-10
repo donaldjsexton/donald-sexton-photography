@@ -22,17 +22,27 @@ class AuthController extends Controller
             'password' => ['required', 'string'],
         ]);
 
-        if (! Auth::guard('client')->attempt($credentials, $request->boolean('remember'))) {
+        $remember = $request->boolean('remember');
+
+        $authenticated = Auth::guard('client')->attempt($credentials, $remember);
+
+        if (! $authenticated) {
+            $authenticated = Auth::guard('venue')->attempt([
+                'billing_email' => $credentials['email'],
+                'password' => $credentials['password'],
+            ], $remember);
+        }
+
+        if (! $authenticated) {
             return back()
-                ->withErrors(['email' => 'Those credentials do not match a client account.'])
+                ->withErrors(['email' => 'Those credentials do not match a portal account.'])
                 ->onlyInput('email');
         }
 
         $request->session()->regenerate();
 
-        Auth::guard('client')->user()->forceFill([
-            'last_login_at' => now(),
-        ])->save();
+        $user = Auth::guard('client')->user() ?? Auth::guard('venue')->user();
+        $user?->forceFill(['last_login_at' => now()])->save();
 
         $intended = $request->session()->pull('url.intended');
 
@@ -44,6 +54,7 @@ class AuthController extends Controller
     public function destroy(Request $request): RedirectResponse
     {
         Auth::guard('client')->logout();
+        Auth::guard('venue')->logout();
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

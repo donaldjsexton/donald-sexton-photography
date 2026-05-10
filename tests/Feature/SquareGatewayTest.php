@@ -162,7 +162,7 @@ class SquareGatewayTest extends TestCase
         $client = Client::factory()->create(['email' => 'sarah@example.com']);
 
         return Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'currency' => 'USD',
             'total_cents' => $amountDueCents,
             'amount_paid_cents' => 0,

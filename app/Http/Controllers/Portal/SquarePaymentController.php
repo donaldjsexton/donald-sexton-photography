@@ -8,9 +8,9 @@ use App\Models\Invoice;
 use App\Models\InvoiceInstallment;
 use App\Models\Payment;
 use App\Services\Payments\SquareGateway;
+use App\Support\Portal;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
@@ -18,6 +18,8 @@ class SquarePaymentController extends Controller
 {
     public function store(Request $request, string $invoice, SquareGateway $gateway): RedirectResponse
     {
+        $invoiceModel = $this->locate($invoice);
+
         $data = $request->validate([
             'source_id' => ['required', 'string'],
             'verification_token' => ['nullable', 'string'],
@@ -26,8 +28,6 @@ class SquarePaymentController extends Controller
         if (! $gateway->isConfigured()) {
             return back()->with('status', 'Online payments are not currently available. Please contact us to pay.');
         }
-
-        $invoiceModel = $this->locate($invoice);
 
         if ($invoiceModel->amountDueCents() <= 0) {
             return back()->with('status', 'This invoice is already paid.');
@@ -79,11 +79,15 @@ class SquarePaymentController extends Controller
 
     private function locate(string $uuid): Invoice
     {
-        /** @var Client $client */
-        $client = Auth::guard('client')->user();
+        $client = Portal::user();
+
+        if (! $client instanceof Client) {
+            throw new NotFoundHttpException;
+        }
 
         $invoice = Invoice::where('uuid', $uuid)
-            ->where('client_id', $client->id)
+            ->where('billable_type', Client::class)
+            ->where('billable_id', $client->id)
             ->whereNotIn('status', [Invoice::STATUS_DRAFT, Invoice::STATUS_VOID])
             ->first();
 

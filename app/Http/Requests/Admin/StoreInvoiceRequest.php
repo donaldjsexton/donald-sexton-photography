@@ -2,7 +2,10 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Client;
+use App\Models\Venue;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StoreInvoiceRequest extends FormRequest
 {
@@ -12,17 +15,22 @@ class StoreInvoiceRequest extends FormRequest
     }
 
     /**
-     * @return array<string, array<int, string>|string>
+     * @return array<string, array<int, mixed>|string>
      */
     public function rules(): array
     {
+        $billableType = (string) $this->input('billable_type', 'client');
+        $billableTable = $billableType === 'venue' ? 'venues' : 'clients';
+
         return [
-            'client_id' => ['required', 'integer', 'exists:clients,id'],
+            'billable_type' => ['required', Rule::in(['client', 'venue'])],
+            'billable_id' => ['required', 'integer', 'exists:'.$billableTable.',id'],
             'booked_job_id' => ['nullable', 'integer', 'exists:booked_jobs,id'],
             'issue_date' => ['required', 'date'],
             'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'default_tax_rate' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'discount' => ['nullable', 'numeric', 'min:0'],
+            'net_terms' => ['nullable', 'string', 'max:50'],
             'notes' => ['nullable', 'string'],
             'internal_notes' => ['nullable', 'string'],
             'terms' => ['nullable', 'string'],
@@ -38,5 +46,12 @@ class StoreInvoiceRequest extends FormRequest
             'installments.*.due_date' => ['nullable', 'date'],
             'installments.*.amount' => ['required_with:installments.*.label', 'numeric', 'min:0.01'],
         ];
+    }
+
+    public function billableClass(): string
+    {
+        return $this->input('billable_type') === 'venue'
+            ? Venue::class
+            : Client::class;
     }
 }

@@ -128,7 +128,9 @@
 
         <div style="display:flex; flex-wrap:wrap; gap:12px;">
             <a class="btn btn-secondary" href="{{ route('portal.invoices.pdf', ['invoice' => $invoice->uuid]) }}" target="_blank" rel="noopener">Download PDF</a>
-            @if (! $squareEnabled && ! $paypalEnabled && $invoice->amountDueCents() > 0 && $invoice->status !== \App\Models\Invoice::STATUS_VOID)
+            @if ($invoice->isVendorInvoice() && $invoice->amountDueCents() > 0 && $invoice->status !== \App\Models\Invoice::STATUS_VOID)
+                <span class="btn btn-secondary" aria-disabled="true">Pay by check or ACH per terms{{ $invoice->net_terms ? ' ('.$invoice->net_terms.')' : '' }}</span>
+            @elseif (! $squareEnabled && ! $paypalEnabled && $invoice->amountDueCents() > 0 && $invoice->status !== \App\Models\Invoice::STATUS_VOID)
                 <span class="btn btn-secondary" aria-disabled="true" title="Online payments are not enabled yet">Online payments coming soon</span>
             @endif
         </div>

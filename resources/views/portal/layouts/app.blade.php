@@ -66,7 +66,7 @@
                 <nav class="portal-header__nav">
                     <a href="{{ route('portal.dashboard') }}" class="{{ request()->routeIs('portal.dashboard') ? 'is-active' : '' }}">Overview</a>
                     <a href="{{ route('portal.invoices.index') }}" class="{{ request()->routeIs('portal.invoices.*') ? 'is-active' : '' }}">Invoices</a>
-                    <span class="meta">{{ auth('client')->user()?->first_name }}</span>
+                    <span class="meta">{{ \App\Support\Portal::user()?->portalGreeting() }}</span>
                     <form method="POST" action="{{ route('portal.logout') }}">
                         @csrf
                         <button type="submit">Sign out</button>

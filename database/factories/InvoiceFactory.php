@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Client;
 use App\Models\Invoice;
+use App\Models\Venue;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Carbon;
 
@@ -15,7 +16,8 @@ class InvoiceFactory extends Factory
     public function definition(): array
     {
         return [
-            'client_id' => Client::factory(),
+            'billable_type' => Client::class,
+            'billable_id' => Client::factory(),
             'status' => Invoice::STATUS_DRAFT,
             'currency' => 'USD',
             'issue_date' => Carbon::today(),
@@ -27,6 +29,14 @@ class InvoiceFactory extends Factory
             'total_cents' => 0,
             'amount_paid_cents' => 0,
         ];
+    }
+
+    public function forVenue(?Venue $venue = null): static
+    {
+        return $this->state(fn () => [
+            'billable_type' => Venue::class,
+            'billable_id' => $venue?->id ?? Venue::factory(),
+        ]);
     }
 
     public function sent(): static

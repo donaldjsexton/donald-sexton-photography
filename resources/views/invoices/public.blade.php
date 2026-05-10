@@ -63,10 +63,10 @@
 
             <div>
                 <h3>Bill to</h3>
-                <strong>{{ $invoice->client?->displayName() }}</strong><br>
-                <span class="meta">{{ $invoice->client?->email }}</span>
-                @if ($invoice->client?->company)
-                    <br><span class="meta">{{ $invoice->client->company }}</span>
+                <strong>{{ $invoice->billableName() }}</strong><br>
+                <span class="meta">{{ $invoice->billableEmail() }}</span>
+                @if ($invoice->billable instanceof \App\Models\Client && $invoice->billable->company)
+                    <br><span class="meta">{{ $invoice->billable->company }}</span>
                 @endif
             </div>
 

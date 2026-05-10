@@ -106,6 +106,18 @@ class VenueController extends Controller
             'is_featured' => ['nullable', 'boolean'],
             'seo_title' => ['nullable', 'string', 'max:255'],
             'seo_description' => ['nullable', 'string'],
+
+            'business_name' => ['nullable', 'string', 'max:255'],
+            'billing_email' => ['nullable', 'email', 'max:255'],
+            'billing_contact_name' => ['nullable', 'string', 'max:255'],
+            'billing_address_line_1' => ['nullable', 'string', 'max:255'],
+            'billing_address_line_2' => ['nullable', 'string', 'max:255'],
+            'billing_city' => ['nullable', 'string', 'max:255'],
+            'billing_state' => ['nullable', 'string', 'max:100'],
+            'billing_postal_code' => ['nullable', 'string', 'max:20'],
+            'billing_country' => ['nullable', 'string', 'size:2'],
+            'net_payment_terms' => ['nullable', 'string', 'max:50'],
+            'portal_password' => ['nullable', 'string', 'min:8'],
         ]);
     }
 
@@ -114,10 +126,18 @@ class VenueController extends Controller
      */
     private function fillVenue(Venue $venue, array $validated): void
     {
+        $portalPassword = $validated['portal_password'] ?? null;
+        unset($validated['portal_password']);
+
         $venue->fill($validated);
         $venue->slug = ! empty($validated['slug']) ? $validated['slug'] : Str::slug($validated['name']);
         $venue->is_featured = (bool) ($validated['is_featured'] ?? false);
         $venue->referral_emails = $this->parseReferralEmails($validated['referral_emails'] ?? null);
+
+        if (filled($portalPassword)) {
+            $venue->password = $portalPassword;
+        }
+
         $venue->save();
     }
 

@@ -3,7 +3,7 @@
 @section('title', $invoice->number)
 @section('eyebrow', 'Studio')
 @section('heading', $invoice->number)
-@section('subheading', $invoice->client?->displayName().' · '.\App\Models\Invoice::statusOptions()[$invoice->status])
+@section('subheading', $invoice->billableName().' · '.\App\Models\Invoice::statusOptions()[$invoice->status])
 @section('header_actions')
     <a class="cta-secondary" href="{{ route('admin.invoices.pdf', $invoice) }}" target="_blank" rel="noopener">Download PDF</a>
     @if ($invoice->isEditable())
@@ -15,10 +15,15 @@
         <div class="field-grid">
             <div>
                 <p class="eyebrow">Bill to</p>
-                <strong>{{ $invoice->client?->displayName() }}</strong><br>
-                <span class="meta">{{ $invoice->client?->email }}</span>
-                @if ($invoice->client?->company)
-                    <br><span class="meta">{{ $invoice->client->company }}</span>
+                <strong>{{ $invoice->billableName() }}</strong><br>
+                <span class="meta">{{ $invoice->billableEmail() ?: 'No billing email on file' }}</span>
+                @if ($invoice->isVendorInvoice())
+                    <br><span class="meta">Vendor / venue</span>
+                    @if ($invoice->net_terms)
+                        <br><span class="meta">Terms: {{ $invoice->net_terms }}</span>
+                    @endif
+                @elseif ($invoice->billable instanceof \App\Models\Client && $invoice->billable->company)
+                    <br><span class="meta">{{ $invoice->billable->company }}</span>
                 @endif
             </div>
             <div>
@@ -218,12 +223,12 @@
         <h3>Actions</h3>
         <div class="form-actions" style="flex-wrap:wrap; gap:0.75rem;">
             @if ($invoice->status === \App\Models\Invoice::STATUS_DRAFT)
-                <form method="POST" action="{{ route('admin.invoices.send', $invoice) }}" onsubmit="return confirm('Email this invoice to {{ $invoice->client?->email }}?');">
+                <form method="POST" action="{{ route('admin.invoices.send', $invoice) }}" onsubmit="return confirm('Email this invoice to {{ $invoice->billableEmail() }}?');">
                     @csrf
                     <button class="cta" type="submit">Send to Client</button>
                 </form>
             @elseif ($invoice->status === \App\Models\Invoice::STATUS_SENT)
-                <form method="POST" action="{{ route('admin.invoices.send', $invoice) }}" onsubmit="return confirm('Re-send this invoice to {{ $invoice->client?->email }}?');">
+                <form method="POST" action="{{ route('admin.invoices.send', $invoice) }}" onsubmit="return confirm('Re-send this invoice to {{ $invoice->billableEmail() }}?');">
                     @csrf
                     <button class="cta-secondary" type="submit">Re-send</button>
                 </form>

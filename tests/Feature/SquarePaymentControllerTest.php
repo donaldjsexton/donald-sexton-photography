@@ -35,7 +35,7 @@ class SquarePaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $invoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'currency' => 'USD',
             'total_cents' => 50000,
             'amount_paid_cents' => 0,
@@ -74,7 +74,7 @@ class SquarePaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $invoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'total_cents' => 50000,
         ]);
 
@@ -102,7 +102,7 @@ class SquarePaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $other = Client::factory()->create();
-        $stranger = Invoice::factory()->sent()->create(['client_id' => $other->id, 'total_cents' => 10000]);
+        $stranger = Invoice::factory()->sent()->create(['billable_type' => Client::class, 'billable_id' => $other->id, 'total_cents' => 10000]);
 
         $this->bindGatewayMock(fn ($mock) => $mock->shouldReceive('isConfigured')->andReturnTrue());
 
@@ -116,7 +116,7 @@ class SquarePaymentControllerTest extends TestCase
     public function test_charge_redirects_when_gateway_not_configured(): void
     {
         $client = Client::factory()->create();
-        $invoice = Invoice::factory()->sent()->create(['client_id' => $client->id]);
+        $invoice = Invoice::factory()->sent()->create(['billable_type' => Client::class, 'billable_id' => $client->id]);
 
         $this->bindGatewayMock(fn ($mock) => $mock->shouldReceive('isConfigured')->andReturnFalse());
 
@@ -134,7 +134,7 @@ class SquarePaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $invoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'total_cents' => 30000,
             'amount_paid_cents' => 0,
         ]);
@@ -161,7 +161,7 @@ class SquarePaymentControllerTest extends TestCase
     public function test_validation_requires_source_id(): void
     {
         $client = Client::factory()->create();
-        $invoice = Invoice::factory()->sent()->create(['client_id' => $client->id]);
+        $invoice = Invoice::factory()->sent()->create(['billable_type' => Client::class, 'billable_id' => $client->id]);
 
         $this->actingAs($client, 'client')
             ->post(route('portal.invoices.pay.square', ['invoice' => $invoice->uuid]), [])
@@ -172,7 +172,7 @@ class SquarePaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $invoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'total_cents' => 50000,
         ]);
 
@@ -197,7 +197,7 @@ class SquarePaymentControllerTest extends TestCase
     {
         $client = Client::factory()->create();
         $invoice = Invoice::factory()->sent()->create([
-            'client_id' => $client->id,
+            'billable_type' => Client::class, 'billable_id' => $client->id,
             'total_cents' => 50000,
         ]);
 

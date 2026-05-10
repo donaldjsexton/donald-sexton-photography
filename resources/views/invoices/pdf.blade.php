@@ -142,15 +142,31 @@
     <div class="billing">
         <div class="col">
             <h3>Bill to</h3>
+            @php
+                $b = $invoice->billable;
+                $isVenue = $b instanceof \App\Models\Venue;
+                $email = $invoice->billableEmail();
+                $phone = $isVenue ? null : ($b->phone ?? null);
+                $line1 = $isVenue ? ($b->billing_address_line_1 ?? null) : ($b->address_line_1 ?? null);
+                $line2 = $isVenue ? ($b->billing_address_line_2 ?? null) : ($b->address_line_2 ?? null);
+                $city = $isVenue ? ($b->billing_city ?? null) : ($b->city ?? null);
+                $state = $isVenue ? ($b->billing_state ?? null) : ($b->state ?? null);
+                $postal = $isVenue ? ($b->billing_postal_code ?? null) : ($b->postal_code ?? null);
+                $contactName = $isVenue ? ($b->billing_contact_name ?? null) : null;
+            @endphp
             <p>
-                <strong>{{ $invoice->client?->displayName() }}</strong><br>
-                @if ($invoice->client?->email){{ $invoice->client->email }}<br>@endif
-                @if ($invoice->client?->phone){{ $invoice->client->phone }}<br>@endif
-                @if ($invoice->client?->address_line_1){{ $invoice->client->address_line_1 }}<br>@endif
-                @if ($invoice->client?->address_line_2){{ $invoice->client->address_line_2 }}<br>@endif
-                {{ collect([$invoice->client?->city, $invoice->client?->state])->filter()->implode(', ') }}
-                {{ $invoice->client?->postal_code }}
+                <strong>{{ $invoice->billableName() }}</strong><br>
+                @if ($contactName){{ $contactName }}<br>@endif
+                @if ($email){{ $email }}<br>@endif
+                @if ($phone){{ $phone }}<br>@endif
+                @if ($line1){{ $line1 }}<br>@endif
+                @if ($line2){{ $line2 }}<br>@endif
+                {{ collect([$city, $state])->filter()->implode(', ') }}
+                {{ $postal }}
             </p>
+            @if ($invoice->net_terms)
+                <p style="margin-top:6px;"><strong>Terms:</strong> {{ $invoice->net_terms }}</p>
+            @endif
         </div>
         <div class="col" style="text-align:right;">
             <h3>Issued</h3>

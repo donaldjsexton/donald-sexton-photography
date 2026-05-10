@@ -133,11 +133,79 @@
             </label>
         </div>
 
+        <h3 style="margin-top:2rem;">Billing &amp; portal</h3>
+        <p class="meta" style="margin-top:0;">Fill these in if you invoice this venue. The billing email + portal password let them log in at /portal to view their invoices.</p>
+
+        <div class="field-grid">
+            <label>
+                Business name
+                <input type="text" name="business_name" value="{{ old('business_name', $venue->business_name) }}" placeholder="Defaults to venue name">
+            </label>
+
+            <label>
+                Net payment terms
+                <input type="text" name="net_payment_terms" maxlength="50" placeholder="e.g. Net 30" value="{{ old('net_payment_terms', $venue->net_payment_terms) }}">
+            </label>
+        </div>
+
+        <div class="field-grid">
+            <label>
+                Billing email
+                <input type="email" name="billing_email" value="{{ old('billing_email', $venue->billing_email) }}">
+            </label>
+
+            <label>
+                Billing contact name
+                <input type="text" name="billing_contact_name" value="{{ old('billing_contact_name', $venue->billing_contact_name) }}">
+            </label>
+        </div>
+
+        <label>
+            Billing address line 1
+            <input type="text" name="billing_address_line_1" value="{{ old('billing_address_line_1', $venue->billing_address_line_1) }}">
+        </label>
+
+        <label>
+            Billing address line 2
+            <input type="text" name="billing_address_line_2" value="{{ old('billing_address_line_2', $venue->billing_address_line_2) }}">
+        </label>
+
+        <div class="field-grid">
+            <label>
+                Billing city
+                <input type="text" name="billing_city" value="{{ old('billing_city', $venue->billing_city) }}">
+            </label>
+
+            <label>
+                Billing state
+                <input type="text" name="billing_state" value="{{ old('billing_state', $venue->billing_state) }}">
+            </label>
+
+            <label>
+                Billing postal code
+                <input type="text" name="billing_postal_code" value="{{ old('billing_postal_code', $venue->billing_postal_code) }}">
+            </label>
+
+            <label>
+                Billing country (2-letter)
+                <input type="text" name="billing_country" maxlength="2" value="{{ old('billing_country', $venue->billing_country) }}">
+            </label>
+        </div>
+
+        <label>
+            Set / reset portal password
+            <input type="password" name="portal_password" minlength="8" autocomplete="new-password" placeholder="{{ $venue->password ? 'Leave blank to keep current password' : 'Min 8 characters' }}">
+            <span class="meta">{{ $venue->password ? 'Portal access is enabled.' : 'Set a password to enable portal sign-in for this venue.' }}</span>
+        </label>
+
         <div class="admin-form__actions">
             <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Venue</button>
 
             @if ($venue->exists)
                 <a class="cta-secondary" href="{{ route('venues.show', $venue->slug) }}" target="_blank" rel="noopener">View public page</a>
+                @if ($venue->isBillable())
+                    <a class="cta-secondary" href="{{ route('admin.invoices.create', ['venue_id' => $venue->id]) }}">New invoice for this venue</a>
+                @endif
             @endif
         </div>
     </form>

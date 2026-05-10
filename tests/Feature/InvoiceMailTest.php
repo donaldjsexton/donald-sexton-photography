@@ -20,7 +20,7 @@ class InvoiceMailTest extends TestCase
         Mail::fake();
         $admin = User::factory()->create();
         $client = Client::factory()->create(['email' => 'client@example.com']);
-        $invoice = Invoice::factory()->create(['client_id' => $client->id]);
+        $invoice = Invoice::factory()->create(['billable_type' => Client::class, 'billable_id' => $client->id]);
 
         $this->actingAs($admin)
             ->post(route('admin.invoices.send', $invoice))
@@ -38,7 +38,7 @@ class InvoiceMailTest extends TestCase
         Mail::fake();
         $admin = User::factory()->create();
         $client = Client::factory()->create(['email' => '']);
-        $invoice = Invoice::factory()->create(['client_id' => $client->id]);
+        $invoice = Invoice::factory()->create(['billable_type' => Client::class, 'billable_id' => $client->id]);
 
         $this->actingAs($admin)
             ->post(route('admin.invoices.send', $invoice))

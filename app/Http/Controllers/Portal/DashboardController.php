@@ -6,18 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\InvoiceInstallment;
+use App\Support\Portal;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
     public function __invoke(Request $request): View
     {
-        /** @var Client $client */
-        $client = Auth::guard('client')->user();
+        $billable = Portal::user();
 
-        $invoices = $client->invoices()
+        $invoices = $billable->invoices()
             ->whereNotIn('status', [Invoice::STATUS_DRAFT])
             ->with('installments')
             ->orderByDesc('issue_date')
@@ -33,10 +32,12 @@ class DashboardController extends Controller
             ->orderBy('due_date')
             ->first();
 
-        $upcomingBooking = $client->inquiry?->bookedJob;
+        $upcomingBooking = $billable instanceof Client
+            ? $billable->inquiry?->bookedJob
+            : null;
 
         return view('portal.dashboard', [
-            'client' => $client,
+            'billable' => $billable,
             'invoices' => $invoices,
             'outstandingCents' => $outstandingCents,
             'nextInstallment' => $nextInstallment,
