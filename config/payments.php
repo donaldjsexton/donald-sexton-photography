@@ -42,6 +42,32 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Business identity
+    |--------------------------------------------------------------------------
+    |
+    | Used on invoice PDFs and emails. Override via environment variables to
+    | match the studio's letterhead.
+    |
+    */
+    'business' => [
+        'name' => env('PAYMENTS_BUSINESS_NAME', 'Donald Sexton Photography'),
+        'email' => env('PAYMENTS_BUSINESS_EMAIL'),
+        'phone' => env('PAYMENTS_BUSINESS_PHONE'),
+        'address' => env('PAYMENTS_BUSINESS_ADDRESS'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Public links
+    |--------------------------------------------------------------------------
+    |
+    | TTL (in days) for signed invoice view URLs sent to clients.
+    |
+    */
+    'invoice_signed_url_ttl_days' => env('PAYMENTS_INVOICE_LINK_TTL_DAYS', 90),
+
+    /*
+    |--------------------------------------------------------------------------
     | Gateways
     |--------------------------------------------------------------------------
     |

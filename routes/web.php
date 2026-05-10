@@ -23,16 +23,26 @@ use App\Http\Controllers\Admin\WordPressImportController as AdminWordPressImport
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InquiryController;
+use App\Http\Controllers\InvoicePublicController;
 use App\Http\Controllers\JournalController;
 use App\Http\Controllers\JournalFeedController;
 use App\Http\Controllers\LegacyRedirectController;
 use App\Http\Controllers\LlmsTxtController;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\Portal\AuthController as PortalAuthController;
+use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
+use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
+use App\Http\Controllers\Portal\PasswordResetController as PortalPasswordResetController;
+use App\Http\Controllers\Portal\PayPalPaymentController as PortalPayPalPaymentController;
+use App\Http\Controllers\Portal\SquarePaymentController as PortalSquarePaymentController;
 use App\Http\Controllers\QuestionnaireController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\VenueController;
+use App\Http\Controllers\Webhooks\PayPalWebhookController;
+use App\Http\Controllers\Webhooks\SquareWebhookController;
 use App\Http\Controllers\WeddingStoryController;
 use App\Models\SiteSetting;
+use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -85,6 +95,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('/invoices/{invoice}', [AdminInvoiceController::class, 'destroy'])->name('invoices.destroy');
         Route::post('/invoices/{invoice}/send', [AdminInvoiceController::class, 'send'])->name('invoices.send');
         Route::post('/invoices/{invoice}/void', [AdminInvoiceController::class, 'void'])->name('invoices.void');
+        Route::get('/invoices/{invoice}/pdf', [AdminInvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
         Route::post('/invoices/{invoice}/payments', [AdminInvoiceController::class, 'recordPayment'])->name('invoices.payments.store');
 
         Route::post('/push/subscribe', [AdminPushSubscriptionController::class, 'store'])->name('push.subscribe');
@@ -164,6 +175,41 @@ Route::get('/thank-you', [InquiryController::class, 'thankYou'])->name('inquiry.
 Route::get('/questionnaire/thank-you', [QuestionnaireController::class, 'thankYou'])->name('questionnaire.thank-you');
 Route::get('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'show'])->name('questionnaire.show');
 Route::put('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'update'])->name('questionnaire.update');
+
+Route::middleware('signed')->group(function () {
+    Route::get('/invoices/{invoice}', [InvoicePublicController::class, 'show'])->name('invoices.public.show');
+    Route::get('/invoices/{invoice}/pdf', [InvoicePublicController::class, 'downloadPdf'])->name('invoices.public.pdf');
+});
+
+Route::prefix('portal')->name('portal.')->group(function () {
+    Route::middleware('guest:client')->group(function () {
+        Route::get('/login', [PortalAuthController::class, 'create'])->name('login');
+        Route::post('/login', [PortalAuthController::class, 'store'])->name('login.store');
+        Route::get('/forgot-password', [PortalPasswordResetController::class, 'request'])->name('password.request');
+        Route::post('/forgot-password', [PortalPasswordResetController::class, 'email'])->name('password.email');
+        Route::get('/reset-password/{token}', [PortalPasswordResetController::class, 'reset'])->name('password.reset');
+        Route::post('/reset-password', [PortalPasswordResetController::class, 'update'])->name('password.update');
+    });
+
+    Route::middleware('auth:client')->group(function () {
+        Route::post('/logout', [PortalAuthController::class, 'destroy'])->name('logout');
+        Route::get('/', PortalDashboardController::class)->name('dashboard');
+        Route::get('/invoices', [PortalInvoiceController::class, 'index'])->name('invoices.index');
+        Route::get('/invoices/{invoice}', [PortalInvoiceController::class, 'show'])->name('invoices.show');
+        Route::get('/invoices/{invoice}/pdf', [PortalInvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
+        Route::post('/invoices/{invoice}/pay/square', [PortalSquarePaymentController::class, 'store'])->name('invoices.pay.square');
+        Route::post('/invoices/{invoice}/pay/paypal/orders', [PortalPayPalPaymentController::class, 'createOrder'])->name('invoices.pay.paypal.create');
+        Route::post('/invoices/{invoice}/pay/paypal/capture', [PortalPayPalPaymentController::class, 'capture'])->name('invoices.pay.paypal.capture');
+    });
+});
+
+Route::post('/webhooks/square', SquareWebhookController::class)
+    ->name('webhooks.square')
+    ->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::post('/webhooks/paypal', PayPalWebhookController::class)
+    ->name('webhooks.paypal')
+    ->withoutMiddleware([ValidateCsrfToken::class]);
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/llms.txt', LlmsTxtController::class)->name('llms');
