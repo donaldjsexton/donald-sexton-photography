@@ -33,10 +33,12 @@ use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordResetController as PortalPasswordResetController;
+use App\Http\Controllers\Portal\PayPalPaymentController as PortalPayPalPaymentController;
 use App\Http\Controllers\Portal\SquarePaymentController as PortalSquarePaymentController;
 use App\Http\Controllers\QuestionnaireController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\VenueController;
+use App\Http\Controllers\Webhooks\PayPalWebhookController;
 use App\Http\Controllers\Webhooks\SquareWebhookController;
 use App\Http\Controllers\WeddingStoryController;
 use App\Models\SiteSetting;
@@ -196,11 +198,17 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/invoices/{invoice}', [PortalInvoiceController::class, 'show'])->name('invoices.show');
         Route::get('/invoices/{invoice}/pdf', [PortalInvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
         Route::post('/invoices/{invoice}/pay/square', [PortalSquarePaymentController::class, 'store'])->name('invoices.pay.square');
+        Route::post('/invoices/{invoice}/pay/paypal/orders', [PortalPayPalPaymentController::class, 'createOrder'])->name('invoices.pay.paypal.create');
+        Route::post('/invoices/{invoice}/pay/paypal/capture', [PortalPayPalPaymentController::class, 'capture'])->name('invoices.pay.paypal.capture');
     });
 });
 
 Route::post('/webhooks/square', SquareWebhookController::class)
     ->name('webhooks.square')
+    ->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::post('/webhooks/paypal', PayPalWebhookController::class)
+    ->name('webhooks.paypal')
     ->withoutMiddleware([ValidateCsrfToken::class]);
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');

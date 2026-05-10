@@ -12,6 +12,7 @@
         "laravel/socialite": "^5.26",
         "laravel/tinker": "^3.0",
         "minishlink/web-push": "^10.0",
+        "paypal/paypal-server-sdk": "^2.2",
         "spatie/laravel-pdf": "^2.8",
         "square/square": "^45.0"
     },

@@ -128,7 +128,7 @@
 
         <div style="display:flex; flex-wrap:wrap; gap:12px;">
             <a class="btn btn-secondary" href="{{ route('portal.invoices.pdf', ['invoice' => $invoice->uuid]) }}" target="_blank" rel="noopener">Download PDF</a>
-            @if (! $squareEnabled && $invoice->amountDueCents() > 0 && $invoice->status !== \App\Models\Invoice::STATUS_VOID)
+            @if (! $squareEnabled && ! $paypalEnabled && $invoice->amountDueCents() > 0 && $invoice->status !== \App\Models\Invoice::STATUS_VOID)
                 <span class="btn btn-secondary" aria-disabled="true" title="Online payments are not enabled yet">Online payments coming soon</span>
             @endif
         </div>
@@ -158,7 +158,7 @@
             </form>
         </section>
 
-        <script src="{{ $squareSdkUrl }}"></script>
+        <script src="{{ $squareSdkUrl }}" defer></script>
         <script>
         (function () {
             var formEl = document.getElementById('square-payment-form');
@@ -199,6 +199,84 @@
             }).catch(function (err) {
                 errEl.textContent = 'Could not initialise the card form: ' + (err && err.message ? err.message : 'unknown error');
             });
+        })();
+        </script>
+    @endif
+
+    @if ($paypalEnabled)
+        <section class="card stack">
+            <div>
+                <h3>Pay with PayPal</h3>
+                <p style="margin:0;">
+                    Pay <strong>${{ number_format($invoice->amountDueCents() / 100, 2) }}</strong> through PayPal — sign in with your PayPal account or pay as a guest with a card.
+                </p>
+            </div>
+
+            <div id="paypal-button-container" style="min-height:48px;"></div>
+            <p id="paypal-error" style="color:#a03030; margin:0; min-height:1em;"></p>
+        </section>
+
+        <script src="{{ $paypalSdkUrl }}" data-namespace="paypalNs" defer></script>
+        <script>
+        (function () {
+            var csrf = document.querySelector('meta[name="csrf-token"]')?.content || '';
+            var errEl = document.getElementById('paypal-error');
+            var createUrl = @json(route('portal.invoices.pay.paypal.create', ['invoice' => $invoice->uuid]));
+            var captureUrl = @json(route('portal.invoices.pay.paypal.capture', ['invoice' => $invoice->uuid]));
+
+            function init() {
+                var ns = window.paypalNs || window.paypal;
+                if (!ns || !ns.Buttons) {
+                    setTimeout(init, 200);
+                    return;
+                }
+
+                ns.Buttons({
+                    style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
+                    createOrder: function () {
+                        return fetch(createUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrf,
+                                'Accept': 'application/json',
+                            },
+                        }).then(function (res) {
+                            return res.json().then(function (data) {
+                                if (!res.ok) {
+                                    throw new Error(data.error || 'Could not start PayPal payment.');
+                                }
+                                return data.order_id;
+                            });
+                        });
+                    },
+                    onApprove: function (data) {
+                        return fetch(captureUrl, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrf,
+                                'Accept': 'application/json',
+                            },
+                            body: JSON.stringify({ order_id: data.orderID }),
+                        }).then(function (res) {
+                            return res.json().then(function (body) {
+                                if (!res.ok) {
+                                    throw new Error(body.message || 'Capture failed.');
+                                }
+                                window.location = body.redirect;
+                            });
+                        });
+                    },
+                    onError: function (err) {
+                        errEl.textContent = (err && err.message) ? err.message : 'PayPal payment failed.';
+                    },
+                }).render('#paypal-button-container').catch(function (err) {
+                    errEl.textContent = 'Could not load PayPal buttons: ' + (err && err.message ? err.message : 'unknown error');
+                });
+            }
+
+            init();
         })();
         </script>
     @endif

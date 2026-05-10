@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Invoice;
 use App\Services\Invoicing\InvoicePdfRenderer;
+use App\Services\Payments\PayPalGateway;
 use App\Services\Payments\SquareGateway;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -28,7 +29,7 @@ class InvoiceController extends Controller
         ]);
     }
 
-    public function show(Request $request, string $invoice, SquareGateway $square): View
+    public function show(Request $request, string $invoice, SquareGateway $square, PayPalGateway $paypal): View
     {
         $model = $this->locate($invoice);
 
@@ -36,14 +37,18 @@ class InvoiceController extends Controller
             $model->forceFill(['viewed_at' => now()])->save();
         }
 
+        $payable = $model->amountDueCents() > 0 && $model->status !== Invoice::STATUS_VOID;
+
         return view('portal.invoices.show', [
             'invoice' => $model->load(['client', 'lineItems', 'installments', 'payments']),
-            'squareEnabled' => $square->isConfigured() && $model->amountDueCents() > 0 && $model->status !== Invoice::STATUS_VOID,
+            'squareEnabled' => $payable && $square->isConfigured(),
             'squareApplicationId' => $square->applicationId(),
             'squareLocationId' => $square->locationId(),
             'squareSdkUrl' => $square->isLive()
                 ? 'https://web.squarecdn.com/v1/square.js'
                 : 'https://sandbox.web.squarecdn.com/v1/square.js',
+            'paypalEnabled' => $payable && $paypal->isConfigured(),
+            'paypalSdkUrl' => $paypal->jsSdkUrl(),
         ]);
     }
 
