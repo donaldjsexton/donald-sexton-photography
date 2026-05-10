@@ -1010,6 +1010,168 @@ Artisan::command('pictime:repair-media {--slug=*} {--include-archived} {--all-re
     return 0;
 })->purpose('Hydrate local media for existing Pic-Time records from stored embed markup');
 
+Artisan::command('pictime:attach-existing {--slug=*} {--include-archived} {--apply} {--reset-hero}', function () {
+    $slugs = collect((array) $this->option('slug'))
+        ->map(fn ($slug) => trim((string) $slug))
+        ->filter()
+        ->values();
+    $includeArchived = (bool) $this->option('include-archived');
+    $apply = (bool) $this->option('apply');
+    $resetHero = (bool) $this->option('reset-hero');
+
+    if (! $apply) {
+        $this->components->info('Dry run — pass --apply to write Media rows and pivot attachments.');
+    }
+
+    $applyPicTimeScope = function ($query): void {
+        $query->where(function ($inner): void {
+            $inner->where('canonical_url', 'like', '%pic-time.com%')
+                ->orWhere('original_wp_url', 'like', '%pic-time.com%')
+                ->orWhere('body', 'like', '%slideswebcomponentembed.js%')
+                ->orWhere('source_markup', 'like', '%slideswebcomponentembed.js%');
+        });
+    };
+
+    $loadRecords = function (string $modelClass) use ($slugs, $includeArchived, $applyPicTimeScope) {
+        $query = $modelClass::query();
+
+        if ($slugs->isNotEmpty()) {
+            $query->whereIn('slug', $slugs->all());
+        } else {
+            $applyPicTimeScope($query);
+
+            if (! $includeArchived) {
+                $query->published();
+            }
+        }
+
+        return $query->orderBy('slug')->get();
+    };
+
+    $records = $loadRecords(WeddingStory::class)->concat($loadRecords(JournalPost::class));
+
+    if ($records->isEmpty()) {
+        $this->components->warn('No matching Pic-Time records found.');
+
+        return 1;
+    }
+
+    $disk = Storage::disk('public');
+    $imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+
+    $totals = [
+        'records_seen' => 0,
+        'records_with_files' => 0,
+        'records_attached' => 0,
+        'media_existing' => 0,
+        'media_created' => 0,
+        'files_attached' => 0,
+    ];
+
+    foreach ($records as $record) {
+        $totals['records_seen']++;
+        $directory = "imports/pictime/{$record->slug}";
+
+        if (! $disk->exists($directory)) {
+            $this->line('- '.class_basename($record)."/{$record->slug}: directory missing ({$directory})");
+
+            continue;
+        }
+
+        $files = collect($disk->files($directory))
+            ->filter(fn (string $path) => in_array(
+                strtolower(pathinfo($path, PATHINFO_EXTENSION)),
+                $imageExtensions,
+                true
+            ))
+            ->reject(fn (string $path) => Str::contains(
+                strtolower(pathinfo($path, PATHINFO_FILENAME)),
+                ['-thumb', '-thumbnail', '-640', '-1080', '-1600']
+            ))
+            ->sort()
+            ->values();
+
+        if ($files->isEmpty()) {
+            $this->line('- '.class_basename($record)."/{$record->slug}: directory empty");
+
+            continue;
+        }
+
+        $totals['records_with_files']++;
+
+        $mediaPivot = [];
+        $createdHere = 0;
+        $existedHere = 0;
+
+        foreach ($files as $index => $relativePath) {
+            $existing = Media::query()
+                ->where('disk', 'public')
+                ->where('path', $relativePath)
+                ->first();
+
+            if ($existing instanceof Media) {
+                $existedHere++;
+                $mediaPivot[$existing->id] = ['role' => 'gallery', 'sort_order' => $index];
+
+                continue;
+            }
+
+            $createdHere++;
+
+            if (! $apply) {
+                continue;
+            }
+
+            $media = Media::query()->create([
+                'disk' => 'public',
+                'path' => $relativePath,
+                'filename' => basename($relativePath),
+                'mime_type' => $disk->mimeType($relativePath) ?: null,
+                'credit' => 'Pic-Time import',
+            ]);
+
+            $mediaPivot[$media->id] = ['role' => 'gallery', 'sort_order' => $index];
+        }
+
+        $totals['media_existing'] += $existedHere;
+        $totals['media_created'] += $createdHere;
+
+        $this->line(sprintf(
+            '- %s/%s: %d files (%d existing, %d new)',
+            class_basename($record),
+            $record->slug,
+            $files->count(),
+            $existedHere,
+            $createdHere,
+        ));
+
+        if (! $apply) {
+            continue;
+        }
+
+        $record->media()->sync($mediaPivot);
+
+        $firstMediaId = collect($mediaPivot)->keys()->first();
+
+        if ($firstMediaId !== null && ($resetHero || empty($record->hero_media_id))) {
+            $record->hero_media_id = $firstMediaId;
+        }
+
+        $record->save();
+
+        $totals['records_attached']++;
+        $totals['files_attached'] += count($mediaPivot);
+    }
+
+    $this->components->info($apply ? 'Attach complete.' : 'Dry run complete.');
+
+    foreach ($totals as $key => $value) {
+        $this->line("- {$key}: {$value}");
+    }
+
+    return 0;
+})->purpose('Attach already-downloaded Pic-Time photos in storage/imports/pictime/{slug} to their posts');
+
 Artisan::command('pictime:audit {--include-archived} {--limit=0} {--deep}', function (PicTimeImporter $importer) {
     $includeArchived = (bool) $this->option('include-archived');
     $limit = max(0, (int) $this->option('limit'));
