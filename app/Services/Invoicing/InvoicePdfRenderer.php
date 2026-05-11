@@ -11,7 +11,7 @@ class InvoicePdfRenderer
 {
     public function build(Invoice $invoice): PdfBuilder
     {
-        $invoice->loadMissing(['client', 'lineItems', 'installments', 'payments']);
+        $invoice->loadMissing(['billable', 'lineItems', 'installments']);
 
         return Pdf::view('invoices.pdf', $this->viewData($invoice))
             ->name($this->filename($invoice));
