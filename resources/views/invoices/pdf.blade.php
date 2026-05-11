@@ -116,10 +116,15 @@
             padding: 16px;
             background: #f8f1e8;
             border: 1px solid #d9c8b8;
-            text-align: center;
             font-size: 10pt;
         }
-        .pay-link a { color: #2d1d15; font-weight: 600; }
+        .pay-link .label { font-weight: 600; margin-bottom: 4px; }
+        .pay-link a {
+            color: #2d1d15;
+            font-size: 9pt;
+            word-break: break-all;
+            word-wrap: break-word;
+        }
     </style>
 </head>
 <body>
@@ -274,7 +279,8 @@
 
     @if (! empty($payUrl) && $invoice->amountDueCents() > 0)
         <div class="pay-link">
-            View and pay online: <a href="{{ $payUrl }}">{{ $payUrl }}</a>
+            <div class="label">View and pay online</div>
+            <a href="{{ $payUrl }}">{{ $payUrl }}</a>
         </div>
     @endif
 </body>
