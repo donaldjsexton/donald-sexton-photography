@@ -18,7 +18,7 @@ class InvoicePublicController extends Controller
         }
 
         return view('invoices.public', [
-            'invoice' => $model->load(['client', 'lineItems', 'installments', 'payments']),
+            'invoice' => $model->load(['billable', 'lineItems', 'installments', 'payments']),
         ]);
     }
 
