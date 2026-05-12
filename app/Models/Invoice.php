@@ -198,6 +198,11 @@ class Invoice extends Model
         return $this->hasMany(Payment::class);
     }
 
+    public function contracts(): HasMany
+    {
+        return $this->hasMany(Contract::class);
+    }
+
     public function amountDueCents(): int
     {
         return max(0, $this->total_cents - $this->amount_paid_cents);

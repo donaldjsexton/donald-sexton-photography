@@ -98,6 +98,11 @@ class Venue extends Model implements AuthenticatableContract, CanResetPasswordCo
         return $this->morphMany(Invoice::class, 'billable');
     }
 
+    public function contracts(): MorphMany
+    {
+        return $this->morphMany(Contract::class, 'billable');
+    }
+
     public function billingName(): string
     {
         return $this->business_name ?: $this->name;

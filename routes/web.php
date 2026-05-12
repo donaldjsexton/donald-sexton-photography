@@ -4,6 +4,8 @@ use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\BookedJobController as AdminBookedJobController;
 use App\Http\Controllers\Admin\ClientController as AdminClientController;
 use App\Http\Controllers\Admin\ConsoleCommandController as AdminConsoleCommandController;
+use App\Http\Controllers\Admin\ContractController as AdminContractController;
+use App\Http\Controllers\Admin\ContractTemplateController as AdminContractTemplateController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
@@ -21,6 +23,7 @@ use App\Http\Controllers\Admin\VenueController as AdminVenueController;
 use App\Http\Controllers\Admin\WeddingStoryController as AdminWeddingStoryController;
 use App\Http\Controllers\Admin\WordPressImportController as AdminWordPressImportController;
 use App\Http\Controllers\CollectionController;
+use App\Http\Controllers\ContractPublicController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\InvoicePublicController;
@@ -30,6 +33,7 @@ use App\Http\Controllers\LegacyRedirectController;
 use App\Http\Controllers\LlmsTxtController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
+use App\Http\Controllers\Portal\ContractController as PortalContractController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordResetController as PortalPasswordResetController;
@@ -97,6 +101,25 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/invoices/{invoice}/void', [AdminInvoiceController::class, 'void'])->name('invoices.void');
         Route::get('/invoices/{invoice}/pdf', [AdminInvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
         Route::post('/invoices/{invoice}/payments', [AdminInvoiceController::class, 'recordPayment'])->name('invoices.payments.store');
+
+        Route::get('/contract-templates', [AdminContractTemplateController::class, 'index'])->name('contract-templates.index');
+        Route::get('/contract-templates/create', [AdminContractTemplateController::class, 'create'])->name('contract-templates.create');
+        Route::post('/contract-templates', [AdminContractTemplateController::class, 'store'])->name('contract-templates.store');
+        Route::get('/contract-templates/{contractTemplate}/edit', [AdminContractTemplateController::class, 'edit'])->name('contract-templates.edit');
+        Route::put('/contract-templates/{contractTemplate}', [AdminContractTemplateController::class, 'update'])->name('contract-templates.update');
+        Route::delete('/contract-templates/{contractTemplate}', [AdminContractTemplateController::class, 'destroy'])->name('contract-templates.destroy');
+
+        Route::get('/contracts', [AdminContractController::class, 'index'])->name('contracts.index');
+        Route::get('/contracts/create', [AdminContractController::class, 'create'])->name('contracts.create');
+        Route::post('/contracts', [AdminContractController::class, 'store'])->name('contracts.store');
+        Route::post('/contracts/preview', [AdminContractController::class, 'preview'])->name('contracts.preview');
+        Route::get('/contracts/{contract}', [AdminContractController::class, 'show'])->name('contracts.show');
+        Route::get('/contracts/{contract}/edit', [AdminContractController::class, 'edit'])->name('contracts.edit');
+        Route::put('/contracts/{contract}', [AdminContractController::class, 'update'])->name('contracts.update');
+        Route::delete('/contracts/{contract}', [AdminContractController::class, 'destroy'])->name('contracts.destroy');
+        Route::post('/contracts/{contract}/send', [AdminContractController::class, 'send'])->name('contracts.send');
+        Route::post('/contracts/{contract}/void', [AdminContractController::class, 'void'])->name('contracts.void');
+        Route::get('/contracts/{contract}/pdf', [AdminContractController::class, 'downloadPdf'])->name('contracts.pdf');
 
         Route::post('/push/subscribe', [AdminPushSubscriptionController::class, 'store'])->name('push.subscribe');
         Route::post('/push/unsubscribe', [AdminPushSubscriptionController::class, 'destroy'])->name('push.unsubscribe');
@@ -179,6 +202,8 @@ Route::put('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'u
 Route::middleware('signed')->group(function () {
     Route::get('/invoices/{invoice}', [InvoicePublicController::class, 'show'])->name('invoices.public.show');
     Route::get('/invoices/{invoice}/pdf', [InvoicePublicController::class, 'downloadPdf'])->name('invoices.public.pdf');
+    Route::get('/contracts/{contract}', [ContractPublicController::class, 'show'])->name('contracts.public.show');
+    Route::get('/contracts/{contract}/pdf', [ContractPublicController::class, 'downloadPdf'])->name('contracts.public.pdf');
 });
 
 Route::prefix('portal')->name('portal.')->group(function () {
@@ -200,6 +225,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/invoices/{invoice}/pay/square', [PortalSquarePaymentController::class, 'store'])->name('invoices.pay.square');
         Route::post('/invoices/{invoice}/pay/paypal/orders', [PortalPayPalPaymentController::class, 'createOrder'])->name('invoices.pay.paypal.create');
         Route::post('/invoices/{invoice}/pay/paypal/capture', [PortalPayPalPaymentController::class, 'capture'])->name('invoices.pay.paypal.capture');
+
+        Route::get('/contracts', [PortalContractController::class, 'index'])->name('contracts.index');
+        Route::get('/contracts/{contract}', [PortalContractController::class, 'show'])->name('contracts.show');
+        Route::get('/contracts/{contract}/pdf', [PortalContractController::class, 'downloadPdf'])->name('contracts.pdf');
+        Route::post('/contracts/{contract}/sign', [PortalContractController::class, 'sign'])->name('contracts.sign');
     });
 });
 
