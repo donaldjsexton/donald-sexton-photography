@@ -82,6 +82,11 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
         return $this->morphMany(Invoice::class, 'billable');
     }
 
+    public function contracts(): MorphMany
+    {
+        return $this->morphMany(Contract::class, 'billable');
+    }
+
     public function fullName(): string
     {
         return trim($this->first_name.' '.$this->last_name);

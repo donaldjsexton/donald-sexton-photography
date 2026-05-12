@@ -25,6 +25,7 @@
                     ['label' => 'Booked Jobs', 'href' => route('admin.booked-jobs.index'), 'patterns' => ['admin.booked-jobs.*']],
                     ['label' => 'Clients', 'href' => route('admin.clients.index'), 'patterns' => ['admin.clients.*']],
                     ['label' => 'Invoices', 'href' => route('admin.invoices.index'), 'patterns' => ['admin.invoices.*']],
+                    ['label' => 'Contracts', 'href' => route('admin.contracts.index'), 'patterns' => ['admin.contracts.*', 'admin.contract-templates.*']],
                 ],
             ],
             [
