@@ -9,6 +9,7 @@ use App\Models\Venue;
 use App\Models\WeddingQuestionnaire;
 use App\Services\BookedJobSync;
 use App\Services\CalendarSyncOutcome;
+use App\Services\ClientFromInquirySync;
 use App\Services\GoogleCalendar;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class InquiryController extends Controller
     public function __construct(
         private readonly GoogleCalendar $calendar,
         private readonly BookedJobSync $bookedJobSync,
+        private readonly ClientFromInquirySync $clientSync,
     ) {}
 
     public function index(Request $request): View
@@ -168,7 +170,9 @@ class InquiryController extends Controller
 
         if ($inquiry->status === 'booked') {
             $outcome = $this->calendar->upsertBookingEvent($inquiry);
-            $this->bookedJobSync->syncFromInquiry($inquiry->refresh());
+            $inquiry = $inquiry->refresh();
+            $this->bookedJobSync->syncFromInquiry($inquiry);
+            $this->clientSync->syncFromInquiry($inquiry);
 
             return $redirect->with('status', $this->bookedFlashMessage($outcome));
         }
