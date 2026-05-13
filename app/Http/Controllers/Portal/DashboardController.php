@@ -32,16 +32,21 @@ class DashboardController extends Controller
             ->orderBy('due_date')
             ->first();
 
-        $upcomingBooking = $billable instanceof Client
+        $booking = $billable instanceof Client
             ? $billable->inquiry?->bookedJob
             : null;
+
+        $eventDate = $booking?->event_date;
+        $showBooking = $booking !== null
+            && ! $booking->isCancelled()
+            && ($eventDate === null || $eventDate->gte(today()));
 
         return view('portal.dashboard', [
             'billable' => $billable,
             'invoices' => $invoices,
             'outstandingCents' => $outstandingCents,
             'nextInstallment' => $nextInstallment,
-            'upcomingBooking' => $upcomingBooking?->event_date?->isFuture() ? $upcomingBooking : null,
+            'upcomingBooking' => $showBooking ? $booking : null,
         ]);
     }
 }

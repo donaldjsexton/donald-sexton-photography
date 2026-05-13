@@ -38,6 +38,7 @@ use App\Http\Controllers\Portal\DashboardController as PortalDashboardController
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordResetController as PortalPasswordResetController;
 use App\Http\Controllers\Portal\PayPalPaymentController as PortalPayPalPaymentController;
+use App\Http\Controllers\Portal\PortalInviteController;
 use App\Http\Controllers\Portal\SquarePaymentController as PortalSquarePaymentController;
 use App\Http\Controllers\QuestionnaireController;
 use App\Http\Controllers\SitemapController;
@@ -88,6 +89,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/clients/{client}/edit', [AdminClientController::class, 'edit'])->name('clients.edit');
         Route::put('/clients/{client}', [AdminClientController::class, 'update'])->name('clients.update');
         Route::delete('/clients/{client}', [AdminClientController::class, 'destroy'])->name('clients.destroy');
+        Route::post('/clients/{client}/portal-invite', [AdminClientController::class, 'sendPortalInvite'])->name('clients.portal-invite');
         Route::post('/inquiries/{inquiry}/convert-to-client', [AdminClientController::class, 'convertFromInquiry'])->name('clients.convert-from-inquiry');
 
         Route::get('/invoices', [AdminInvoiceController::class, 'index'])->name('invoices.index');
@@ -207,6 +209,11 @@ Route::middleware('signed')->group(function () {
 });
 
 Route::prefix('portal')->name('portal.')->group(function () {
+    Route::middleware('signed')->group(function () {
+        Route::get('/invite/{client:uuid}/setup', [PortalInviteController::class, 'show'])->name('invite.show');
+        Route::post('/invite/{client:uuid}/setup', [PortalInviteController::class, 'store'])->name('invite.store');
+    });
+
     Route::middleware('guest:client,venue')->group(function () {
         Route::get('/login', [PortalAuthController::class, 'create'])->name('login');
         Route::post('/login', [PortalAuthController::class, 'store'])->name('login.store');

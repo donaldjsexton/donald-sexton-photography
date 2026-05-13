@@ -9,6 +9,10 @@
     <a class="cta-secondary" href="{{ route('admin.clients.edit', $client) }}">Edit</a>
 @endsection
 @section('content')
+    @if (session('error'))
+        <div class="admin-flash admin-flash--error" style="margin-bottom:1.5rem;">{{ session('error') }}</div>
+    @endif
+
     <section class="admin-card">
         <h3>Contact</h3>
         <dl class="admin-detail-list">
@@ -44,6 +48,26 @@
                 </dd>
             @endif
         </dl>
+    </section>
+
+    <section class="admin-card">
+        <h3>Portal Access</h3>
+        @if ($client->password !== null)
+            <p class="meta" style="margin:0;">
+                Client has set up their portal
+                @if ($client->last_login_at)
+                    · last signed in {{ $client->last_login_at->diffForHumans() }}
+                @else
+                    · has not signed in yet
+                @endif.
+            </p>
+        @else
+            <p class="meta" style="margin:0 0 12px;">No portal password set yet. Send an invitation email with a magic link to let {{ $client->portalGreeting() }} pick a password.</p>
+            <form method="POST" action="{{ route('admin.clients.portal-invite', $client) }}" class="admin-form">
+                @csrf
+                <button class="cta" type="submit" style="border:0; cursor:pointer;">Send Portal Invite</button>
+            </form>
+        @endif
     </section>
 
     @if ($client->notes)

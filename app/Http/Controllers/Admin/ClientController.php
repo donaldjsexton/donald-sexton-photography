@@ -5,14 +5,22 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreClientRequest;
 use App\Http\Requests\Admin\UpdateClientRequest;
+use App\Mail\PortalInvite;
 use App\Models\Client;
 use App\Models\Inquiry;
+use App\Services\ClientFromInquirySync;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
 
 class ClientController extends Controller
 {
+    public function __construct(
+        private readonly ClientFromInquirySync $clientSync,
+    ) {}
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('search', ''));
@@ -91,38 +99,40 @@ class ClientController extends Controller
                 ->with('status', 'Client already exists for this inquiry.');
         }
 
-        [$firstName, $lastName] = $this->splitName($inquiry->primary_name);
-        [$partnerFirst, $partnerLast] = $this->splitName($inquiry->partner_name);
-
-        $client = Client::create([
-            'inquiry_id' => $inquiry->id,
-            'first_name' => $firstName ?: 'Client',
-            'last_name' => $lastName,
-            'partner_first_name' => $partnerFirst,
-            'partner_last_name' => $partnerLast,
-            'email' => $inquiry->email,
-            'phone' => $inquiry->phone,
-            'city' => $inquiry->location_city,
-            'country' => 'US',
-        ]);
+        $client = $this->clientSync->syncFromInquiry($inquiry);
 
         return redirect()
             ->route('admin.clients.show', $client)
             ->with('status', 'Client created from inquiry.');
     }
 
-    /**
-     * @return array{0: string|null, 1: string|null}
-     */
-    private function splitName(?string $fullName): array
+    public function sendPortalInvite(Client $client): RedirectResponse
     {
-        $name = trim((string) $fullName);
-        if ($name === '') {
-            return [null, null];
+        if ($client->password !== null) {
+            return redirect()
+                ->route('admin.clients.show', $client)
+                ->with('error', 'This client already has portal access. Use the password reset flow instead.');
         }
 
-        $parts = preg_split('/\s+/', $name, 2) ?: [$name];
+        $setupUrl = URL::temporarySignedRoute(
+            'portal.invite.show',
+            now()->addDays(7),
+            ['client' => $client->uuid],
+        );
 
-        return [$parts[0] ?? null, $parts[1] ?? null];
+        try {
+            Mail::to($client->email, $client->displayName())
+                ->send(new PortalInvite($client, $setupUrl));
+        } catch (\Throwable $exception) {
+            report($exception);
+
+            return redirect()
+                ->route('admin.clients.show', $client)
+                ->with('error', 'Portal invite email failed to send. Check the logs and retry.');
+        }
+
+        return redirect()
+            ->route('admin.clients.show', $client)
+            ->with('status', 'Portal invite sent to '.$client->email.'.');
     }
 }

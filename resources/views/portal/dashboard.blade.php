@@ -33,7 +33,10 @@
 
     @if ($upcomingBooking)
         <section class="card">
-            <h3>Upcoming booking</h3>
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+                <h3 style="margin:0;">Your booking</h3>
+                <span class="pill">{{ $upcomingBooking->portalStage() }}</span>
+            </div>
             <p style="margin:0;">
                 <strong>{{ $upcomingBooking->summary }}</strong><br>
                 <span class="meta">{{ $upcomingBooking->event_date->format('l, F j, Y') }} @if ($upcomingBooking->event_time) at {{ $upcomingBooking->event_time }} @endif</span>

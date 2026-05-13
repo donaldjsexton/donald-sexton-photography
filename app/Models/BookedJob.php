@@ -78,4 +78,35 @@ class BookedJob extends Model
     {
         return $this->status === 'cancelled';
     }
+
+    public function portalStage(): string
+    {
+        if ($this->status === 'cancelled') {
+            return 'Cancelled';
+        }
+
+        if ($this->status === 'completed') {
+            return 'Completed';
+        }
+
+        $eventDate = $this->event_date;
+        if ($eventDate === null) {
+            return 'Confirmed';
+        }
+
+        $today = today();
+        if ($eventDate->lt($today)) {
+            return 'Completed';
+        }
+
+        if ($eventDate->isSameDay($today)) {
+            return 'Today';
+        }
+
+        if ($today->diffInDays($eventDate, false) <= 30) {
+            return 'Upcoming';
+        }
+
+        return 'Confirmed';
+    }
 }
