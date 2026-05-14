@@ -1,8 +1,8 @@
 @extends('layouts.admin')
 
-@section('title', 'Booked Jobs')
-@section('eyebrow', 'Calendar')
-@section('heading', 'Booked Jobs')
+@section('title', 'Calendar')
+@section('eyebrow', 'Studio')
+@section('heading', 'Calendar')
 @section('subheading', 'Wedding calendar synced from Google. Refreshes when you load this page.')
 @section('content')
     @php
