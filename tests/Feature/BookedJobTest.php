@@ -21,7 +21,7 @@ class BookedJobTest extends TestCase
         $response = $this->actingAs($user)->get(route('admin.booked-jobs.index'));
 
         $response->assertOk();
-        $response->assertSee('Booked Jobs');
+        $response->assertSee('Calendar');
     }
 
     public function test_calendar_page_redirects_guests(): void

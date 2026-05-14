@@ -1,7 +1,7 @@
 @extends('layouts.admin')
 
 @section('title', $job->couple_names ?: $job->summary)
-@section('eyebrow', 'Booked Job')
+@section('eyebrow', 'Calendar Event')
 @section('heading', $job->couple_names ?: $job->summary)
 @section('subheading', $job->event_date->format('l, F j, Y').($job->event_time ? ' · '.$job->event_time : ''))
 @section('header_actions')
