@@ -25,8 +25,9 @@
 @section('heading', $client->displayName())
 @section('subheading', $client->email)
 @section('header_actions')
-    <a class="cta" href="{{ route('admin.contracts.create', ['client_id' => $client->id]) }}">New Contract</a>
-    <a class="cta" href="{{ route('admin.invoices.create', ['client_id' => $client->id]) }}">New Invoice</a>
+    <a class="cta" href="{{ route('admin.proposals.create', ['client_id' => $client->id]) }}">New Proposal</a>
+    <a class="cta-secondary" href="{{ route('admin.contracts.create', ['client_id' => $client->id]) }}">New Contract</a>
+    <a class="cta-secondary" href="{{ route('admin.invoices.create', ['client_id' => $client->id]) }}">New Invoice</a>
     <a class="cta-secondary" href="{{ route('admin.clients.edit', $client) }}">Edit</a>
 @endsection
 @section('content')
@@ -141,6 +142,7 @@
                         </div>
                         <div>
                             @if ($bookedJob)
+                                <a class="cta-secondary" href="{{ route('admin.proposals.create', ['client_id' => $client->id, 'booked_job_id' => $bookedJob->id]) }}">+ Proposal</a>
                                 <a class="cta-secondary" href="{{ route('admin.contracts.create', ['client_id' => $client->id, 'booked_job_id' => $bookedJob->id]) }}">+ Contract</a>
                                 <a class="cta-secondary" href="{{ route('admin.invoices.create', ['client_id' => $client->id, 'booked_job_id' => $bookedJob->id]) }}">+ Invoice</a>
                             @endif

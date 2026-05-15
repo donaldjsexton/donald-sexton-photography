@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\BookedJobController as AdminBookedJobController;
+use App\Http\Controllers\Admin\BookingProposalController as AdminBookingProposalController;
 use App\Http\Controllers\Admin\ClientController as AdminClientController;
 use App\Http\Controllers\Admin\ConsoleCommandController as AdminConsoleCommandController;
 use App\Http\Controllers\Admin\ContractController as AdminContractController;
@@ -111,6 +112,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/contract-templates/{contractTemplate}/edit', [AdminContractTemplateController::class, 'edit'])->name('contract-templates.edit');
         Route::put('/contract-templates/{contractTemplate}', [AdminContractTemplateController::class, 'update'])->name('contract-templates.update');
         Route::delete('/contract-templates/{contractTemplate}', [AdminContractTemplateController::class, 'destroy'])->name('contract-templates.destroy');
+
+        Route::get('/proposals/create', [AdminBookingProposalController::class, 'create'])->name('proposals.create');
+        Route::post('/proposals', [AdminBookingProposalController::class, 'store'])->name('proposals.store');
 
         Route::get('/contracts', [AdminContractController::class, 'index'])->name('contracts.index');
         Route::get('/contracts/create', [AdminContractController::class, 'create'])->name('contracts.create');
