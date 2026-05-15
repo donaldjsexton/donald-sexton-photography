@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\BookedJob;
 use App\Models\Client;
+use App\Models\Contract;
 use App\Models\Inquiry;
+use App\Models\Invoice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -85,7 +88,7 @@ class ClientAdminCrudTest extends TestCase
         $response->assertSessionHasErrors(['first_name', 'email']);
     }
 
-    public function test_show_displays_client_with_invoices_section(): void
+    public function test_show_displays_client_profile_sections(): void
     {
         $admin = User::factory()->create();
         $client = Client::factory()->create(['first_name' => 'Sarah', 'last_name' => 'Lee']);
@@ -94,7 +97,51 @@ class ClientAdminCrudTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Sarah Lee');
-        $response->assertSee('Invoices');
+        $response->assertSee('Lifetime billing');
+        $response->assertSee('Events');
+    }
+
+    public function test_show_lists_multiple_events_and_their_billing(): void
+    {
+        $admin = User::factory()->create();
+        $client = Client::factory()->create(['first_name' => 'Sarah', 'last_name' => 'Lee']);
+
+        $firstInquiry = Inquiry::factory()->booked()->create([
+            'client_id' => $client->id,
+            'event_date' => '2026-09-11',
+        ]);
+        $firstJob = BookedJob::factory()->create([
+            'inquiry_id' => $firstInquiry->id,
+            'event_date' => '2026-09-11',
+            'summary' => 'Sarah & James — Wedding',
+        ]);
+        Contract::factory()->create([
+            'billable_type' => Client::class,
+            'billable_id' => $client->id,
+            'booked_job_id' => $firstJob->id,
+        ]);
+        Invoice::factory()->create([
+            'billable_type' => Client::class,
+            'billable_id' => $client->id,
+            'booked_job_id' => $firstJob->id,
+            'total_cents' => 500000,
+            'amount_paid_cents' => 500000,
+            'status' => Invoice::STATUS_PAID,
+        ]);
+
+        $secondInquiry = Inquiry::factory()->create([
+            'client_id' => $client->id,
+            'event_date' => '2027-06-15',
+            'event_type' => 'family',
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('admin.clients.show', $client));
+
+        $response->assertOk();
+        $response->assertSee('Inquiry #'.$firstInquiry->id);
+        $response->assertSee('Inquiry #'.$secondInquiry->id);
+        $response->assertSee('Wedding');
+        $response->assertSee('$5,000.00');
     }
 
     public function test_update_persists_changes(): void
@@ -139,7 +186,7 @@ class ClientAdminCrudTest extends TestCase
         $response = $this->actingAs($admin)
             ->post(route('admin.clients.convert-from-inquiry', $inquiry));
 
-        $client = Client::where('inquiry_id', $inquiry->id)->first();
+        $client = $inquiry->fresh()->client;
         $this->assertNotNull($client);
         $response->assertRedirect(route('admin.clients.show', $client));
         $this->assertSame('Sarah', $client->first_name);
@@ -153,14 +200,14 @@ class ClientAdminCrudTest extends TestCase
     public function test_convert_from_inquiry_redirects_when_client_already_exists(): void
     {
         $admin = User::factory()->create();
-        $inquiry = Inquiry::factory()->create();
-        $existing = Client::factory()->create(['inquiry_id' => $inquiry->id]);
+        $existing = Client::factory()->create();
+        $inquiry = Inquiry::factory()->create(['client_id' => $existing->id]);
 
         $response = $this->actingAs($admin)
             ->post(route('admin.clients.convert-from-inquiry', $inquiry));
 
         $response->assertRedirect(route('admin.clients.show', $existing));
-        $this->assertSame(1, Client::where('inquiry_id', $inquiry->id)->count());
+        $this->assertSame(1, Client::count());
     }
 
     public function test_convert_handles_single_word_primary_name(): void
@@ -176,7 +223,8 @@ class ClientAdminCrudTest extends TestCase
             ->post(route('admin.clients.convert-from-inquiry', $inquiry))
             ->assertRedirect();
 
-        $client = Client::where('inquiry_id', $inquiry->id)->first();
+        $client = $inquiry->fresh()->client;
+        $this->assertNotNull($client);
         $this->assertSame('Madonna', $client->first_name);
         $this->assertNull($client->last_name);
         $this->assertNull($client->partner_first_name);
@@ -196,12 +244,8 @@ class ClientAdminCrudTest extends TestCase
     public function test_inquiry_edit_shows_view_link_when_client_exists(): void
     {
         $admin = User::factory()->create();
-        $inquiry = Inquiry::factory()->create();
-        Client::factory()->create([
-            'inquiry_id' => $inquiry->id,
-            'first_name' => 'Sarah',
-            'last_name' => 'Lee',
-        ]);
+        $client = Client::factory()->create(['first_name' => 'Sarah', 'last_name' => 'Lee']);
+        $inquiry = Inquiry::factory()->create(['client_id' => $client->id]);
 
         $response = $this->actingAs($admin)->get(route('admin.inquiries.edit', $inquiry));
 

@@ -81,8 +81,8 @@ class InvoiceController extends Controller
             'billableType' => $billableType,
             'clients' => Client::orderBy('last_name')->orderBy('first_name')->get(),
             'venues' => Venue::query()->whereNotNull('billing_email')->orderBy('name')->get(),
-            'bookedJobs' => $client?->inquiry
-                ? BookedJob::where('inquiry_id', $client->inquiry_id)->get()
+            'bookedJobs' => $client
+                ? BookedJob::whereIn('inquiry_id', $client->inquiries()->pluck('id'))->get()
                 : collect(),
             'lineItems' => collect([(new InvoiceLineItem([
                 'quantity' => 1,
@@ -153,8 +153,8 @@ class InvoiceController extends Controller
             'billableType' => $billableType,
             'clients' => Client::orderBy('last_name')->orderBy('first_name')->get(),
             'venues' => Venue::query()->whereNotNull('billing_email')->orderBy('name')->get(),
-            'bookedJobs' => $billable instanceof Client && $billable->inquiry
-                ? BookedJob::where('inquiry_id', $billable->inquiry_id)->get()
+            'bookedJobs' => $billable instanceof Client
+                ? BookedJob::whereIn('inquiry_id', $billable->inquiries()->pluck('id'))->get()
                 : collect(),
             'lineItems' => $invoice->lineItems,
             'installments' => $invoice->installments,

@@ -15,6 +15,7 @@ class Inquiry extends Model
     use HasFactory;
 
     protected $fillable = [
+        'client_id',
         'primary_name',
         'partner_name',
         'email',
@@ -106,9 +107,9 @@ class Inquiry extends Model
         return $this->hasOne(BookedJob::class);
     }
 
-    public function client(): HasOne
+    public function client(): BelongsTo
     {
-        return $this->hasOne(Client::class);
+        return $this->belongsTo(Client::class);
     }
 
     public function ensureQuestionnaire(): WeddingQuestionnaire

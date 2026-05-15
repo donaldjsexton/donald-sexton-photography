@@ -45,13 +45,21 @@ class ClientModelTest extends TestCase
         $this->assertSame('Sarah Lee', $client->displayName());
     }
 
-    public function test_belongs_to_inquiry(): void
+    public function test_has_many_inquiries(): void
     {
-        $inquiry = Inquiry::factory()->create();
-        $client = Client::factory()->create(['inquiry_id' => $inquiry->id]);
+        $client = Client::factory()->create();
+        $inquiry = Inquiry::factory()->create(['client_id' => $client->id]);
 
-        $this->assertTrue($client->inquiry->is($inquiry));
         $this->assertTrue($inquiry->fresh()->client->is($client));
+        $this->assertTrue($client->fresh()->inquiries->contains($inquiry));
+    }
+
+    public function test_client_collects_multiple_inquiries_across_events(): void
+    {
+        $client = Client::factory()->create();
+        Inquiry::factory()->count(2)->create(['client_id' => $client->id]);
+
+        $this->assertCount(2, $client->fresh()->inquiries);
     }
 
     public function test_has_many_invoices(): void

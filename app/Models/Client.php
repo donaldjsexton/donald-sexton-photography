@@ -10,7 +10,8 @@ use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
@@ -72,9 +73,9 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
         });
     }
 
-    public function inquiry(): BelongsTo
+    public function inquiries(): HasMany
     {
-        return $this->belongsTo(Inquiry::class);
+        return $this->hasMany(Inquiry::class);
     }
 
     public function invoices(): MorphMany
@@ -85,6 +86,21 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
     public function contracts(): MorphMany
     {
         return $this->morphMany(Contract::class, 'billable');
+    }
+
+    public function bookedJobs(): HasManyThrough
+    {
+        return $this->hasManyThrough(BookedJob::class, Inquiry::class);
+    }
+
+    /**
+     * Backwards-compatible accessor — returns the most recent inquiry so older
+     * code paths and views that referenced `$client->inquiry` keep working
+     * during the Phase A → B transition.
+     */
+    public function getInquiryAttribute(): ?Inquiry
+    {
+        return $this->inquiries()->latest('created_at')->first();
     }
 
     public function fullName(): string

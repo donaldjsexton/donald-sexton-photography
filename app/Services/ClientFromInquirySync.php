@@ -8,22 +8,45 @@ use App\Models\Inquiry;
 class ClientFromInquirySync
 {
     /**
-     * Promote an Inquiry to a portal Client. Returns the existing Client
-     * if one is already linked, so this is safe to call repeatedly. The
-     * Client starts without a password — the admin must trigger a portal
-     * invite separately.
+     * Promote an Inquiry to a portal Client. Reuses an existing Client when one
+     * is already linked, or when another inquiry from the same email has
+     * already created one — so repeat inquiries from the same person attach to
+     * their existing record instead of producing duplicates. Safe to call
+     * repeatedly. The Client starts without a password — the admin must trigger
+     * a portal invite separately.
      */
     public function syncFromInquiry(Inquiry $inquiry): Client
     {
-        if ($existing = $inquiry->client()->first()) {
+        if ($inquiry->client_id !== null && ($existing = $inquiry->client()->first())) {
             return $existing;
         }
 
+        $client = $this->findExistingClient($inquiry) ?? $this->createClientFromInquiry($inquiry);
+
+        if ($inquiry->client_id !== $client->id) {
+            $inquiry->client_id = $client->id;
+            $inquiry->save();
+        }
+
+        return $client;
+    }
+
+    private function findExistingClient(Inquiry $inquiry): ?Client
+    {
+        $email = trim((string) $inquiry->email);
+        if ($email === '') {
+            return null;
+        }
+
+        return Client::query()->where('email', $email)->first();
+    }
+
+    private function createClientFromInquiry(Inquiry $inquiry): Client
+    {
         [$firstName, $lastName] = $this->splitName($inquiry->primary_name);
         [$partnerFirst, $partnerLast] = $this->splitName($inquiry->partner_name);
 
         return Client::create([
-            'inquiry_id' => $inquiry->id,
             'first_name' => $firstName ?: 'Client',
             'last_name' => $lastName,
             'partner_first_name' => $partnerFirst,

@@ -306,8 +306,11 @@ class ContractController extends Controller
 
     private function bookedJobsFor(?object $billable): Collection
     {
-        if ($billable instanceof Client && $billable->inquiry_id) {
-            return BookedJob::where('inquiry_id', $billable->inquiry_id)->get();
+        if ($billable instanceof Client) {
+            $inquiryIds = $billable->inquiries()->pluck('id');
+            if ($inquiryIds->isNotEmpty()) {
+                return BookedJob::whereIn('inquiry_id', $inquiryIds)->get();
+            }
         }
 
         return collect();

@@ -33,19 +33,39 @@ class ClientFromInquirySyncTest extends TestCase
         $this->assertSame('Lee', $client->partner_last_name);
         $this->assertSame('sarah@example.com', $client->email);
         $this->assertSame('Tampa', $client->city);
-        $this->assertSame($inquiry->id, $client->inquiry_id);
+        $this->assertSame($client->id, $inquiry->fresh()->client_id);
         $this->assertNull($client->password);
     }
 
     public function test_service_returns_existing_client_when_already_linked(): void
     {
-        $inquiry = Inquiry::factory()->create();
-        $existing = Client::factory()->create(['inquiry_id' => $inquiry->id]);
+        $existing = Client::factory()->create();
+        $inquiry = Inquiry::factory()->create(['client_id' => $existing->id]);
 
         $result = (new ClientFromInquirySync)->syncFromInquiry($inquiry);
 
         $this->assertSame($existing->id, $result->id);
-        $this->assertSame(1, Client::where('inquiry_id', $inquiry->id)->count());
+        $this->assertSame(1, Client::count());
+    }
+
+    public function test_service_attaches_repeat_inquiry_to_existing_client_by_email(): void
+    {
+        $existing = Client::factory()->create(['email' => 'sarah@example.com']);
+        $firstInquiry = Inquiry::factory()->create([
+            'email' => 'sarah@example.com',
+            'client_id' => $existing->id,
+        ]);
+        $secondInquiry = Inquiry::factory()->create([
+            'email' => 'sarah@example.com',
+            'client_id' => null,
+        ]);
+
+        $result = (new ClientFromInquirySync)->syncFromInquiry($secondInquiry);
+
+        $this->assertSame($existing->id, $result->id);
+        $this->assertSame($existing->id, $secondInquiry->fresh()->client_id);
+        $this->assertSame(1, Client::count());
+        $this->assertCount(2, $existing->fresh()->inquiries);
     }
 
     public function test_marking_inquiry_booked_creates_linked_client(): void
@@ -69,7 +89,7 @@ class ClientFromInquirySyncTest extends TestCase
             ->put(route('admin.inquiries.update', $inquiry), ['status' => 'booked'])
             ->assertRedirect(route('admin.inquiries.edit', $inquiry));
 
-        $client = Client::where('inquiry_id', $inquiry->id)->first();
+        $client = $inquiry->fresh()->client;
         $this->assertNotNull($client);
         $this->assertSame('Sarah', $client->first_name);
         $this->assertSame('James', $client->partner_first_name);
@@ -85,16 +105,18 @@ class ClientFromInquirySyncTest extends TestCase
         $this->app->instance(GoogleClient::class, $googleClient);
 
         $admin = User::factory()->create();
+        $existing = Client::factory()->create();
         $inquiry = Inquiry::factory()->create([
             'status' => 'active',
             'event_date' => '2027-09-11',
+            'client_id' => $existing->id,
         ]);
-        Client::factory()->create(['inquiry_id' => $inquiry->id]);
 
         $this->actingAs($admin)
             ->put(route('admin.inquiries.update', $inquiry), ['status' => 'booked']);
 
-        $this->assertSame(1, Client::where('inquiry_id', $inquiry->id)->count());
+        $this->assertSame(1, Client::count());
+        $this->assertSame($existing->id, $inquiry->fresh()->client_id);
     }
 
     public function test_inquiry_status_other_than_booked_does_not_create_client(): void
@@ -105,6 +127,7 @@ class ClientFromInquirySyncTest extends TestCase
         $this->actingAs($admin)
             ->put(route('admin.inquiries.update', $inquiry), ['status' => 'follow_up']);
 
-        $this->assertSame(0, Client::where('inquiry_id', $inquiry->id)->count());
+        $this->assertSame(0, Client::count());
+        $this->assertNull($inquiry->fresh()->client_id);
     }
 }

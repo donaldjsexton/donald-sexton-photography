@@ -96,11 +96,10 @@ class PortalDashboardBookingBadgeTest extends TestCase
      */
     private function makeClientWithBooking(Carbon $eventDate, string $status): array
     {
+        $client = Client::factory()->withPortalAccess()->create();
         $inquiry = Inquiry::factory()->booked()->create([
+            'client_id' => $client->id,
             'event_date' => $eventDate->copy(),
-        ]);
-        $client = Client::factory()->withPortalAccess()->create([
-            'inquiry_id' => $inquiry->id,
         ]);
         $job = BookedJob::factory()->create([
             'inquiry_id' => $inquiry->id,
