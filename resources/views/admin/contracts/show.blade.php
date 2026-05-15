@@ -107,15 +107,24 @@
     <section class="admin-card">
         <h3>Actions</h3>
         <div class="form-actions" style="flex-wrap:wrap; gap:0.75rem;">
+            @if ($contract->isProposal() && in_array($contract->status, [\App\Models\Contract::STATUS_DRAFT, \App\Models\Contract::STATUS_SENT], true))
+                <form method="POST" action="{{ route('admin.contracts.send-proposal', $contract) }}" onsubmit="return confirm('Email this booking proposal (contract + invoice {{ $contract->invoice?->number }}) to {{ $contract->billableEmail() }}?');">
+                    @csrf
+                    <button class="cta" type="submit">
+                        {{ $contract->status === \App\Models\Contract::STATUS_SENT ? 'Re-send Proposal' : 'Send as Proposal' }}
+                    </button>
+                </form>
+            @endif
+
             @if ($contract->status === \App\Models\Contract::STATUS_DRAFT)
                 <form method="POST" action="{{ route('admin.contracts.send', $contract) }}" onsubmit="return confirm('Email this contract to {{ $contract->billableEmail() }}?');">
                     @csrf
-                    <button class="cta" type="submit">Send for Signature</button>
+                    <button class="{{ $contract->isProposal() ? 'cta-secondary' : 'cta' }}" type="submit">Send Contract Only</button>
                 </form>
             @elseif ($contract->status === \App\Models\Contract::STATUS_SENT)
                 <form method="POST" action="{{ route('admin.contracts.send', $contract) }}" onsubmit="return confirm('Re-send this contract to {{ $contract->billableEmail() }}?');">
                     @csrf
-                    <button class="cta-secondary" type="submit">Re-send</button>
+                    <button class="cta-secondary" type="submit">Re-send Contract Only</button>
                 </form>
             @endif
 

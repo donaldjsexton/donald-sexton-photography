@@ -39,6 +39,7 @@ use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordResetController as PortalPasswordResetController;
 use App\Http\Controllers\Portal\PayPalPaymentController as PortalPayPalPaymentController;
 use App\Http\Controllers\Portal\PortalInviteController;
+use App\Http\Controllers\Portal\ProposalController as PortalProposalController;
 use App\Http\Controllers\Portal\SquarePaymentController as PortalSquarePaymentController;
 use App\Http\Controllers\QuestionnaireController;
 use App\Http\Controllers\SitemapController;
@@ -120,6 +121,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/contracts/{contract}', [AdminContractController::class, 'update'])->name('contracts.update');
         Route::delete('/contracts/{contract}', [AdminContractController::class, 'destroy'])->name('contracts.destroy');
         Route::post('/contracts/{contract}/send', [AdminContractController::class, 'send'])->name('contracts.send');
+        Route::post('/contracts/{contract}/send-proposal', [AdminContractController::class, 'sendProposal'])->name('contracts.send-proposal');
         Route::post('/contracts/{contract}/void', [AdminContractController::class, 'void'])->name('contracts.void');
         Route::get('/contracts/{contract}/pdf', [AdminContractController::class, 'downloadPdf'])->name('contracts.pdf');
 
@@ -232,6 +234,8 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::post('/invoices/{invoice}/pay/square', [PortalSquarePaymentController::class, 'store'])->name('invoices.pay.square');
         Route::post('/invoices/{invoice}/pay/paypal/orders', [PortalPayPalPaymentController::class, 'createOrder'])->name('invoices.pay.paypal.create');
         Route::post('/invoices/{invoice}/pay/paypal/capture', [PortalPayPalPaymentController::class, 'capture'])->name('invoices.pay.paypal.capture');
+
+        Route::get('/proposals/{contract}', [PortalProposalController::class, 'show'])->name('proposals.show');
 
         Route::get('/contracts', [PortalContractController::class, 'index'])->name('contracts.index');
         Route::get('/contracts/{contract}', [PortalContractController::class, 'show'])->name('contracts.show');

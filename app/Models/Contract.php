@@ -166,6 +166,11 @@ class Contract extends Model
         return $this->status === self::STATUS_DRAFT;
     }
 
+    public function isProposal(): bool
+    {
+        return $this->invoice_id !== null;
+    }
+
     public function isSigned(): bool
     {
         return $this->status === self::STATUS_SIGNED;

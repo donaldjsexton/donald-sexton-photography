@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreContractRequest;
 use App\Http\Requests\Admin\UpdateContractRequest;
 use App\Mail\ContractSent;
+use App\Mail\ProposalSent;
 use App\Models\BookedJob;
 use App\Models\Client;
 use App\Models\Contract;
@@ -18,6 +19,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
@@ -245,6 +247,62 @@ class ContractController extends Controller
         return redirect()
             ->route('admin.contracts.show', $contract)
             ->with('status', 'Contract emailed to '.$recipientEmail.'.');
+    }
+
+    public function sendProposal(Contract $contract): RedirectResponse
+    {
+        if (! $contract->isProposal()) {
+            return redirect()
+                ->route('admin.contracts.show', $contract)
+                ->with('status', 'Attach an invoice to this contract before sending it as a proposal.');
+        }
+
+        if (! in_array($contract->status, [Contract::STATUS_DRAFT, Contract::STATUS_SENT], true)) {
+            return redirect()
+                ->route('admin.contracts.show', $contract)
+                ->with('status', 'This proposal cannot be sent in its current state.');
+        }
+
+        $contract->loadMissing(['billable', 'invoice']);
+        $invoice = $contract->invoice;
+
+        if ($invoice === null || in_array($invoice->status, [Invoice::STATUS_VOID, Invoice::STATUS_PAID], true)) {
+            return redirect()
+                ->route('admin.contracts.show', $contract)
+                ->with('status', 'The linked invoice is not in a sendable state.');
+        }
+
+        $recipientEmail = $contract->billableEmail();
+
+        if (! $recipientEmail) {
+            return redirect()
+                ->route('admin.contracts.show', $contract)
+                ->with('status', 'Cannot send: the client has no email on file.');
+        }
+
+        DB::transaction(function () use ($contract, $invoice) {
+            $contract->update([
+                'status' => Contract::STATUS_SENT,
+                'sent_at' => $contract->sent_at ?? now(),
+            ]);
+
+            if ($invoice->status === Invoice::STATUS_DRAFT) {
+                $invoice->update([
+                    'status' => Invoice::STATUS_SENT,
+                    'sent_at' => $invoice->sent_at ?? now(),
+                ]);
+            }
+        });
+
+        Mail::to($recipientEmail)->send(new ProposalSent(
+            contract: $contract,
+            invoice: $invoice,
+            proposalUrl: route('portal.proposals.show', ['contract' => $contract->uuid]),
+        ));
+
+        return redirect()
+            ->route('admin.contracts.show', $contract)
+            ->with('status', 'Proposal emailed to '.$recipientEmail.'.');
     }
 
     public function void(Contract $contract): RedirectResponse
