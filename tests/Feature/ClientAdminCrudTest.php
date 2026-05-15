@@ -97,8 +97,8 @@ class ClientAdminCrudTest extends TestCase
 
         $response->assertOk();
         $response->assertSee('Sarah Lee');
-        $response->assertSee('Lifetime billing');
-        $response->assertSee('Events');
+        $response->assertSee('Client since');
+        $response->assertSee('Activity');
     }
 
     public function test_show_lists_multiple_events_and_their_billing(): void
@@ -138,10 +138,12 @@ class ClientAdminCrudTest extends TestCase
         $response = $this->actingAs($admin)->get(route('admin.clients.show', $client));
 
         $response->assertOk();
-        $response->assertSee('Inquiry #'.$firstInquiry->id);
-        $response->assertSee('Inquiry #'.$secondInquiry->id);
+        // Both inquiries surface as activity-feed entries.
+        $this->assertSame(2, substr_count($response->getContent(), 'New inquiry'));
+        // The booked job appears in the Bookings strip…
         $response->assertSee('Wedding');
-        $response->assertSee('$5,000.00');
+        // …and the paid invoice rolls up into the Billed stat (whole dollars).
+        $response->assertSee('$5,000');
     }
 
     public function test_update_persists_changes(): void
