@@ -30,7 +30,6 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
 
     protected $fillable = [
         'uuid',
-        'inquiry_id',
         'first_name',
         'last_name',
         'partner_first_name',
@@ -94,13 +93,21 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
     }
 
     /**
-     * Backwards-compatible accessor — returns the most recent inquiry so older
-     * code paths and views that referenced `$client->inquiry` keep working
-     * during the Phase A → B transition.
+     * The booking to surface in the client portal: the soonest non-cancelled
+     * job that is undated or still upcoming, across all of the client's
+     * inquiries.
      */
-    public function getInquiryAttribute(): ?Inquiry
+    public function currentBookedJob(): ?BookedJob
     {
-        return $this->inquiries()->latest('created_at')->first();
+        return $this->bookedJobs()
+            ->where('booked_jobs.status', '!=', 'cancelled')
+            ->where(function ($query) {
+                $query->whereNull('booked_jobs.event_date')
+                    ->orWhere('booked_jobs.event_date', '>=', today());
+            })
+            ->orderByRaw('booked_jobs.event_date is null')
+            ->orderBy('booked_jobs.event_date')
+            ->first();
     }
 
     public function fullName(): string

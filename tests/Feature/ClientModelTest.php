@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\BookedJob;
 use App\Models\Client;
 use App\Models\Inquiry;
 use App\Models\Invoice;
@@ -60,6 +61,47 @@ class ClientModelTest extends TestCase
         Inquiry::factory()->count(2)->create(['client_id' => $client->id]);
 
         $this->assertCount(2, $client->fresh()->inquiries);
+    }
+
+    public function test_current_booked_job_picks_soonest_upcoming_across_inquiries(): void
+    {
+        $client = Client::factory()->create();
+
+        $pastInquiry = Inquiry::factory()->create(['client_id' => $client->id]);
+        BookedJob::factory()->create([
+            'inquiry_id' => $pastInquiry->id,
+            'event_date' => now()->subYear()->toDateString(),
+            'status' => 'completed',
+        ]);
+
+        $farInquiry = Inquiry::factory()->create(['client_id' => $client->id]);
+        BookedJob::factory()->create([
+            'inquiry_id' => $farInquiry->id,
+            'event_date' => now()->addMonths(8)->toDateString(),
+            'status' => 'confirmed',
+        ]);
+
+        $soonInquiry = Inquiry::factory()->create(['client_id' => $client->id]);
+        $soon = BookedJob::factory()->create([
+            'inquiry_id' => $soonInquiry->id,
+            'event_date' => now()->addWeeks(3)->toDateString(),
+            'status' => 'confirmed',
+        ]);
+
+        $this->assertTrue($client->currentBookedJob()->is($soon));
+    }
+
+    public function test_current_booked_job_ignores_cancelled_and_past(): void
+    {
+        $client = Client::factory()->create();
+        $inquiry = Inquiry::factory()->create(['client_id' => $client->id]);
+        BookedJob::factory()->create([
+            'inquiry_id' => $inquiry->id,
+            'event_date' => now()->addWeek()->toDateString(),
+            'status' => 'cancelled',
+        ]);
+
+        $this->assertNull($client->currentBookedJob());
     }
 
     public function test_has_many_invoices(): void
