@@ -25,11 +25,6 @@
             @method('PUT')
         @endif
 
-        @if ($inquiry)
-            <input type="hidden" name="inquiry_id" value="{{ $inquiry->id }}">
-            <p class="meta">Linked to inquiry #{{ $inquiry->id }} — {{ $inquiry->primary_name }}</p>
-        @endif
-
         <div class="field-grid">
             <label>
                 First name

@@ -30,7 +30,6 @@ class UpdateClientRequest extends FormRequest
             'state' => ['nullable', 'string', 'max:100'],
             'postal_code' => ['nullable', 'string', 'max:20'],
             'country' => ['nullable', 'string', 'size:2'],
-            'inquiry_id' => ['nullable', 'integer', 'exists:inquiries,id'],
             'notes' => ['nullable', 'string'],
         ];
     }

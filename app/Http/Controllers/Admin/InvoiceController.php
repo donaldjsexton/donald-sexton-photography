@@ -14,6 +14,7 @@ use App\Models\InvoiceInstallment;
 use App\Models\InvoiceLineItem;
 use App\Models\Payment;
 use App\Models\Venue;
+use App\Services\Invoicing\InvoiceComposer;
 use App\Services\Invoicing\InvoicePdfRenderer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -23,6 +24,10 @@ use Illuminate\View\View;
 
 class InvoiceController extends Controller
 {
+    public function __construct(
+        private readonly InvoiceComposer $composer,
+    ) {}
+
     public function index(Request $request): View
     {
         $status = (string) $request->query('status', 'all');
@@ -81,8 +86,8 @@ class InvoiceController extends Controller
             'billableType' => $billableType,
             'clients' => Client::orderBy('last_name')->orderBy('first_name')->get(),
             'venues' => Venue::query()->whereNotNull('billing_email')->orderBy('name')->get(),
-            'bookedJobs' => $client?->inquiry
-                ? BookedJob::where('inquiry_id', $client->inquiry_id)->get()
+            'bookedJobs' => $client
+                ? BookedJob::whereIn('inquiry_id', $client->inquiries()->pluck('id'))->get()
                 : collect(),
             'lineItems' => collect([(new InvoiceLineItem([
                 'quantity' => 1,
@@ -107,15 +112,15 @@ class InvoiceController extends Controller
                 'issue_date' => $data['issue_date'],
                 'due_date' => $data['due_date'] ?? null,
                 'default_tax_rate' => $data['default_tax_rate'] ?? 0,
-                'discount_cents' => $this->dollarsToCents($data['discount'] ?? 0),
+                'discount_cents' => $this->composer->dollarsToCents($data['discount'] ?? 0),
                 'net_terms' => $data['net_terms'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'internal_notes' => $data['internal_notes'] ?? null,
                 'terms' => $data['terms'] ?? null,
             ]);
 
-            $this->syncLineItems($invoice, $data['line_items']);
-            $this->syncInstallments($invoice, $data['installments'] ?? []);
+            $this->composer->syncLineItems($invoice, $data['line_items']);
+            $this->composer->syncInstallments($invoice, $data['installments'] ?? []);
             $invoice->recalculateTotals();
 
             return $invoice;
@@ -153,8 +158,8 @@ class InvoiceController extends Controller
             'billableType' => $billableType,
             'clients' => Client::orderBy('last_name')->orderBy('first_name')->get(),
             'venues' => Venue::query()->whereNotNull('billing_email')->orderBy('name')->get(),
-            'bookedJobs' => $billable instanceof Client && $billable->inquiry
-                ? BookedJob::where('inquiry_id', $billable->inquiry_id)->get()
+            'bookedJobs' => $billable instanceof Client
+                ? BookedJob::whereIn('inquiry_id', $billable->inquiries()->pluck('id'))->get()
                 : collect(),
             'lineItems' => $invoice->lineItems,
             'installments' => $invoice->installments,
@@ -180,7 +185,7 @@ class InvoiceController extends Controller
                 'issue_date' => $data['issue_date'],
                 'due_date' => $data['due_date'] ?? null,
                 'default_tax_rate' => $data['default_tax_rate'] ?? 0,
-                'discount_cents' => $this->dollarsToCents($data['discount'] ?? 0),
+                'discount_cents' => $this->composer->dollarsToCents($data['discount'] ?? 0),
                 'net_terms' => $data['net_terms'] ?? null,
                 'notes' => $data['notes'] ?? null,
                 'internal_notes' => $data['internal_notes'] ?? null,
@@ -189,8 +194,8 @@ class InvoiceController extends Controller
 
             $invoice->lineItems()->delete();
             $invoice->installments()->delete();
-            $this->syncLineItems($invoice, $data['line_items']);
-            $this->syncInstallments($invoice, $data['installments'] ?? []);
+            $this->composer->syncLineItems($invoice, $data['line_items']);
+            $this->composer->syncInstallments($invoice, $data['installments'] ?? []);
             $invoice->recalculateTotals();
         });
 
@@ -279,7 +284,7 @@ class InvoiceController extends Controller
                 'gateway' => $data['gateway'],
                 'mode' => config('payments.mode', 'sandbox'),
                 'status' => Payment::STATUS_COMPLETED,
-                'amount_cents' => $this->dollarsToCents($data['amount']),
+                'amount_cents' => $this->composer->dollarsToCents($data['amount']),
                 'currency' => $invoice->currency,
                 'gateway_payment_id' => $data['gateway_payment_id'] ?? null,
                 'received_at' => $data['received_at'] ?? now(),
@@ -295,50 +300,5 @@ class InvoiceController extends Controller
         return redirect()
             ->route('admin.invoices.show', $invoice)
             ->with('status', 'Payment recorded.');
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $items
-     */
-    private function syncLineItems(Invoice $invoice, array $items): void
-    {
-        foreach (array_values($items) as $index => $row) {
-            $invoice->lineItems()->create([
-                'sort_order' => $index,
-                'description' => $row['description'],
-                'quantity' => $row['quantity'],
-                'unit_price_cents' => $this->dollarsToCents($row['unit_price']),
-                'tax_rate' => $row['tax_rate'] ?? 0,
-            ]);
-        }
-    }
-
-    /**
-     * @param  array<int, array<string, mixed>>  $items
-     */
-    private function syncInstallments(Invoice $invoice, array $items): void
-    {
-        foreach (array_values($items) as $index => $row) {
-            $amount = isset($row['amount']) ? $this->dollarsToCents($row['amount']) : 0;
-            if ($amount <= 0) {
-                continue;
-            }
-
-            $invoice->installments()->create([
-                'sequence' => $index + 1,
-                'label' => $row['label'] ?? null,
-                'due_date' => $row['due_date'] ?? null,
-                'amount_cents' => $amount,
-            ]);
-        }
-    }
-
-    private function dollarsToCents(float|int|string|null $dollars): int
-    {
-        if ($dollars === null || $dollars === '') {
-            return 0;
-        }
-
-        return (int) round(((float) $dollars) * 100);
     }
 }

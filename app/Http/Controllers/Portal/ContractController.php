@@ -75,6 +75,12 @@ class ContractController extends Controller
         Mail::to(config('payments.business.email') ?: config('mail.from.address'))
             ->send(new ContractSigned(contract: $model));
 
+        if ($model->isProposal()) {
+            return redirect()
+                ->route('portal.proposals.show', ['contract' => $model->uuid])
+                ->with('status', 'Thanks — your agreement is signed. One step left: pay the deposit below.');
+        }
+
         return redirect()
             ->route('portal.contracts.show', ['contract' => $model->uuid])
             ->with('status', 'Thanks — your contract has been signed.');

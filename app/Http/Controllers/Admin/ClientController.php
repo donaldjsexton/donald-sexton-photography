@@ -43,7 +43,6 @@ class ClientController extends Controller
     {
         return view('admin.clients.form', [
             'client' => new Client,
-            'inquiry' => null,
         ]);
     }
 
@@ -58,7 +57,15 @@ class ClientController extends Controller
 
     public function show(Client $client): View
     {
-        $client->load(['inquiry', 'invoices' => fn ($q) => $q->latest('issue_date')]);
+        $client->load([
+            'inquiries' => fn ($q) => $q->latest('created_at'),
+            'inquiries.bookedJob',
+            'inquiries.venue',
+            'invoices' => fn ($q) => $q->latest('issue_date'),
+            'invoices.bookedJob',
+            'contracts' => fn ($q) => $q->latest('issue_date'),
+            'contracts.bookedJob',
+        ]);
 
         return view('admin.clients.show', [
             'client' => $client,
@@ -69,7 +76,6 @@ class ClientController extends Controller
     {
         return view('admin.clients.form', [
             'client' => $client,
-            'inquiry' => $client->inquiry,
         ]);
     }
 

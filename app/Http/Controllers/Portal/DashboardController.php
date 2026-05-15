@@ -33,7 +33,7 @@ class DashboardController extends Controller
             ->first();
 
         $booking = $billable instanceof Client
-            ? $billable->inquiry?->bookedJob
+            ? $billable->currentBookedJob()
             : null;
 
         $eventDate = $booking?->event_date;

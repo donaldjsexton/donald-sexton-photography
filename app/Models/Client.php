@@ -10,7 +10,8 @@ use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
@@ -29,7 +30,6 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
 
     protected $fillable = [
         'uuid',
-        'inquiry_id',
         'first_name',
         'last_name',
         'partner_first_name',
@@ -72,9 +72,9 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
         });
     }
 
-    public function inquiry(): BelongsTo
+    public function inquiries(): HasMany
     {
-        return $this->belongsTo(Inquiry::class);
+        return $this->hasMany(Inquiry::class);
     }
 
     public function invoices(): MorphMany
@@ -85,6 +85,29 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
     public function contracts(): MorphMany
     {
         return $this->morphMany(Contract::class, 'billable');
+    }
+
+    public function bookedJobs(): HasManyThrough
+    {
+        return $this->hasManyThrough(BookedJob::class, Inquiry::class);
+    }
+
+    /**
+     * The booking to surface in the client portal: the soonest non-cancelled
+     * job that is undated or still upcoming, across all of the client's
+     * inquiries.
+     */
+    public function currentBookedJob(): ?BookedJob
+    {
+        return $this->bookedJobs()
+            ->where('booked_jobs.status', '!=', 'cancelled')
+            ->where(function ($query) {
+                $query->whereNull('booked_jobs.event_date')
+                    ->orWhere('booked_jobs.event_date', '>=', today());
+            })
+            ->orderByRaw('booked_jobs.event_date is null')
+            ->orderBy('booked_jobs.event_date')
+            ->first();
     }
 
     public function fullName(): string
