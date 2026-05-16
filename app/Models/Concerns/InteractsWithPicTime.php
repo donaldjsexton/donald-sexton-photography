@@ -131,6 +131,27 @@ trait InteractsWithPicTime
         return in_array($this->picTimeDetailMode(), ['rich_local_gallery', 'gallery_first'], true);
     }
 
+    /**
+     * Return the canonical URL safe to emit as <link rel="canonical"> in HTML.
+     * If canonical_url is a pic-time.com domain it is a PicTime import tracking
+     * key, not an SEO signal — return null so the caller falls back to the
+     * page's own URL.
+     */
+    public function seoCanonicalUrl(): ?string
+    {
+        if (! $this->canonical_url) {
+            return null;
+        }
+
+        $host = parse_url($this->canonical_url, PHP_URL_HOST);
+
+        if (is_string($host) && str_contains(Str::lower($host), 'pic-time.com')) {
+            return null;
+        }
+
+        return $this->canonical_url;
+    }
+
     public function isPicTimeSource(): bool
     {
         $sourceUrl = $this->externalGalleryUrl();

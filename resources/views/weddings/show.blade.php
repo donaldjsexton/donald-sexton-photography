@@ -10,7 +10,7 @@
 
 @section('title', $story->seo_title ?: $story->title)
 @section('meta_description', $story->seo_description ?: $presentation['hero_copy'] ?: ($showExternalFallback ? $story->externalGallerySummary() : ''))
-@section('canonical_url', $story->canonical_url ?: url()->current())
+@section('canonical_url', $story->seoCanonicalUrl() ?: url()->current())
 @section('og_type', 'article')
 @section('og_image', $storyFeaturedImage ?: '')
 @section('og_image_alt', $story->title)
