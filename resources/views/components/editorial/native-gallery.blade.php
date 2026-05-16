@@ -38,12 +38,12 @@
                         data-lightbox-trigger
                         data-lightbox-group="{{ $group }}"
                         data-lightbox-src="{{ $media->publicUrl() }}"
-                        data-lightbox-alt="{{ $altBase ? $altBase.' image '.$loop->iteration : ($media->alt_text ?: '') }}"
+                        data-lightbox-alt="{{ $media->alt_text ?: ($altBase ? $altBase.' — photo '.$loop->iteration : '') }}"
                     >
                         <x-editorial.media-frame
                             :media="$media"
                             ratio="natural"
-                            :alt="$altBase ? $altBase.' image '.$loop->iteration : null"
+                            :alt="$media->alt_text ?: ($altBase ? $altBase.' — photo '.$loop->iteration : null)"
                         />
                     </a>
                 @endforeach
