@@ -28,8 +28,8 @@ class GenerateMediaAltTextCommandTest extends TestCase
                 ->push($this->fakeToolPayload('Wedding party portraits at sunset on Tampa Bay dock')),
         ]);
 
-        $first = Media::create(['path' => 'media/first.jpg', 'disk' => 'public']);
-        $second = Media::create(['path' => 'media/second.jpg', 'disk' => 'public']);
+        $first = Media::create(['path' => 'media/first.jpg', 'filename' => 'first.jpg', 'disk' => 'public']);
+        $second = Media::create(['path' => 'media/second.jpg', 'filename' => 'second.jpg', 'disk' => 'public']);
 
         $this->artisan('media:generate-alt-text', ['--sleep' => 0])->assertSuccessful();
 
@@ -41,11 +41,12 @@ class GenerateMediaAltTextCommandTest extends TestCase
     {
         $alreadyFilled = Media::create([
             'path' => 'media/filled.jpg',
+            'filename' => 'filled.jpg',
             'disk' => 'public',
             'alt_text' => 'Existing alt text we keep',
         ]);
 
-        $needsAlt = Media::create(['path' => 'media/empty.jpg', 'disk' => 'public']);
+        $needsAlt = Media::create(['path' => 'media/empty.jpg', 'filename' => 'empty.jpg', 'disk' => 'public']);
 
         Http::fake([
             'api.anthropic.com/*' => Http::response($this->fakeToolPayload('New generated alt text for empty image')),
@@ -62,6 +63,7 @@ class GenerateMediaAltTextCommandTest extends TestCase
     {
         $media = Media::create([
             'path' => 'media/existing.jpg',
+            'filename' => 'existing.jpg',
             'disk' => 'public',
             'alt_text' => 'Old alt text',
         ]);
@@ -79,7 +81,7 @@ class GenerateMediaAltTextCommandTest extends TestCase
     {
         Http::fake();
 
-        $media = Media::create(['path' => 'media/test.jpg', 'disk' => 'public']);
+        $media = Media::create(['path' => 'media/test.jpg', 'filename' => 'test.jpg', 'disk' => 'public']);
 
         $this->artisan('media:generate-alt-text', ['--dry-run' => true])->assertSuccessful();
 
@@ -89,8 +91,8 @@ class GenerateMediaAltTextCommandTest extends TestCase
 
     public function test_media_option_targets_specific_ids(): void
     {
-        $target = Media::create(['path' => 'media/target.jpg', 'disk' => 'public']);
-        $other = Media::create(['path' => 'media/other.jpg', 'disk' => 'public']);
+        $target = Media::create(['path' => 'media/target.jpg', 'filename' => 'target.jpg', 'disk' => 'public']);
+        $other = Media::create(['path' => 'media/other.jpg', 'filename' => 'other.jpg', 'disk' => 'public']);
 
         Http::fake([
             'api.anthropic.com/*' => Http::response($this->fakeToolPayload('Targeted image alt text')),
@@ -106,7 +108,7 @@ class GenerateMediaAltTextCommandTest extends TestCase
     public function test_limit_caps_number_of_images_processed(): void
     {
         for ($i = 1; $i <= 4; $i++) {
-            Media::create(['path' => "media/img-{$i}.jpg", 'disk' => 'public']);
+            Media::create(['path' => "media/img-{$i}.jpg", 'filename' => "img-{$i}.jpg", 'disk' => 'public']);
         }
 
         Http::fake([
@@ -119,12 +121,11 @@ class GenerateMediaAltTextCommandTest extends TestCase
         $this->assertSame(2, Media::whereNotNull('alt_text')->where('alt_text', '!=', '')->count());
     }
 
-    public function test_skips_media_without_a_path(): void
+    public function test_skips_media_with_empty_path(): void
     {
         Http::fake();
 
-        Media::create(['path' => null, 'disk' => 'public']);
-        Media::create(['path' => '', 'disk' => 'public']);
+        Media::create(['path' => '', 'filename' => 'empty.jpg', 'disk' => 'public']);
 
         $this->artisan('media:generate-alt-text')
             ->expectsOutputToContain('No media records need alt text generation.')
@@ -137,6 +138,7 @@ class GenerateMediaAltTextCommandTest extends TestCase
     {
         Media::create([
             'path' => 'media/filled.jpg',
+            'filename' => 'filled.jpg',
             'disk' => 'public',
             'alt_text' => 'Already has alt text',
         ]);
