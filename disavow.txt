@@ -1,0 +1,114 @@
+# Disavow file for donaldsextonphotography.com
+# Generated 2026-05-16
+# Upload this at: https://search.google.com/search-console/disavow-links
+# These are confirmed spam/link-farm domains with no editorial value.
+
+# SEOExpress spam network
+domain:seoexpress.shop
+domain:seoexpress.store
+domain:seoexpress.website
+domain:seoexpress.online
+domain:seoexpress.space
+domain:seoexpress.site
+domain:seoexpress-backlink-hub.store
+domain:authentic-tier-1-partners-seoexpress.store
+
+# "High SEO / High Ranking" spam cluster
+domain:highseo.shop
+domain:thehighseo.shop
+domain:highseoranking.shop
+domain:thehighseoranking.shop
+domain:thehighrankseo.shop
+domain:seohighranking.shop
+domain:theseohighranking.shop
+domain:seo-high-ranking.shop
+domain:rankingseohigh.shop
+domain:therankinghighseo.shop
+domain:thehighrankseo.shop
+domain:thehighseoranking.shop
+domain:theseomasterhigh.shop
+domain:thetoprankingseo.shop
+domain:rankingseohigh.shop
+domain:therankingseohigh.shop
+domain:thehighseo.shop
+domain:natural-editorial-backlink-hub.rankinghighseo.shop
+domain:rankinghighseo.shop
+
+# Backlink / guest post spam shops
+domain:theguestpost.shop
+domain:theguestposts.shop
+domain:thebacklink.shop
+domain:thebacklinks.shop
+domain:therankboostseo.shop
+domain:ranklinkx.shop
+domain:toplinkranker.shop
+domain:linkseopro.shop
+domain:pbnseolinks.shop
+domain:linkrankboost.shop
+domain:linkrankpro.shop
+domain:premiumseolinks.shop
+domain:seolinkpro.shop
+domain:authoritybacklinks.shop
+domain:rankpilot.shop
+domain:backlinker.shop
+domain:seogeko.shop
+domain:kmoshops.shop
+domain:lixil-reformshop.shop
+domain:shopbetreiber-blog.shop
+domain:123webshop.shop
+domain:activeshop.shop
+domain:ekenkoshop.shop
+domain:mysky-shop.shop
+domain:shop-inframe.shop
+domain:simplywebshop.shop
+domain:rent-a-shop.shop
+domain:professional-seo-backlink-catalog.kawaiishop.shop
+domain:kawaiishop.shop
+domain:highseo.shop
+
+# SEO agency spam
+domain:seoagency.sale
+domain:rankongoogle.agency
+domain:nexusnext.agency
+domain:buybacklinks.agency
+domain:rankyour.website
+domain:rank-top.click
+domain:seodaro.com
+
+# "Website stats / domain report" spam clusters
+domain:optimizeflow.top
+domain:analyticshaven.top
+domain:atomizelink.icu
+domain:dailymusings.top
+domain:creativeposts.top
+domain:ready.pro
+domain:sites.jake.eu
+domain:sites.bounceme.net
+domain:bye.fyi
+domain:webs.businessvocal.com
+domain:newsblogsports.site
+
+# "Aged domains / backlinks for sale" spam cluster
+domain:getwebsiteworth.com
+domain:indians.cc
+domain:domainanalysis.org
+domain:domainsc.com
+domain:pudhe.com
+domain:bestwebstats.com
+domain:read.org.in
+domain:booksreadr.org
+domain:allwebsitesdirectory.com
+domain:way2check.cv
+domain:domain.com.lc
+domain:globalecommerce.org
+domain:linksnatcher.com
+domain:alljobs.info
+domain:wallpapers.pro
+domain:bmwyng.com
+domain:sitescooponline.com
+domain:nettools.guru
+
+# Scrapers / low-quality auto-generated directories
+domain:acquire.co.in
+domain:allinone.co.in
+domain:findit.co.in
