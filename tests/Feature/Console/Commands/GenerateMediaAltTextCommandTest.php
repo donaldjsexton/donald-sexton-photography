@@ -1,0 +1,168 @@
+<?php
+
+namespace Tests\Feature\Console\Commands;
+
+use App\Models\Media;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Tests\TestCase;
+
+class GenerateMediaAltTextCommandTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config()->set('services.anthropic.key', 'test-key');
+        config()->set('services.anthropic.version', '2023-06-01');
+        config()->set('app.url', 'https://donaldsextonphotography.com');
+    }
+
+    public function test_fills_empty_alt_text_for_each_media(): void
+    {
+        Http::fake([
+            'api.anthropic.com/*' => Http::sequence()
+                ->push($this->fakeToolPayload('Bride and groom walking through Clearwater garden venue'))
+                ->push($this->fakeToolPayload('Wedding party portraits at sunset on Tampa Bay dock')),
+        ]);
+
+        $first = Media::create(['path' => 'media/first.jpg', 'disk' => 'public']);
+        $second = Media::create(['path' => 'media/second.jpg', 'disk' => 'public']);
+
+        $this->artisan('media:generate-alt-text', ['--sleep' => 0])->assertSuccessful();
+
+        $this->assertSame('Bride and groom walking through Clearwater garden venue', $first->fresh()->alt_text);
+        $this->assertSame('Wedding party portraits at sunset on Tampa Bay dock', $second->fresh()->alt_text);
+    }
+
+    public function test_skips_media_that_already_have_alt_text_unless_all_flag(): void
+    {
+        $alreadyFilled = Media::create([
+            'path' => 'media/filled.jpg',
+            'disk' => 'public',
+            'alt_text' => 'Existing alt text we keep',
+        ]);
+
+        $needsAlt = Media::create(['path' => 'media/empty.jpg', 'disk' => 'public']);
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response($this->fakeToolPayload('New generated alt text for empty image')),
+        ]);
+
+        $this->artisan('media:generate-alt-text', ['--sleep' => 0])->assertSuccessful();
+
+        $this->assertSame('Existing alt text we keep', $alreadyFilled->fresh()->alt_text);
+        $this->assertSame('New generated alt text for empty image', $needsAlt->fresh()->alt_text);
+        Http::assertSentCount(1);
+    }
+
+    public function test_all_flag_regenerates_images_with_existing_alt_text(): void
+    {
+        $media = Media::create([
+            'path' => 'media/existing.jpg',
+            'disk' => 'public',
+            'alt_text' => 'Old alt text',
+        ]);
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response($this->fakeToolPayload('Refreshed alt text describing the image')),
+        ]);
+
+        $this->artisan('media:generate-alt-text', ['--all' => true, '--sleep' => 0])->assertSuccessful();
+
+        $this->assertSame('Refreshed alt text describing the image', $media->fresh()->alt_text);
+    }
+
+    public function test_dry_run_does_not_call_api_or_save(): void
+    {
+        Http::fake();
+
+        $media = Media::create(['path' => 'media/test.jpg', 'disk' => 'public']);
+
+        $this->artisan('media:generate-alt-text', ['--dry-run' => true])->assertSuccessful();
+
+        $this->assertNull($media->fresh()->alt_text);
+        Http::assertNothingSent();
+    }
+
+    public function test_media_option_targets_specific_ids(): void
+    {
+        $target = Media::create(['path' => 'media/target.jpg', 'disk' => 'public']);
+        $other = Media::create(['path' => 'media/other.jpg', 'disk' => 'public']);
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response($this->fakeToolPayload('Targeted image alt text')),
+        ]);
+
+        $this->artisan('media:generate-alt-text', ['--media' => [$target->id], '--sleep' => 0])->assertSuccessful();
+
+        $this->assertSame('Targeted image alt text', $target->fresh()->alt_text);
+        $this->assertNull($other->fresh()->alt_text);
+        Http::assertSentCount(1);
+    }
+
+    public function test_limit_caps_number_of_images_processed(): void
+    {
+        for ($i = 1; $i <= 4; $i++) {
+            Media::create(['path' => "media/img-{$i}.jpg", 'disk' => 'public']);
+        }
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response($this->fakeToolPayload('Generated alt text for image')),
+        ]);
+
+        $this->artisan('media:generate-alt-text', ['--limit' => 2, '--sleep' => 0])->assertSuccessful();
+
+        Http::assertSentCount(2);
+        $this->assertSame(2, Media::whereNotNull('alt_text')->where('alt_text', '!=', '')->count());
+    }
+
+    public function test_skips_media_without_a_path(): void
+    {
+        Http::fake();
+
+        Media::create(['path' => null, 'disk' => 'public']);
+        Media::create(['path' => '', 'disk' => 'public']);
+
+        $this->artisan('media:generate-alt-text')
+            ->expectsOutputToContain('No media records need alt text generation.')
+            ->assertSuccessful();
+
+        Http::assertNothingSent();
+    }
+
+    public function test_reports_no_work_when_nothing_to_generate(): void
+    {
+        Media::create([
+            'path' => 'media/filled.jpg',
+            'disk' => 'public',
+            'alt_text' => 'Already has alt text',
+        ]);
+
+        Http::fake();
+
+        $this->artisan('media:generate-alt-text')
+            ->expectsOutputToContain('No media records need alt text generation.')
+            ->assertSuccessful();
+
+        Http::assertNothingSent();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function fakeToolPayload(string $altText): array
+    {
+        return [
+            'content' => [[
+                'type' => 'tool_use',
+                'name' => 'write_alt_text',
+                'input' => [
+                    'alt_text' => $altText,
+                ],
+            ]],
+        ];
+    }
+}
