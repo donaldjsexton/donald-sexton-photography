@@ -151,6 +151,60 @@ class JournalPost extends Model
         return $results->values();
     }
 
+    /**
+     * Resolve up to $limit published wedding stories related to $post.
+     * Venue match takes priority over tag match. No padding — an empty
+     * collection means the section should not render.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int,WeddingStory>
+     */
+    public static function relatedStoriesTo(self $post, int $limit = 3): \Illuminate\Database\Eloquent\Collection
+    {
+        if ($limit <= 0) {
+            return new \Illuminate\Database\Eloquent\Collection;
+        }
+
+        $venueIds = $post->relationLoaded('venues')
+            ? $post->venues->pluck('id')->all()
+            : $post->venues()->pluck('venues.id')->all();
+
+        $tagIds = $post->relationLoaded('tags')
+            ? $post->tags->pluck('id')->all()
+            : $post->tags()->pluck('tags.id')->all();
+
+        $base = fn () => WeddingStory::published()
+            ->with(['heroMedia', 'venue']);
+
+        $results = new \Illuminate\Database\Eloquent\Collection;
+
+        if ($venueIds !== []) {
+            $venueMatches = $base()
+                ->whereIn('venue_id', $venueIds)
+                ->latest('published_at')
+                ->limit($limit)
+                ->get();
+
+            $results = $results->concat($venueMatches);
+        }
+
+        $remaining = $limit - $results->count();
+
+        if ($remaining > 0 && $tagIds !== []) {
+            $excluded = $results->pluck('id')->all();
+
+            $tagMatches = $base()
+                ->when($excluded !== [], fn ($q) => $q->whereNotIn('id', $excluded))
+                ->whereHas('tags', fn ($q) => $q->whereIn('tags.id', $tagIds))
+                ->latest('published_at')
+                ->limit($remaining)
+                ->get();
+
+            $results = $results->concat($tagMatches);
+        }
+
+        return $results->values();
+    }
+
     public function getPostTypeLabelAttribute(): string
     {
         return Str::of($this->post_type)
