@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\JournalPost;
 use App\Models\Redirect;
 use App\Models\WeddingStory;
 use Illuminate\Http\RedirectResponse;
@@ -45,6 +46,7 @@ class WeddingStoryController extends Controller
         return view('weddings.show', [
             'story' => $story,
             'relatedStories' => WeddingStory::similarTo($story, 3),
+            'relatedPosts' => WeddingStory::relatedPostsTo($story, 3),
         ]);
     }
 }

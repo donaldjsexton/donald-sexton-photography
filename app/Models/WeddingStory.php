@@ -161,6 +161,56 @@ class WeddingStory extends Model
         return $results->values();
     }
 
+    /**
+     * Resolve up to $limit published journal posts related to $story.
+     * Venue match takes priority over tag match. No padding — an empty
+     * collection means the section should not render.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int,JournalPost>
+     */
+    public static function relatedPostsTo(self $story, int $limit = 3): \Illuminate\Database\Eloquent\Collection
+    {
+        if ($limit <= 0) {
+            return new \Illuminate\Database\Eloquent\Collection;
+        }
+
+        $tagIds = $story->relationLoaded('tags')
+            ? $story->tags->pluck('id')->all()
+            : $story->tags()->pluck('tags.id')->all();
+
+        $base = fn () => JournalPost::published()
+            ->with(['heroMedia', 'categories']);
+
+        $results = new \Illuminate\Database\Eloquent\Collection;
+
+        if ($story->venue_id) {
+            $venueMatches = $base()
+                ->whereHas('venues', fn ($q) => $q->where('venues.id', $story->venue_id))
+                ->latest('published_at')
+                ->limit($limit)
+                ->get();
+
+            $results = $results->concat($venueMatches);
+        }
+
+        $remaining = $limit - $results->count();
+
+        if ($remaining > 0 && $tagIds !== []) {
+            $excluded = $results->pluck('id')->all();
+
+            $tagMatches = $base()
+                ->when($excluded !== [], fn ($q) => $q->whereNotIn('id', $excluded))
+                ->whereHas('tags', fn ($q) => $q->whereIn('tags.id', $tagIds))
+                ->latest('published_at')
+                ->limit($remaining)
+                ->get();
+
+            $results = $results->concat($tagMatches);
+        }
+
+        return $results->values();
+    }
+
     public function getStoryTypeLabelAttribute(): string
     {
         return Str::of($this->story_type)

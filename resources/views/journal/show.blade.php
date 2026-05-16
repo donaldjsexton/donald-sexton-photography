@@ -23,7 +23,7 @@
 
 @section('title', $post->seo_title ?: $post->title)
 @section('meta_description', $post->seo_description ?: $post->excerpt ?: ($showExternalFallback ? $post->externalGallerySummary() : ''))
-@section('canonical_url', $post->canonical_url ?: url()->current())
+@section('canonical_url', $post->seoCanonicalUrl() ?: url()->current())
 @section('og_type', 'article')
 @section('og_image', $featuredImageForSchema ?: '')
 @section('og_image_alt', $post->title)
@@ -102,6 +102,37 @@
         :return-href="route('journal.index')"
         return-label="Back to Journal"
     />
+
+    @if (! empty($relatedStories) && $relatedStories->isNotEmpty())
+        <section class="section" aria-labelledby="related-stories-heading">
+            <div class="page-shell--wide page-stack">
+                <x-editorial.section-heading
+                    eyebrow="Wedding Stories"
+                    title="See this venue in action."
+                />
+
+                <div class="archive-grid">
+                    @foreach ($relatedStories as $related)
+                        @php
+                            $relatedMeta = collect([
+                                $related->venue?->name ?? $related->location_name,
+                                $related->event_date?->format('F Y'),
+                            ])->filter()->implode(' · ');
+                        @endphp
+                        <x-editorial.archive-card
+                            :title="$related->title"
+                            :href="route('weddings.show', $related->slug)"
+                            :meta="$relatedMeta ?: null"
+                            :copy="method_exists($related, 'summaryText') ? $related->summaryText(24) : $related->excerpt"
+                            :media="$related->heroMedia"
+                            :media-src="method_exists($related, 'featuredImageUrl') ? $related->featuredImageUrl() : null"
+                            :media-alt="$related->title"
+                        />
+                    @endforeach
+                </div>
+            </div>
+        </section>
+    @endif
 
     @if (! empty($relatedPosts) && $relatedPosts->isNotEmpty())
         <section class="section" aria-labelledby="related-posts-heading">

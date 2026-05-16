@@ -10,7 +10,7 @@
 
 @section('title', $story->seo_title ?: $story->title)
 @section('meta_description', $story->seo_description ?: $presentation['hero_copy'] ?: ($showExternalFallback ? $story->externalGallerySummary() : ''))
-@section('canonical_url', $story->canonical_url ?: url()->current())
+@section('canonical_url', $story->seoCanonicalUrl() ?: url()->current())
 @section('og_type', 'article')
 @section('og_image', $storyFeaturedImage ?: '')
 @section('og_image_alt', $story->title)
@@ -98,6 +98,37 @@
                 @foreach ($story->storyBlocks as $block)
                     <x-editorial.story-block :block="$block" />
                 @endforeach
+            </div>
+        </section>
+    @endif
+
+    @if (! empty($relatedPosts) && $relatedPosts->isNotEmpty())
+        <section class="section" aria-labelledby="related-posts-heading">
+            <div class="page-shell--wide page-stack">
+                <x-editorial.section-heading
+                    eyebrow="From the Journal"
+                    title="Planning notes and tips for your day."
+                />
+
+                <div class="archive-grid">
+                    @foreach ($relatedPosts as $related)
+                        @php
+                            $relatedMeta = collect([
+                                $related->post_type_label,
+                                $related->published_at?->format('F j, Y'),
+                            ])->filter()->implode(' · ');
+                        @endphp
+                        <x-editorial.archive-card
+                            :title="$related->title"
+                            :href="route('journal.show', $related->slug)"
+                            :meta="$relatedMeta ?: null"
+                            :copy="method_exists($related, 'summaryText') ? $related->summaryText(24) : $related->excerpt"
+                            :media="$related->heroMedia"
+                            :media-src="method_exists($related, 'featuredImageUrl') ? $related->featuredImageUrl() : null"
+                            :media-alt="$related->title"
+                        />
+                    @endforeach
+                </div>
             </div>
         </section>
     @endif
