@@ -8,9 +8,11 @@ use App\Http\Requests\Admin\UpdateClientRequest;
 use App\Mail\PortalInvite;
 use App\Models\Client;
 use App\Models\Inquiry;
+use App\Models\Payment;
 use App\Services\ClientFromInquirySync;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
@@ -63,13 +65,107 @@ class ClientController extends Controller
             'inquiries.venue',
             'invoices' => fn ($q) => $q->latest('issue_date'),
             'invoices.bookedJob',
+            'invoices.payments',
             'contracts' => fn ($q) => $q->latest('issue_date'),
             'contracts.bookedJob',
         ]);
 
         return view('admin.clients.show', [
             'client' => $client,
+            'timeline' => $this->buildTimeline($client),
         ]);
+    }
+
+    /**
+     * Reverse-chronological activity feed across the client's whole history.
+     *
+     * @return array<int, array{at: Carbon, kind: string, icon: string, title: string, meta: string, url: ?string}>
+     */
+    private function buildTimeline(Client $client): array
+    {
+        $events = [];
+
+        foreach ($client->inquiries as $inquiry) {
+            $events[] = [
+                'at' => $inquiry->created_at,
+                'kind' => 'inquiry',
+                'icon' => '✦',
+                'title' => 'New inquiry',
+                'meta' => collect([
+                    Inquiry::statusOptions()[$inquiry->status] ?? $inquiry->status,
+                    $inquiry->event_type ? ucfirst((string) $inquiry->event_type) : null,
+                    $inquiry->event_date?->format('M j, Y'),
+                ])->filter()->implode(' · '),
+                'url' => route('admin.inquiries.edit', $inquiry),
+            ];
+        }
+
+        foreach ($client->contracts as $contract) {
+            $label = $contract->isProposal() ? 'Proposal' : 'Contract';
+            $url = route('admin.contracts.show', $contract);
+
+            $events[] = [
+                'at' => $contract->created_at,
+                'kind' => 'contract',
+                'icon' => '📝',
+                'title' => $label.' drafted',
+                'meta' => $contract->number,
+                'url' => $url,
+            ];
+            if ($contract->sent_at) {
+                $events[] = [
+                    'at' => $contract->sent_at,
+                    'kind' => 'contract',
+                    'icon' => '📨',
+                    'title' => $label.' sent',
+                    'meta' => $contract->number,
+                    'url' => $url,
+                ];
+            }
+            if ($contract->signed_at) {
+                $events[] = [
+                    'at' => $contract->signed_at,
+                    'kind' => 'signed',
+                    'icon' => '✍️',
+                    'title' => $label.' signed',
+                    'meta' => trim($contract->number.' · '.(string) $contract->signer_name, ' ·'),
+                    'url' => $url,
+                ];
+            }
+        }
+
+        foreach ($client->invoices as $invoice) {
+            $url = route('admin.invoices.show', $invoice);
+
+            if ($invoice->sent_at) {
+                $events[] = [
+                    'at' => $invoice->sent_at,
+                    'kind' => 'invoice',
+                    'icon' => '🧾',
+                    'title' => 'Invoice sent',
+                    'meta' => $invoice->number.' · $'.number_format($invoice->total_cents / 100, 2),
+                    'url' => $url,
+                ];
+            }
+
+            foreach ($invoice->payments as $payment) {
+                if ($payment->status !== Payment::STATUS_COMPLETED) {
+                    continue;
+                }
+                $events[] = [
+                    'at' => $payment->received_at ?? $payment->created_at,
+                    'kind' => 'payment',
+                    'icon' => '💰',
+                    'title' => 'Payment received',
+                    'meta' => '$'.number_format($payment->amount_cents / 100, 2).' · '.$invoice->number,
+                    'url' => $url,
+                ];
+            }
+        }
+
+        usort($events, fn ($a, $b) => $b['at'] <=> $a['at']);
+
+        return $events;
     }
 
     public function edit(Client $client): View

@@ -1,274 +1,154 @@
 @extends('layouts.admin')
 
 @php
-    use App\Models\Contract;
     use App\Models\Invoice;
-
-    $invoiceStatusOptions = Invoice::statusOptions();
-    $contractStatusOptions = Contract::statusOptions();
 
     $totalBilledCents = $client->invoices->sum('total_cents');
     $totalPaidCents = $client->invoices->sum('amount_paid_cents');
     $totalOutstandingCents = $client->invoices->sum(fn (Invoice $i) => $i->amountDueCents());
 
-    $contractsByBookedJob = $client->contracts->groupBy(fn (Contract $c) => $c->booked_job_id);
-    $invoicesByBookedJob = $client->invoices->groupBy(fn (Invoice $i) => $i->booked_job_id);
+    $money = fn (int $cents) => '$'.number_format($cents / 100, 0);
 
-    $standaloneContracts = $contractsByBookedJob->get(null, collect());
-    $standaloneInvoices = $invoicesByBookedJob->get(null, collect());
+    $initials = strtoupper(mb_substr($client->first_name ?: '?', 0, 1).mb_substr($client->last_name ?: ($client->partner_first_name ?: ''), 0, 1));
 
-    $money = fn (int $cents) => '$'.number_format($cents / 100, 2);
+    $sinceDate = $client->inquiries->min('created_at') ?? $client->created_at;
+
+    $bookings = $client->inquiries
+        ->filter(fn ($inquiry) => $inquiry->bookedJob !== null)
+        ->sortByDesc(fn ($inquiry) => $inquiry->bookedJob->event_date ?? $inquiry->created_at);
+
+    $location = trim(($client->city ?: '').($client->state ? ', '.$client->state : ''), ', ');
 @endphp
 
 @section('title', $client->displayName())
 @section('eyebrow', 'Studio')
 @section('heading', $client->displayName())
-@section('subheading', $client->email)
-@section('header_actions')
-    <a class="cta" href="{{ route('admin.proposals.create', ['client_id' => $client->id]) }}">New Proposal</a>
-    <a class="cta-secondary" href="{{ route('admin.contracts.create', ['client_id' => $client->id]) }}">New Contract</a>
-    <a class="cta-secondary" href="{{ route('admin.invoices.create', ['client_id' => $client->id]) }}">New Invoice</a>
-    <a class="cta-secondary" href="{{ route('admin.clients.edit', $client) }}">Edit</a>
-@endsection
 @section('content')
     @if (session('error'))
-        <div class="admin-flash admin-flash--error" style="margin-bottom:1.5rem;">{{ session('error') }}</div>
+        <div class="admin-flash admin-flash--error" style="margin-bottom:1rem;">{{ session('error') }}</div>
     @endif
 
-    <section class="admin-card">
-        <h3>Lifetime billing</h3>
-        <div class="admin-stat-strip" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:1rem;">
-            <div>
-                <div class="meta">Billed</div>
-                <div style="font-size:1.5rem; font-weight:600;">{{ $money($totalBilledCents) }}</div>
+    <div class="client-profile">
+        <section class="client-hero">
+            <div class="client-hero__avatar" aria-hidden="true">{{ $initials }}</div>
+            <h2 class="client-hero__name">{{ $client->displayName() }}</h2>
+            @if ($client->company)
+                <p class="client-hero__tagline">{{ $client->company }}</p>
+            @endif
+            <p class="client-hero__since">Client since {{ optional($sinceDate)->format('M Y') }}</p>
+
+            <div class="client-hero__chips">
+                <a class="client-chip" href="mailto:{{ $client->email }}">✉️ {{ $client->email }}</a>
+                @if ($client->phone)
+                    <a class="client-chip" href="tel:{{ preg_replace('/[^0-9+]/', '', $client->phone) }}">📞 {{ $client->phone }}</a>
+                @endif
+                @if ($location)
+                    <span class="client-chip">📍 {{ $location }}</span>
+                @endif
             </div>
-            <div>
-                <div class="meta">Paid</div>
-                <div style="font-size:1.5rem; font-weight:600;">{{ $money($totalPaidCents) }}</div>
+
+            <div class="client-stats">
+                <div class="client-stat">
+                    <span class="client-stat__value">{{ $money($totalBilledCents) }}</span>
+                    <span class="client-stat__label">Billed</span>
+                </div>
+                <div class="client-stat">
+                    <span class="client-stat__value">{{ $money($totalPaidCents) }}</span>
+                    <span class="client-stat__label">Paid</span>
+                </div>
+                <div class="client-stat {{ $totalOutstandingCents > 0 ? 'client-stat--alert' : '' }}">
+                    <span class="client-stat__value">{{ $money($totalOutstandingCents) }}</span>
+                    <span class="client-stat__label">Due</span>
+                </div>
             </div>
-            <div>
-                <div class="meta">Outstanding</div>
-                <div style="font-size:1.5rem; font-weight:600;">{{ $money($totalOutstandingCents) }}</div>
+
+            <div class="client-hero__actions">
+                <a class="cta client-cta--primary" href="{{ route('admin.proposals.create', ['client_id' => $client->id]) }}">＋ New Proposal</a>
+                <div class="client-hero__actions-row">
+                    <a class="cta-secondary" href="{{ route('admin.contracts.create', ['client_id' => $client->id]) }}">Contract</a>
+                    <a class="cta-secondary" href="{{ route('admin.invoices.create', ['client_id' => $client->id]) }}">Invoice</a>
+                    <a class="cta-secondary" href="{{ route('admin.clients.edit', $client) }}">Edit</a>
+                </div>
             </div>
-        </div>
-    </section>
-
-    <section class="admin-card">
-        <h3>Contact</h3>
-        <dl class="admin-detail-list">
-            <dt>Email</dt>
-            <dd>{{ $client->email }}</dd>
-
-            <dt>Phone</dt>
-            <dd>{{ $client->phone ?: '—' }}</dd>
-
-            <dt>Company</dt>
-            <dd>{{ $client->company ?: '—' }}</dd>
-
-            <dt>Address</dt>
-            <dd>
-                @php
-                    $address = collect([
-                        $client->address_line_1,
-                        $client->address_line_2,
-                        trim(($client->city ? $client->city : '').($client->state ? ', '.$client->state : '')),
-                        $client->postal_code,
-                        $client->country,
-                    ])->filter()->implode(' · ');
-                @endphp
-                {{ $address ?: '—' }}
-            </dd>
-        </dl>
-    </section>
-
-    <section class="admin-card">
-        <h3>Portal Access</h3>
-        @if ($client->password !== null)
-            <p class="meta" style="margin:0;">
-                Client has set up their portal
-                @if ($client->last_login_at)
-                    · last signed in {{ $client->last_login_at->diffForHumans() }}
-                @else
-                    · has not signed in yet
-                @endif.
-            </p>
-        @else
-            <p class="meta" style="margin:0 0 12px;">No portal password set yet. Send an invitation email with a magic link to let {{ $client->portalGreeting() }} pick a password.</p>
-            <form method="POST" action="{{ route('admin.clients.portal-invite', $client) }}" class="admin-form">
-                @csrf
-                <button class="cta" type="submit" style="border:0; cursor:pointer;">Send Portal Invite</button>
-            </form>
-        @endif
-    </section>
-
-    @if ($client->notes)
-        <section class="admin-card">
-            <h3>Internal notes</h3>
-            <p style="white-space: pre-line;">{{ $client->notes }}</p>
         </section>
-    @endif
 
-    <section class="admin-card">
-        <h3>Events</h3>
-        @if ($client->inquiries->isEmpty())
-            <p class="meta">No inquiries yet. New inquiries from {{ $client->email }} will attach to this client automatically.</p>
-        @else
-            @foreach ($client->inquiries as $inquiry)
-                @php
-                    $bookedJob = $inquiry->bookedJob;
-                    $eventContracts = $bookedJob
-                        ? $contractsByBookedJob->get($bookedJob->id, collect())
-                        : collect();
-                    $eventInvoices = $bookedJob
-                        ? $invoicesByBookedJob->get($bookedJob->id, collect())
-                        : collect();
-                @endphp
+        @if ($bookings->isNotEmpty())
+            <section class="client-section">
+                <h3 class="client-section__title">Bookings</h3>
+                <div class="client-bookings">
+                    @foreach ($bookings as $inquiry)
+                        @php($job = $inquiry->bookedJob)
+                        <article class="client-booking">
+                            <div class="client-booking__head">
+                                <div>
+                                    <strong class="client-booking__name">{{ $job->summary ?: $job->couple_names ?: 'Booking' }}</strong>
+                                    <span class="client-booking__date">
+                                        @if ($job->event_date){{ $job->event_date->format('l, M j, Y') }}@else Date TBD @endif
+                                    </span>
+                                </div>
+                                <span class="client-pill client-pill--{{ $job->isCancelled() ? 'muted' : 'live' }}">{{ $job->portalStage() }}</span>
+                            </div>
+                            <div class="client-booking__actions">
+                                <a href="{{ route('admin.proposals.create', ['client_id' => $client->id, 'booked_job_id' => $job->id]) }}">＋ Proposal</a>
+                                <a href="{{ route('admin.contracts.create', ['client_id' => $client->id, 'booked_job_id' => $job->id]) }}">＋ Contract</a>
+                                <a href="{{ route('admin.invoices.create', ['client_id' => $client->id, 'booked_job_id' => $job->id]) }}">＋ Invoice</a>
+                            </div>
+                        </article>
+                    @endforeach
+                </div>
+            </section>
+        @endif
 
-                <article class="admin-subcard" style="border:1px solid var(--admin-border, #d8d4c8); border-radius:8px; padding:1rem; margin-bottom:1rem;">
-                    <header style="display:flex; flex-wrap:wrap; justify-content:space-between; gap:0.5rem; align-items:baseline;">
-                        <div>
-                            <strong>
-                                <a href="{{ route('admin.inquiries.edit', $inquiry) }}">Inquiry #{{ $inquiry->id }}</a>
-                            </strong>
-                            <span class="meta">
-                                · {{ \App\Models\Inquiry::statusOptions()[$inquiry->status] ?? $inquiry->status }}
-                                @if ($inquiry->event_date)
-                                    · {{ $inquiry->event_date->format('M j, Y') }}
-                                @endif
-                                @if ($inquiry->venue_name)
-                                    · {{ $inquiry->venue_name }}
-                                @endif
-                            </span>
-                        </div>
-                        <div>
-                            @if ($bookedJob)
-                                <a class="cta-secondary" href="{{ route('admin.proposals.create', ['client_id' => $client->id, 'booked_job_id' => $bookedJob->id]) }}">+ Proposal</a>
-                                <a class="cta-secondary" href="{{ route('admin.contracts.create', ['client_id' => $client->id, 'booked_job_id' => $bookedJob->id]) }}">+ Contract</a>
-                                <a class="cta-secondary" href="{{ route('admin.invoices.create', ['client_id' => $client->id, 'booked_job_id' => $bookedJob->id]) }}">+ Invoice</a>
-                            @endif
-                        </div>
-                    </header>
+        <section class="client-section">
+            <h3 class="client-section__title">Activity</h3>
+            @if (empty($timeline))
+                <p class="client-empty">Nothing yet. New inquiries from {{ $client->email }} land here automatically.</p>
+            @else
+                <ol class="client-feed">
+                    @foreach ($timeline as $event)
+                        <li class="client-feed__item client-feed__item--{{ $event['kind'] }}">
+                            <a class="client-feed__link" href="{{ $event['url'] }}">
+                                <span class="client-feed__icon" aria-hidden="true">{{ $event['icon'] }}</span>
+                                <span class="client-feed__body">
+                                    <span class="client-feed__title">{{ $event['title'] }}</span>
+                                    @if ($event['meta'])
+                                        <span class="client-feed__meta">{{ $event['meta'] }}</span>
+                                    @endif
+                                </span>
+                                <time class="client-feed__time" datetime="{{ optional($event['at'])->toIso8601String() }}">
+                                    {{ optional($event['at'])->diffForHumans(null, true) }} ago
+                                </time>
+                            </a>
+                        </li>
+                    @endforeach
+                </ol>
+            @endif
+        </section>
 
-                    @if ($bookedJob)
-                        <p class="meta" style="margin:0.5rem 0;">
-                            <strong>Booked job:</strong>
-                            {{ $bookedJob->summary ?: $bookedJob->couple_names ?: 'Confirmed' }}
-                            @if ($bookedJob->event_date)
-                                · {{ $bookedJob->event_date->format('M j, Y') }}
-                            @endif
-                            · {{ $bookedJob->portalStage() }}
+        <section class="client-section">
+            <div class="client-aux">
+                <div class="client-aux__item">
+                    <h3 class="client-section__title">Portal access</h3>
+                    @if ($client->password !== null)
+                        <p class="client-muted">
+                            Active · {{ $client->last_login_at ? 'last sign-in '.$client->last_login_at->diffForHumans() : 'not signed in yet' }}
                         </p>
                     @else
-                        <p class="meta" style="margin:0.5rem 0;">No booked job yet — mark this inquiry as booked to confirm.</p>
+                        <p class="client-muted">No portal access yet.</p>
+                        <form method="POST" action="{{ route('admin.clients.portal-invite', $client) }}">
+                            @csrf
+                            <button class="cta-secondary" type="submit">Send portal invite</button>
+                        </form>
                     @endif
-
-                    @if ($eventContracts->isNotEmpty())
-                        <div class="admin-table-wrap" style="margin-top:0.75rem;">
-                            <table class="admin-table">
-                                <thead>
-                                    <tr>
-                                        <th>Contract</th>
-                                        <th>Issued</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($eventContracts as $contract)
-                                        <tr>
-                                            <td><a href="{{ route('admin.contracts.show', $contract) }}">{{ $contract->number }}</a></td>
-                                            <td>{{ $contract->issue_date?->format('M j, Y') ?: '—' }}</td>
-                                            <td>{{ $contractStatusOptions[$contract->status] ?? $contract->status }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @endif
-
-                    @if ($eventInvoices->isNotEmpty())
-                        <div class="admin-table-wrap" style="margin-top:0.75rem;">
-                            <table class="admin-table">
-                                <thead>
-                                    <tr>
-                                        <th>Invoice</th>
-                                        <th>Issued</th>
-                                        <th>Status</th>
-                                        <th>Total</th>
-                                        <th>Balance</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($eventInvoices as $invoice)
-                                        <tr>
-                                            <td><a href="{{ route('admin.invoices.show', $invoice) }}">{{ $invoice->number }}</a></td>
-                                            <td>{{ $invoice->issue_date?->format('M j, Y') ?: '—' }}</td>
-                                            <td>{{ $invoiceStatusOptions[$invoice->status] ?? $invoice->status }}</td>
-                                            <td>{{ $money($invoice->total_cents) }}</td>
-                                            <td>{{ $money($invoice->amountDueCents()) }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @endif
-                </article>
-            @endforeach
-        @endif
-    </section>
-
-    @if ($standaloneContracts->isNotEmpty() || $standaloneInvoices->isNotEmpty())
-        <section class="admin-card">
-            <h3>Other billing (not tied to an event)</h3>
-
-            @if ($standaloneContracts->isNotEmpty())
-                <div class="admin-table-wrap">
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Contract</th>
-                                <th>Issued</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($standaloneContracts as $contract)
-                                <tr>
-                                    <td><a href="{{ route('admin.contracts.show', $contract) }}">{{ $contract->number }}</a></td>
-                                    <td>{{ $contract->issue_date?->format('M j, Y') ?: '—' }}</td>
-                                    <td>{{ $contractStatusOptions[$contract->status] ?? $contract->status }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
                 </div>
-            @endif
 
-            @if ($standaloneInvoices->isNotEmpty())
-                <div class="admin-table-wrap" style="margin-top:0.75rem;">
-                    <table class="admin-table">
-                        <thead>
-                            <tr>
-                                <th>Invoice</th>
-                                <th>Issued</th>
-                                <th>Status</th>
-                                <th>Total</th>
-                                <th>Balance</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach ($standaloneInvoices as $invoice)
-                                <tr>
-                                    <td><a href="{{ route('admin.invoices.show', $invoice) }}">{{ $invoice->number }}</a></td>
-                                    <td>{{ $invoice->issue_date?->format('M j, Y') ?: '—' }}</td>
-                                    <td>{{ $invoiceStatusOptions[$invoice->status] ?? $invoice->status }}</td>
-                                    <td>{{ $money($invoice->total_cents) }}</td>
-                                    <td>{{ $money($invoice->amountDueCents()) }}</td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
+                @if ($client->notes)
+                    <details class="client-aux__item">
+                        <summary class="client-section__title">Internal notes</summary>
+                        <p class="client-notes">{{ $client->notes }}</p>
+                    </details>
+                @endif
+            </div>
         </section>
-    @endif
+    </div>
 @endsection
