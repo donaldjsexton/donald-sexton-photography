@@ -5,6 +5,7 @@ namespace Tests\Feature\Console\Commands;
 use App\Models\Media;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class GenerateMediaAltTextCommandTest extends TestCase
@@ -17,7 +18,13 @@ class GenerateMediaAltTextCommandTest extends TestCase
 
         config()->set('services.anthropic.key', 'test-key');
         config()->set('services.anthropic.version', '2023-06-01');
-        config()->set('app.url', 'https://donaldsextonphotography.com');
+
+        Storage::fake('public');
+    }
+
+    private function fakeFile(string $path): void
+    {
+        Storage::disk('public')->put($path, str_repeat('x', 100));
     }
 
     public function test_fills_empty_alt_text_for_each_media(): void
@@ -27,6 +34,9 @@ class GenerateMediaAltTextCommandTest extends TestCase
                 ->push($this->fakeToolPayload('Bride and groom walking through Clearwater garden venue'))
                 ->push($this->fakeToolPayload('Wedding party portraits at sunset on Tampa Bay dock')),
         ]);
+
+        $this->fakeFile('media/first.jpg');
+        $this->fakeFile('media/second.jpg');
 
         $first = Media::create(['path' => 'media/first.jpg', 'filename' => 'first.jpg', 'disk' => 'public']);
         $second = Media::create(['path' => 'media/second.jpg', 'filename' => 'second.jpg', 'disk' => 'public']);
@@ -39,6 +49,9 @@ class GenerateMediaAltTextCommandTest extends TestCase
 
     public function test_skips_media_that_already_have_alt_text_unless_all_flag(): void
     {
+        $this->fakeFile('media/filled.jpg');
+        $this->fakeFile('media/empty.jpg');
+
         $alreadyFilled = Media::create([
             'path' => 'media/filled.jpg',
             'filename' => 'filled.jpg',
@@ -61,6 +74,8 @@ class GenerateMediaAltTextCommandTest extends TestCase
 
     public function test_all_flag_regenerates_images_with_existing_alt_text(): void
     {
+        $this->fakeFile('media/existing.jpg');
+
         $media = Media::create([
             'path' => 'media/existing.jpg',
             'filename' => 'existing.jpg',
@@ -91,6 +106,9 @@ class GenerateMediaAltTextCommandTest extends TestCase
 
     public function test_media_option_targets_specific_ids(): void
     {
+        $this->fakeFile('media/target.jpg');
+        $this->fakeFile('media/other.jpg');
+
         $target = Media::create(['path' => 'media/target.jpg', 'filename' => 'target.jpg', 'disk' => 'public']);
         $other = Media::create(['path' => 'media/other.jpg', 'filename' => 'other.jpg', 'disk' => 'public']);
 
@@ -108,6 +126,7 @@ class GenerateMediaAltTextCommandTest extends TestCase
     public function test_limit_caps_number_of_images_processed(): void
     {
         for ($i = 1; $i <= 4; $i++) {
+            $this->fakeFile("media/img-{$i}.jpg");
             Media::create(['path' => "media/img-{$i}.jpg", 'filename' => "img-{$i}.jpg", 'disk' => 'public']);
         }
 

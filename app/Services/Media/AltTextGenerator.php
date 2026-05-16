@@ -5,6 +5,7 @@ namespace App\Services\Media;
 use App\Models\Media;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class AltTextGenerator
 {
@@ -34,14 +35,14 @@ PROMPT;
             return null;
         }
 
-        $imageUrl = $this->absoluteUrl($media);
+        $imageSource = $this->base64ImageSource($media);
 
-        if ($imageUrl === null) {
+        if ($imageSource === null) {
             return null;
         }
 
         $version = (string) config('services.anthropic.version');
-        $userContent = $this->buildUserContent($imageUrl, $context);
+        $userContent = $this->buildUserContent($imageSource, $context);
 
         try {
             $response = Http::withHeaders([
@@ -92,25 +93,51 @@ PROMPT;
         return null;
     }
 
-    private function absoluteUrl(Media $media): ?string
+    /**
+     * @return array{type: string, media_type: string, data: string}|null
+     */
+    private function base64ImageSource(Media $media): ?array
     {
-        $relative = $media->publicUrl();
-
-        if ($relative === null) {
+        if (! $media->path) {
             return null;
         }
 
-        if (str_starts_with($relative, 'http://') || str_starts_with($relative, 'https://')) {
-            return $relative;
+        $disk = $media->disk ?? 'public';
+        $path = $media->path;
+
+        if (! Storage::disk($disk)->exists($path)) {
+            Log::warning('AltTextGenerator: file not found on disk.', ['media_id' => $media->id, 'path' => $path]);
+
+            return null;
         }
 
-        return rtrim((string) config('app.url'), '/').'/'.ltrim($relative, '/');
+        $contents = Storage::disk($disk)->get($path);
+
+        if ($contents === null) {
+            return null;
+        }
+
+        $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
+        $mediaType = match ($extension) {
+            'jpg', 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            default => 'image/jpeg',
+        };
+
+        return [
+            'type' => 'base64',
+            'media_type' => $mediaType,
+            'data' => base64_encode($contents),
+        ];
     }
 
     /**
+     * @param  array{type: string, media_type: string, data: string}  $imageSource
      * @return array<int, array<string, mixed>>
      */
-    private function buildUserContent(string $imageUrl, ?string $context): array
+    private function buildUserContent(array $imageSource, ?string $context): array
     {
         $content = [];
 
@@ -123,10 +150,7 @@ PROMPT;
 
         $content[] = [
             'type' => 'image',
-            'source' => [
-                'type' => 'url',
-                'url' => $imageUrl,
-            ],
+            'source' => $imageSource,
         ];
 
         $content[] = [
