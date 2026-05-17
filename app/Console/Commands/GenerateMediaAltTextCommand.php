@@ -13,6 +13,7 @@ use Illuminate\Console\Command;
     {--media=* : Limit to specific Media IDs}
     {--limit=50 : Maximum number of images to process in this run}
     {--sleep=1 : Seconds to sleep between API calls}
+    {--max-seconds=45 : Stop gracefully after roughly this many seconds so web-triggered runs return before the request times out; 0 disables the budget}
     {--dry-run : Show which records would be processed without calling the API}
 ')]
 #[Description('Generate alt text for media records using Claude vision.')]
@@ -25,6 +26,8 @@ class GenerateMediaAltTextCommand extends Command
         $ids = array_filter(array_map('intval', (array) $this->option('media')));
         $limit = max(1, (int) $this->option('limit'));
         $sleepSeconds = max(0, (int) $this->option('sleep'));
+        $maxSeconds = max(0, (int) $this->option('max-seconds'));
+        $startedAt = microtime(true);
 
         $query = Media::query()
             ->whereNotNull('path')
@@ -63,11 +66,18 @@ class GenerateMediaAltTextCommand extends Command
         $skipped = 0;
         $failed = 0;
         $processed = 0;
+        $stoppedEarly = false;
 
         $query->with(['weddingStories', 'journalPosts', 'venues'])->each(function (Media $media) use (
-            $generator, $isDryRun, $regenerateAll, $sleepSeconds, $total,
-            &$written, &$skipped, &$failed, &$processed
-        ): void {
+            $generator, $isDryRun, $regenerateAll, $sleepSeconds, $total, $maxSeconds, $startedAt,
+            &$written, &$skipped, &$failed, &$processed, &$stoppedEarly
+        ): bool {
+            if ($maxSeconds > 0 && (microtime(true) - $startedAt) >= $maxSeconds) {
+                $stoppedEarly = true;
+
+                return false;
+            }
+
             $processed++;
             $this->line(sprintf('• #%d  %s', $media->id, $media->path));
 
@@ -76,7 +86,7 @@ class GenerateMediaAltTextCommand extends Command
                 $this->line('  ↳ context: '.($context ?? '(none)'));
                 $skipped++;
 
-                return;
+                return true;
             }
 
             $context = $this->buildContext($media);
@@ -86,14 +96,14 @@ class GenerateMediaAltTextCommand extends Command
                 $failed++;
                 $this->warn('  ↳ generation failed (see logs).');
 
-                return;
+                return true;
             }
 
             if (! $regenerateAll && filled($media->alt_text)) {
                 $skipped++;
                 $this->line('  ↳ existing alt text preserved (use --all to overwrite).');
 
-                return;
+                return true;
             }
 
             $media->forceFill(['alt_text' => $altText])->save();
@@ -103,6 +113,8 @@ class GenerateMediaAltTextCommand extends Command
             if ($sleepSeconds > 0 && $processed < $total) {
                 sleep($sleepSeconds);
             }
+
+            return true;
         });
 
         $this->newLine();
@@ -116,6 +128,17 @@ class GenerateMediaAltTextCommand extends Command
                 $written === 1 ? 'image' : 'images',
                 $skipped,
                 $failed,
+            ));
+        }
+
+        if ($stoppedEarly) {
+            $remaining = max(0, $total - $processed);
+
+            $this->warn(sprintf(
+                'Stopped after the %ds time budget with %d %s still pending. Run the command again to continue, or pass --max-seconds=0 to disable the budget.',
+                $maxSeconds,
+                $remaining,
+                $remaining === 1 ? 'image' : 'images',
             ));
         }
 
