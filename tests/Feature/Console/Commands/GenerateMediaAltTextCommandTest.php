@@ -140,6 +140,42 @@ class GenerateMediaAltTextCommandTest extends TestCase
         $this->assertSame(2, Media::whereNotNull('alt_text')->where('alt_text', '!=', '')->count());
     }
 
+    public function test_stops_gracefully_when_time_budget_is_exceeded(): void
+    {
+        for ($i = 1; $i <= 3; $i++) {
+            $this->fakeFile("media/budget-{$i}.jpg");
+            Media::create(['path' => "media/budget-{$i}.jpg", 'filename' => "budget-{$i}.jpg", 'disk' => 'public']);
+        }
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response($this->fakeToolPayload('Alt text for one processed image')),
+        ]);
+
+        $this->artisan('media:generate-alt-text', ['--max-seconds' => 1, '--sleep' => 1])
+            ->expectsOutputToContain('still pending')
+            ->assertSuccessful();
+
+        Http::assertSentCount(1);
+        $this->assertSame(1, Media::whereNotNull('alt_text')->where('alt_text', '!=', '')->count());
+    }
+
+    public function test_max_seconds_zero_disables_the_budget(): void
+    {
+        for ($i = 1; $i <= 3; $i++) {
+            $this->fakeFile("media/nobudget-{$i}.jpg");
+            Media::create(['path' => "media/nobudget-{$i}.jpg", 'filename' => "nobudget-{$i}.jpg", 'disk' => 'public']);
+        }
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response($this->fakeToolPayload('Alt text generated for image')),
+        ]);
+
+        $this->artisan('media:generate-alt-text', ['--max-seconds' => 0, '--sleep' => 0])->assertSuccessful();
+
+        Http::assertSentCount(3);
+        $this->assertSame(3, Media::whereNotNull('alt_text')->where('alt_text', '!=', '')->count());
+    }
+
     public function test_skips_media_with_empty_path(): void
     {
         Http::fake();

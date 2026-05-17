@@ -166,9 +166,14 @@
                 output.textContent = '';
                 output.classList.remove('is-success', 'is-error');
 
+                const timeoutMs = 150000;
+                const controller = new AbortController();
+                const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+
                 try {
                     const response = await fetch(runUrl, {
                         method: 'POST',
+                        signal: controller.signal,
                         headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-TOKEN': csrfToken,
@@ -194,11 +199,17 @@
                         status.textContent = 'Failed · exit ' + (payload.exit_code ?? '?');
                     }
                 } catch (error) {
+                    const timedOut = error.name === 'AbortError';
+
                     output.hidden = false;
-                    output.textContent = error.message;
+                    output.textContent = timedOut
+                        ? 'The request did not return within ' + Math.round(timeoutMs / 1000) + 's. The command may still be finishing on the server. '
+                            + 'For long jobs like media:generate-alt-text, lower --limit (or --max-seconds) and run it again — already-processed records are skipped.'
+                        : error.message;
                     output.classList.add('is-error');
-                    status.textContent = 'Network error';
+                    status.textContent = timedOut ? 'Timed out' : 'Network error';
                 } finally {
+                    window.clearTimeout(timeoutId);
                     button.disabled = false;
                 }
             });
