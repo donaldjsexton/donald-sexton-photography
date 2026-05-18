@@ -99,7 +99,7 @@ Artisan::command('media:audit-duplicates {--disk=public} {--path-prefix=} {--lim
     return 0;
 })->purpose('Audit exact duplicate media files and write a JSON report');
 
-Artisan::command('media:optimize {--disk=public} {--path-prefix=} {--from-id=0} {--to-id=0} {--limit=0} {--max-width=1600} {--jpeg-quality=82} {--webp-quality=80} {--min-bytes=250000} {--generate-webp} {--only-missing-webp} {--dry-run} {--summary-only} {--report=}', function (MediaOptimizer $optimizer) {
+Artisan::command('media:optimize {--disk=public} {--path-prefix=} {--from-id=0} {--to-id=0} {--limit=0} {--max-width=1600} {--jpeg-quality=82} {--webp-quality=80} {--avif-quality=50} {--generate-avif} {--min-bytes=250000} {--generate-webp} {--only-missing-webp} {--dry-run} {--summary-only} {--report=}', function (MediaOptimizer $optimizer) {
     $disk = (string) $this->option('disk');
     $pathPrefix = trim((string) $this->option('path-prefix'));
     $fromId = max(0, (int) $this->option('from-id'));
@@ -111,8 +111,10 @@ Artisan::command('media:optimize {--disk=public} {--path-prefix=} {--from-id=0} 
         'max_width' => (int) $this->option('max-width'),
         'jpeg_quality' => (int) $this->option('jpeg-quality'),
         'webp_quality' => (int) $this->option('webp-quality'),
+        'avif_quality' => (int) $this->option('avif-quality'),
         'min_bytes' => (int) $this->option('min-bytes'),
         'generate_webp' => (bool) $this->option('generate-webp'),
+        'generate_avif' => (bool) $this->option('generate-avif') || (bool) $this->option('generate-webp'),
         'only_missing_webp' => (bool) $this->option('only-missing-webp'),
         'dry_run' => (bool) $this->option('dry-run'),
     ];
@@ -147,6 +149,8 @@ Artisan::command('media:optimize {--disk=public} {--path-prefix=} {--from-id=0} 
         'resized' => 0,
         'webp_created' => 0,
         'webp_updated' => 0,
+        'avif_created' => 0,
+        'avif_updated' => 0,
         'bytes_saved' => 0,
         'source_bytes_before' => 0,
         'source_bytes_after' => 0,
@@ -197,6 +201,8 @@ Artisan::command('media:optimize {--disk=public} {--path-prefix=} {--from-id=0} 
             $summary['resized'] += (int) ($result['resized'] ?? false);
             $summary['webp_created'] += (int) ($result['webp_created'] ?? false);
             $summary['webp_updated'] += (int) ($result['webp_updated'] ?? false);
+            $summary['avif_created'] += (int) ($result['avif_created'] ?? false);
+            $summary['avif_updated'] += (int) ($result['avif_updated'] ?? false);
             $summary['bytes_saved'] += (int) ($result['bytes_saved'] ?? 0);
 
             if (! $summaryOnly) {
@@ -236,6 +242,8 @@ Artisan::command('media:optimize {--disk=public} {--path-prefix=} {--from-id=0} 
     $this->line("- resized: {$summary['resized']}");
     $this->line("- webp created: {$summary['webp_created']}");
     $this->line("- webp updated: {$summary['webp_updated']}");
+    $this->line("- avif created: {$summary['avif_created']}");
+    $this->line("- avif updated: {$summary['avif_updated']}");
     $this->line("- bytes saved: {$summary['bytes_saved']}");
     $this->line("- source bytes before: {$summary['source_bytes_before']}");
     $this->line("- source bytes after: {$summary['source_bytes_after']}");
@@ -250,7 +258,7 @@ Artisan::command('media:optimize {--disk=public} {--path-prefix=} {--from-id=0} 
     return $summary['errors'] === 0 ? 0 : 1;
 })->purpose('Resize and recompress media files, with optional WebP generation');
 
-Artisan::command('media:generate-variants {--disk=public} {--path-prefix=} {--from-id=0} {--to-id=0} {--limit=0} {--widths=640,1080} {--webp-quality=80} {--force} {--dry-run} {--summary-only}', function (MediaOptimizer $optimizer) {
+Artisan::command('media:generate-variants {--disk=public} {--path-prefix=} {--from-id=0} {--to-id=0} {--limit=0} {--widths=640,1080} {--webp-quality=80} {--avif-quality=50} {--force} {--dry-run} {--summary-only}', function (MediaOptimizer $optimizer) {
     $disk = (string) $this->option('disk');
     $pathPrefix = trim((string) $this->option('path-prefix'));
     $fromId = max(0, (int) $this->option('from-id'));
@@ -273,6 +281,12 @@ Artisan::command('media:generate-variants {--disk=public} {--path-prefix=} {--fr
 
     $options = [
         'webp_quality' => (int) $this->option('webp-quality'),
+        'force' => (bool) $this->option('force'),
+        'dry_run' => (bool) $this->option('dry-run'),
+    ];
+
+    $avifOptions = [
+        'avif_quality' => (int) $this->option('avif-quality'),
         'force' => (bool) $this->option('force'),
         'dry_run' => (bool) $this->option('dry-run'),
     ];
@@ -314,6 +328,13 @@ Artisan::command('media:generate-variants {--disk=public} {--path-prefix=} {--fr
 
         try {
             $result = $optimizer->generateWebpVariants($media, $widths, $options);
+            $avifResult = $optimizer->generateAvifVariants($media, $widths, $avifOptions);
+            $result['variants'] = array_merge($result['variants'], $avifResult['variants']);
+
+            if ($avifResult['status'] === 'optimized' && $result['status'] !== 'optimized') {
+                $result['status'] = 'optimized';
+                $result['reason'] = null;
+            }
         } catch (Throwable $throwable) {
             $summary['errors']++;
 

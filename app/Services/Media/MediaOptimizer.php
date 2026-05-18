@@ -3,6 +3,7 @@
 namespace App\Services\Media;
 
 use App\Models\Media;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
 
 class MediaOptimizer
@@ -22,7 +23,7 @@ class MediaOptimizer
      *                                        (max_width, *_quality, etc.)
      *                                        and `variant_widths` are
      *                                        recognized.
-     * @return array{optimize:array<string,mixed>,variants:array<string,mixed>}
+     * @return array{optimize:array<string,mixed>,variants:array<string,mixed>,avif_variants:array<string,mixed>}
      */
     public function optimizeUpload(Media $media, array $options = []): array
     {
@@ -33,8 +34,10 @@ class MediaOptimizer
             'max_width' => 1600,
             'jpeg_quality' => 82,
             'webp_quality' => 80,
+            'avif_quality' => 50,
             'min_bytes' => 0,
             'generate_webp' => true,
+            'generate_avif' => true,
             'only_missing_webp' => true,
         ], $options);
 
@@ -47,9 +50,14 @@ class MediaOptimizer
             'webp_quality' => $optimizeOptions['webp_quality'],
         ]);
 
+        $avifVariantResult = $this->generateAvifVariants($media, (array) $variantWidths, [
+            'avif_quality' => $optimizeOptions['avif_quality'],
+        ]);
+
         return [
             'optimize' => $optimizeResult,
             'variants' => $variantResult,
+            'avif_variants' => $avifVariantResult,
         ];
     }
 
@@ -91,9 +99,11 @@ class MediaOptimizer
         $maxWidth = max(1, (int) ($options['max_width'] ?? 1600));
         $jpegQuality = max(1, min(100, (int) ($options['jpeg_quality'] ?? 82)));
         $webpQuality = max(1, min(100, (int) ($options['webp_quality'] ?? 80)));
+        $avifQuality = max(1, min(100, (int) ($options['avif_quality'] ?? 50)));
         $minBytes = max(0, (int) ($options['min_bytes'] ?? 0));
         $dryRun = (bool) ($options['dry_run'] ?? false);
         $generateWebp = (bool) ($options['generate_webp'] ?? false);
+        $generateAvif = (bool) ($options['generate_avif'] ?? $generateWebp);
         $onlyMissingWebp = (bool) ($options['only_missing_webp'] ?? false);
 
         [$originalWidth, $originalHeight] = $imageInfo;
@@ -112,13 +122,22 @@ class MediaOptimizer
                 ? max(1, (int) round($height * ($targetWidth / $width)))
                 : $height;
             $resized = $targetWidth !== $width || $targetHeight !== $height;
-            $webpPath = $this->webpPathFor($path);
+            $webpPath = $this->siblingPathFor($path, 'webp');
             $webpExists = $webpPath !== null && $storage->exists($webpPath);
+            $avifPath = $this->siblingPathFor($path, 'avif');
+            $avifExists = $avifPath !== null && $storage->exists($avifPath);
+
+            $webpSatisfied = ! $generateWebp || ($onlyMissingWebp && $webpExists);
+            $avifSatisfied = ! $generateAvif
+                || $avifPath === null
+                || ! $this->formatSupported('avif')
+                || ($onlyMissingWebp && $avifExists);
 
             if (
                 ! $resized
                 && $originalBytes < $minBytes
-                && (! $generateWebp || ($onlyMissingWebp && $webpExists))
+                && $webpSatisfied
+                && $avifSatisfied
             ) {
                 return $this->skip('below_min_bytes');
             }
@@ -142,19 +161,35 @@ class MediaOptimizer
                     dryRun: $dryRun,
                 );
 
-                $webp = $this->optimizeWebpVariant(
-                    storagePath: $path,
+                $webp = $this->optimizeEncodedSibling(
+                    format: 'webp',
+                    siblingPath: $webpPath,
                     storageDisk: $storage,
                     canvas: $canvas,
                     originalBytes: (int) $originalBytes,
-                    generateWebp: $generateWebp,
-                    onlyMissingWebp: $onlyMissingWebp,
-                    existingWebp: $webpExists,
-                    webpQuality: $webpQuality,
+                    generate: $generateWebp,
+                    onlyMissing: $onlyMissingWebp,
+                    existing: $webpExists,
+                    quality: $webpQuality,
                     dryRun: $dryRun,
                 );
 
-                $status = $original['optimized'] || $webp['created'] || $webp['updated']
+                $avif = $this->optimizeEncodedSibling(
+                    format: 'avif',
+                    siblingPath: $avifPath,
+                    storageDisk: $storage,
+                    canvas: $canvas,
+                    originalBytes: (int) $originalBytes,
+                    generate: $generateAvif,
+                    onlyMissing: $onlyMissingWebp,
+                    existing: $avifExists,
+                    quality: $avifQuality,
+                    dryRun: $dryRun,
+                );
+
+                $status = $original['optimized']
+                    || $webp['created'] || $webp['updated']
+                    || $avif['created'] || $avif['updated']
                     ? 'optimized'
                     : 'skipped';
 
@@ -168,6 +203,9 @@ class MediaOptimizer
                     'webp_created' => (bool) $webp['created'],
                     'webp_updated' => (bool) $webp['updated'],
                     'webp_bytes' => $webp['bytes'],
+                    'avif_created' => (bool) $avif['created'],
+                    'avif_updated' => (bool) $avif['updated'],
+                    'avif_bytes' => $avif['bytes'],
                 ];
             } finally {
                 imagedestroy($canvas);
@@ -265,52 +303,51 @@ class MediaOptimizer
         }
     }
 
-    private function optimizeWebpVariant(
-        string $storagePath,
-        \Illuminate\Contracts\Filesystem\Filesystem $storageDisk,
+    private function optimizeEncodedSibling(
+        string $format,
+        ?string $siblingPath,
+        Filesystem $storageDisk,
         \GdImage $canvas,
         int $originalBytes,
-        bool $generateWebp,
-        bool $onlyMissingWebp,
-        bool $existingWebp,
-        int $webpQuality,
+        bool $generate,
+        bool $onlyMissing,
+        bool $existing,
+        int $quality,
         bool $dryRun,
     ): array {
-        $webpPath = $this->webpPathFor($storagePath);
-
-        if (! $generateWebp || $webpPath === null || ! function_exists('imagewebp')) {
+        if (! $generate || $siblingPath === null || ! $this->formatSupported($format)) {
             return ['created' => false, 'updated' => false, 'bytes' => null];
         }
 
-        if ($onlyMissingWebp && $existingWebp) {
+        if ($onlyMissing && $existing) {
             return ['created' => false, 'updated' => false, 'bytes' => null];
         }
 
-        $tempPath = tempnam(sys_get_temp_dir(), 'media-webp-');
+        $tempPath = tempnam(sys_get_temp_dir(), 'media-'.$format.'-');
 
         if ($tempPath === false) {
             return ['created' => false, 'updated' => false, 'bytes' => null];
         }
 
         try {
-            if (! imagewebp($canvas, $tempPath, $webpQuality)) {
+            if (! $this->encodeCanvas($canvas, $tempPath, $format, $quality)) {
                 return ['created' => false, 'updated' => false, 'bytes' => null];
             }
 
-            $webpBytes = filesize($tempPath);
+            $encodedBytes = filesize($tempPath);
 
-            if ($webpBytes === false) {
+            if ($encodedBytes === false) {
                 return ['created' => false, 'updated' => false, 'bytes' => null];
             }
 
-            if ($existingWebp) {
-                $existingBytes = $storageDisk->size($webpPath);
+            if ($existing) {
+                $existingBytes = $storageDisk->size($siblingPath);
 
-                if ($existingBytes !== false && $existingBytes <= $webpBytes) {
+                if ($existingBytes !== false && $existingBytes <= $encodedBytes) {
                     return ['created' => false, 'updated' => false, 'bytes' => (int) $existingBytes];
                 }
-            } elseif ($webpBytes >= $originalBytes) {
-                return ['created' => false, 'updated' => false, 'bytes' => (int) $webpBytes];
+            } elseif ($encodedBytes >= $originalBytes) {
+                return ['created' => false, 'updated' => false, 'bytes' => (int) $encodedBytes];
             }
 
             if (! $dryRun) {
@@ -321,16 +358,16 @@ class MediaOptimizer
                 }
 
                 try {
-                    $storageDisk->writeStream($webpPath, $stream);
+                    $storageDisk->writeStream($siblingPath, $stream);
                 } finally {
                     fclose($stream);
                 }
             }
 
             return [
-                'created' => ! $existingWebp,
-                'updated' => $existingWebp,
-                'bytes' => (int) $webpBytes,
+                'created' => ! $existing,
+                'updated' => $existing,
+                'bytes' => (int) $encodedBytes,
             ];
         } finally {
             @unlink($tempPath);
@@ -455,7 +492,7 @@ class MediaOptimizer
         return imagejpeg($canvas, $path, $quality);
     }
 
-    private function webpPathFor(string $path): ?string
+    private function siblingPathFor(string $path, string $format): ?string
     {
         $extension = strtolower(pathinfo($path, PATHINFO_EXTENSION));
 
@@ -463,21 +500,71 @@ class MediaOptimizer
             return null;
         }
 
-        return preg_replace('/\.[^.]+$/', '.webp', $path);
+        return preg_replace('/\.[^.]+$/', '.'.$format, $path);
+    }
+
+    private function formatSupported(string $format): bool
+    {
+        return match ($format) {
+            'webp' => function_exists('imagewebp'),
+            'avif' => function_exists('imageavif'),
+            default => false,
+        };
+    }
+
+    private function encodeCanvas(\GdImage $canvas, string $path, string $format, int $quality): bool
+    {
+        return match ($format) {
+            'webp' => function_exists('imagewebp') && imagewebp($canvas, $path, $quality),
+            'avif' => function_exists('imageavif') && imageavif($canvas, $path, $quality),
+            default => false,
+        };
     }
 
     /**
      * Generate downscaled WebP variants of $media at each width in $widths.
-     *
-     * Output paths follow the pattern path/foo-{width}.webp next to the
-     * original. Widths greater than or equal to the source width are skipped
-     * to avoid upscaling.
      *
      * @param  array<int>  $widths
      * @param  array<string,mixed>  $options  webp_quality, force, dry_run
      * @return array{status:string,reason:?string,variants:array<int,array<string,mixed>>}
      */
     public function generateWebpVariants(Media $media, array $widths, array $options = []): array
+    {
+        return $this->generateVariants('webp', $media, $widths, [
+            'quality' => (int) ($options['webp_quality'] ?? 80),
+            'force' => (bool) ($options['force'] ?? false),
+            'dry_run' => (bool) ($options['dry_run'] ?? false),
+        ]);
+    }
+
+    /**
+     * Generate downscaled AVIF variants of $media at each width in $widths.
+     *
+     * @param  array<int>  $widths
+     * @param  array<string,mixed>  $options  avif_quality, force, dry_run
+     * @return array{status:string,reason:?string,variants:array<int,array<string,mixed>>}
+     */
+    public function generateAvifVariants(Media $media, array $widths, array $options = []): array
+    {
+        return $this->generateVariants('avif', $media, $widths, [
+            'quality' => (int) ($options['avif_quality'] ?? 50),
+            'force' => (bool) ($options['force'] ?? false),
+            'dry_run' => (bool) ($options['dry_run'] ?? false),
+        ]);
+    }
+
+    /**
+     * Generate downscaled variants of $media in $format at each width.
+     *
+     * Output paths follow the pattern path/foo-{width}.{format} next to
+     * the original. Widths greater than or equal to the source width are
+     * skipped to avoid upscaling.
+     *
+     * @param  array<int>  $widths
+     * @param  array<string,mixed>  $options  quality, force, dry_run
+     * @return array{status:string,reason:?string,variants:array<int,array<string,mixed>>}
+     */
+    private function generateVariants(string $format, Media $media, array $widths, array $options = []): array
     {
         $disk = $media->disk ?: 'public';
         $path = trim((string) $media->path);
@@ -505,8 +592,8 @@ class MediaOptimizer
             return $this->skipVariants('unsupported_mime');
         }
 
-        if (! function_exists('imagewebp')) {
-            return $this->skipVariants('webp_unsupported');
+        if (! $this->formatSupported($format)) {
+            return $this->skipVariants($format.'_unsupported');
         }
 
         $widths = collect($widths)
@@ -521,7 +608,7 @@ class MediaOptimizer
             return $this->skipVariants('no_widths');
         }
 
-        $quality = max(1, min(100, (int) ($options['webp_quality'] ?? 80)));
+        $quality = max(1, min(100, (int) ($options['quality'] ?? ($format === 'avif' ? 50 : 80))));
         $force = (bool) ($options['force'] ?? false);
         $dryRun = (bool) ($options['dry_run'] ?? false);
 
@@ -551,7 +638,9 @@ class MediaOptimizer
                     continue;
                 }
 
-                $variantPath = $media->webpVariantPath($width);
+                $variantPath = $format === 'avif'
+                    ? $media->avifVariantPath($width)
+                    : $media->webpVariantPath($width);
 
                 if ($variantPath === null) {
                     $results[] = [
@@ -597,7 +686,7 @@ class MediaOptimizer
                 $tempPath = tempnam(sys_get_temp_dir(), 'media-variant-');
 
                 try {
-                    if ($tempPath === false || ! imagewebp($canvas, $tempPath, $quality)) {
+                    if ($tempPath === false || ! $this->encodeCanvas($canvas, $tempPath, $format, $quality)) {
                         $results[] = [
                             'width' => $width,
                             'created' => false,

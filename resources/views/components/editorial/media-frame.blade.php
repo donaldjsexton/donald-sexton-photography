@@ -30,15 +30,27 @@
     $webpSrcset = $media && method_exists($media, 'webpSrcset')
         ? $media->webpSrcset()
         : null;
+    $avifUrl = $media && method_exists($media, 'avifPublicUrl')
+        ? $media->avifPublicUrl()
+        : null;
+    $avifSrcset = $media && method_exists($media, 'avifSrcset')
+        ? $media->avifSrcset()
+        : null;
+    $hasPicture = $webpSrcset || $webpUrl || $avifSrcset || $avifUrl;
 @endphp
 
 <figure {{ $attributes->class(['media-frame', 'media-frame--'.$ratio]) }}>
     @if ($url)
-        @if ($webpSrcset || $webpUrl)
+        @if ($hasPicture)
             <picture>
+                @if ($avifSrcset)
+                    <source srcset="{{ $avifSrcset }}" sizes="{{ $sizes }}" type="image/avif">
+                @elseif ($avifUrl)
+                    <source srcset="{{ $avifUrl }}" type="image/avif">
+                @endif
                 @if ($webpSrcset)
                     <source srcset="{{ $webpSrcset }}" sizes="{{ $sizes }}" type="image/webp">
-                @else
+                @elseif ($webpUrl)
                     <source srcset="{{ $webpUrl }}" type="image/webp">
                 @endif
         @endif
@@ -53,7 +65,7 @@
                     @if ($objectPosition) style="object-position: {{ $objectPosition }};" @endif
                     @if ($fetchpriority) fetchpriority="{{ $fetchpriority }}" @endif
                 >
-        @if ($webpSrcset || $webpUrl)
+        @if ($hasPicture)
             </picture>
         @endif
     @else
