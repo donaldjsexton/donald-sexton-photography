@@ -38,15 +38,38 @@ if (navRoot) {
     const navPanel = navRoot.querySelector('[data-nav-panel]');
     const mobileNav = window.matchMedia('(max-width: 980px)');
 
+    const navItems = () => [navToggle, ...(navPanel?.querySelectorAll('a') ?? [])]
+        .filter(Boolean);
+
     const setNavState = (open) => {
         navRoot.classList.toggle('is-nav-open', open);
         navToggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
     };
 
-    const closeNav = () => setNavState(false);
+    const openNav = () => {
+        setNavState(true);
+
+        if (mobileNav.matches) {
+            navPanel?.querySelector('a')?.focus();
+        }
+    };
+
+    const closeNav = ({ restoreFocus = false } = {}) => {
+        const wasOpen = navRoot.classList.contains('is-nav-open');
+
+        setNavState(false);
+
+        if (restoreFocus && wasOpen && mobileNav.matches) {
+            navToggle?.focus();
+        }
+    };
 
     navToggle?.addEventListener('click', () => {
-        setNavState(!navRoot.classList.contains('is-nav-open'));
+        if (navRoot.classList.contains('is-nav-open')) {
+            closeNav({ restoreFocus: true });
+        } else {
+            openNav();
+        }
     });
 
     navPanel?.querySelectorAll('a').forEach((link) => {
@@ -70,8 +93,39 @@ if (navRoot) {
     }
 
     document.addEventListener('keydown', (event) => {
+        if (!navRoot.classList.contains('is-nav-open') || !mobileNav.matches) {
+            return;
+        }
+
         if (event.key === 'Escape') {
-            closeNav();
+            closeNav({ restoreFocus: true });
+            return;
+        }
+
+        if (event.key === 'Tab') {
+            const items = navItems();
+
+            if (items.length === 0) {
+                return;
+            }
+
+            const first = items[0];
+            const last = items[items.length - 1];
+            const active = document.activeElement;
+
+            if (!navRoot.contains(active)) {
+                event.preventDefault();
+                first.focus();
+                return;
+            }
+
+            if (event.shiftKey && active === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && active === last) {
+                event.preventDefault();
+                first.focus();
+            }
         }
     });
 }

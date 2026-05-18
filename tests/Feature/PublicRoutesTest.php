@@ -973,6 +973,17 @@ HTML,
         $response->assertSee('<main class="site-main" id="main-content" tabindex="-1">', false);
     }
 
+    public function test_primary_navigation_exposes_accessible_toggle_wiring(): void
+    {
+        $response = $this->get('/inquire')->assertOk();
+
+        $response->assertSee('aria-expanded="false"', false);
+        $response->assertSee('aria-controls="site-nav"', false);
+        $response->assertSee('data-nav-toggle', false);
+        $response->assertSee('id="site-nav"', false);
+        $response->assertSee('data-nav-panel', false);
+    }
+
     public function test_inquiry_validation_errors_are_associated_with_their_fields(): void
     {
         $response = $this->followingRedirects()
