@@ -211,6 +211,7 @@ if (lightboxTriggers.length > 0) {
             <img class="site-lightbox__image" alt="">
         </div>
         <button class="site-lightbox__nav site-lightbox__nav--next" type="button" aria-label="Next image">&#8250;</button>
+        <p class="site-lightbox__status visually-hidden" role="status" aria-live="polite"></p>
     `;
 
     document.body.appendChild(lightbox);
@@ -219,6 +220,7 @@ if (lightboxTriggers.length > 0) {
     const closeButton = lightbox.querySelector('.site-lightbox__close');
     const prevButton = lightbox.querySelector('.site-lightbox__nav--prev');
     const nextButton = lightbox.querySelector('.site-lightbox__nav--next');
+    const status = lightbox.querySelector('.site-lightbox__status');
 
     let items = [];
     let currentIndex = 0;
@@ -305,6 +307,11 @@ if (lightboxTriggers.length > 0) {
 
         prevButton.hidden = items.length <= 1;
         nextButton.hidden = items.length <= 1;
+
+        if (status) {
+            const position = items.length > 1 ? `Image ${currentIndex + 1} of ${items.length}` : 'Image';
+            status.textContent = item.alt ? `${position}: ${item.alt}` : position;
+        }
     };
 
     const open = (trigger) => {
@@ -336,6 +343,10 @@ if (lightboxTriggers.length > 0) {
         image.alt = '';
         items = [];
         currentIndex = 0;
+
+        if (status) {
+            status.textContent = '';
+        }
 
         if (lastFocused && document.contains(lastFocused)) {
             lastFocused.focus();
