@@ -273,6 +273,147 @@ class MediaMaintenanceCommandsTest extends TestCase
         $this->assertStringContainsString(' 1080w', $srcset);
     }
 
+    public function test_media_optimize_generates_full_size_avif_sibling_and_media_frame_serves_it(): void
+    {
+        Storage::fake('public');
+
+        $path = 'imports/pictime/avif/source.jpg';
+        Storage::disk('public')->put($path, $this->makeJpegBytes(2200, 1466, 100));
+
+        $media = Media::create([
+            'disk' => 'public',
+            'path' => $path,
+            'filename' => 'source.jpg',
+            'mime_type' => 'image/jpeg',
+            'width' => 2200,
+            'height' => 1466,
+        ]);
+
+        Artisan::call('media:optimize', [
+            '--disk' => 'public',
+            '--path-prefix' => 'imports/pictime/avif',
+            '--max-width' => 1600,
+            '--jpeg-quality' => 70,
+            '--webp-quality' => 70,
+            '--avif-quality' => 45,
+            '--min-bytes' => 0,
+            '--generate-webp' => true,
+        ]);
+
+        $media->refresh();
+
+        $this->assertTrue(Storage::disk('public')->exists('imports/pictime/avif/source.webp'));
+        $this->assertTrue(
+            Storage::disk('public')->exists('imports/pictime/avif/source.avif'),
+            'A full-size AVIF sibling should be generated alongside the WebP.'
+        );
+
+        [$avifWidth] = getimagesize(Storage::disk('public')->path('imports/pictime/avif/source.avif'));
+        $this->assertSame(1600, $avifWidth);
+
+        $html = Blade::render('<x-editorial.media-frame :media="$media" />', [
+            'media' => $media,
+        ]);
+
+        $this->assertStringContainsString('type="image/avif"', $html);
+        $this->assertStringContainsString('/storage/imports/pictime/avif/source.avif', $html);
+        // AVIF must be offered before WebP so supporting browsers pick it.
+        $this->assertLessThan(
+            strpos($html, 'type="image/webp"'),
+            strpos($html, 'type="image/avif"'),
+            'The AVIF <source> must precede the WebP <source>.'
+        );
+    }
+
+    public function test_media_generate_variants_creates_avif_variants_and_powers_avif_srcset(): void
+    {
+        Storage::fake('public');
+
+        $path = 'imports/pictime/avifvar/source.jpg';
+        $bytes = $this->makeJpegBytes(1600, 1066, 90);
+        Storage::disk('public')->put($path, $bytes);
+
+        // Stand in for the optimizer-produced full-size AVIF/WebP at the
+        // original resolution, included by the srcset builders as the
+        // largest candidate.
+        Storage::disk('public')->put('imports/pictime/avifvar/source.webp', $bytes);
+        Storage::disk('public')->put('imports/pictime/avifvar/source.avif', $bytes);
+
+        $media = Media::create([
+            'disk' => 'public',
+            'path' => $path,
+            'filename' => 'source.jpg',
+            'mime_type' => 'image/jpeg',
+            'width' => 1600,
+            'height' => 1066,
+        ]);
+
+        Artisan::call('media:generate-variants', [
+            '--disk' => 'public',
+            '--path-prefix' => 'imports/pictime/avifvar',
+            '--widths' => '640,1080',
+            '--webp-quality' => 70,
+            '--avif-quality' => 45,
+        ]);
+
+        $this->assertTrue(Storage::disk('public')->exists('imports/pictime/avifvar/source-640.webp'));
+        $this->assertTrue(Storage::disk('public')->exists('imports/pictime/avifvar/source-640.avif'));
+        $this->assertTrue(Storage::disk('public')->exists('imports/pictime/avifvar/source-1080.avif'));
+
+        [$variantWidth] = getimagesize(Storage::disk('public')->path('imports/pictime/avifvar/source-640.avif'));
+        $this->assertSame(640, $variantWidth);
+
+        $avifSrcset = $media->avifSrcset();
+
+        $this->assertNotNull($avifSrcset);
+        $this->assertStringContainsString('/storage/imports/pictime/avifvar/source-640.avif 640w', $avifSrcset);
+        $this->assertStringContainsString('/storage/imports/pictime/avifvar/source-1080.avif 1080w', $avifSrcset);
+        $this->assertStringContainsString('/storage/imports/pictime/avifvar/source.avif 1600w', $avifSrcset);
+
+        // WebP path must be unaffected by the AVIF addition.
+        $this->assertNotNull($media->webpSrcset());
+
+        $html = Blade::render('<x-editorial.media-frame :media="$media" sizes="(min-width: 981px) 33vw, 100vw" />', [
+            'media' => $media,
+        ]);
+
+        $this->assertStringContainsString('type="image/avif"', $html);
+        $this->assertStringContainsString('source-640.avif 640w', $html);
+    }
+
+    public function test_admin_media_upload_generates_avif_alongside_webp(): void
+    {
+        Storage::fake('public');
+
+        $user = User::factory()->create();
+
+        $upload = UploadedFile::fake()->createWithContent(
+            'sample.jpg',
+            $this->makeJpegBytes(2400, 1600, 92)
+        );
+
+        $this->actingAs($user)->post(route('admin.media.store'), [
+            'file' => $upload,
+            'alt_text' => 'Sample alt',
+        ])->assertRedirect();
+
+        $media = Media::query()->latest('id')->firstOrFail();
+        $publicDisk = Storage::disk('public');
+
+        $fullAvif = preg_replace('/\.[^.]+$/', '.avif', $media->path);
+        $variant640 = preg_replace('/\.[^.]+$/', '-640.avif', $media->path);
+        $variant1080 = preg_replace('/\.[^.]+$/', '-1080.avif', $media->path);
+
+        $this->assertTrue($publicDisk->exists($fullAvif), 'Full-size AVIF should be generated on upload.');
+        $this->assertTrue($publicDisk->exists($variant640), '640w AVIF variant should exist.');
+        $this->assertTrue($publicDisk->exists($variant1080), '1080w AVIF variant should exist.');
+
+        $avifSrcset = $media->avifSrcset();
+        $this->assertNotNull($avifSrcset);
+        $this->assertStringContainsString(' 640w', $avifSrcset);
+        $this->assertStringContainsString(' 1080w', $avifSrcset);
+    }
+
     private function makeJpegBytes(int $width, int $height, int $quality): string
     {
         $image = imagecreatetruecolor($width, $height);

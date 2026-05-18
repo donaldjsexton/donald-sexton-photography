@@ -1,5 +1,11 @@
 import './bootstrap';
 
+const errorSummary = document.querySelector('[data-error-summary]');
+
+if (errorSummary) {
+    errorSummary.focus();
+}
+
 const siteHeader = document.querySelector('.site-header');
 
 if (siteHeader) {
@@ -32,15 +38,38 @@ if (navRoot) {
     const navPanel = navRoot.querySelector('[data-nav-panel]');
     const mobileNav = window.matchMedia('(max-width: 980px)');
 
+    const navItems = () => [navToggle, ...(navPanel?.querySelectorAll('a') ?? [])]
+        .filter(Boolean);
+
     const setNavState = (open) => {
         navRoot.classList.toggle('is-nav-open', open);
         navToggle?.setAttribute('aria-expanded', open ? 'true' : 'false');
     };
 
-    const closeNav = () => setNavState(false);
+    const openNav = () => {
+        setNavState(true);
+
+        if (mobileNav.matches) {
+            navPanel?.querySelector('a')?.focus();
+        }
+    };
+
+    const closeNav = ({ restoreFocus = false } = {}) => {
+        const wasOpen = navRoot.classList.contains('is-nav-open');
+
+        setNavState(false);
+
+        if (restoreFocus && wasOpen && mobileNav.matches) {
+            navToggle?.focus();
+        }
+    };
 
     navToggle?.addEventListener('click', () => {
-        setNavState(!navRoot.classList.contains('is-nav-open'));
+        if (navRoot.classList.contains('is-nav-open')) {
+            closeNav({ restoreFocus: true });
+        } else {
+            openNav();
+        }
     });
 
     navPanel?.querySelectorAll('a').forEach((link) => {
@@ -64,8 +93,39 @@ if (navRoot) {
     }
 
     document.addEventListener('keydown', (event) => {
+        if (!navRoot.classList.contains('is-nav-open') || !mobileNav.matches) {
+            return;
+        }
+
         if (event.key === 'Escape') {
-            closeNav();
+            closeNav({ restoreFocus: true });
+            return;
+        }
+
+        if (event.key === 'Tab') {
+            const items = navItems();
+
+            if (items.length === 0) {
+                return;
+            }
+
+            const first = items[0];
+            const last = items[items.length - 1];
+            const active = document.activeElement;
+
+            if (!navRoot.contains(active)) {
+                event.preventDefault();
+                first.focus();
+                return;
+            }
+
+            if (event.shiftKey && active === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && active === last) {
+                event.preventDefault();
+                first.focus();
+            }
         }
     });
 }
@@ -120,11 +180,30 @@ if (revealElements.length > 0) {
     }
 }
 
+const importedGalleryImages = document.querySelectorAll('.imported-gallery img, .wp-import-gallery img');
+
+importedGalleryImages.forEach((node) => {
+    if (!node.hasAttribute('tabindex')) {
+        node.setAttribute('tabindex', '0');
+    }
+
+    if (!node.hasAttribute('role')) {
+        node.setAttribute('role', 'button');
+    }
+
+    if (!node.hasAttribute('aria-label')) {
+        node.setAttribute('aria-label', node.alt ? `View larger: ${node.alt}` : 'View larger image');
+    }
+});
+
 const lightboxTriggers = document.querySelectorAll('[data-lightbox-trigger], .imported-gallery img, .wp-import-gallery img');
 
 if (lightboxTriggers.length > 0) {
     const lightbox = document.createElement('div');
     lightbox.className = 'site-lightbox';
+    lightbox.setAttribute('role', 'dialog');
+    lightbox.setAttribute('aria-modal', 'true');
+    lightbox.setAttribute('aria-label', 'Image viewer');
     lightbox.innerHTML = `
         <button class="site-lightbox__close" type="button" aria-label="Close image">&times;</button>
         <button class="site-lightbox__nav site-lightbox__nav--prev" type="button" aria-label="Previous image">&#8249;</button>
@@ -132,6 +211,7 @@ if (lightboxTriggers.length > 0) {
             <img class="site-lightbox__image" alt="">
         </div>
         <button class="site-lightbox__nav site-lightbox__nav--next" type="button" aria-label="Next image">&#8250;</button>
+        <p class="site-lightbox__status visually-hidden" role="status" aria-live="polite"></p>
     `;
 
     document.body.appendChild(lightbox);
@@ -140,9 +220,14 @@ if (lightboxTriggers.length > 0) {
     const closeButton = lightbox.querySelector('.site-lightbox__close');
     const prevButton = lightbox.querySelector('.site-lightbox__nav--prev');
     const nextButton = lightbox.querySelector('.site-lightbox__nav--next');
+    const status = lightbox.querySelector('.site-lightbox__status');
 
     let items = [];
     let currentIndex = 0;
+    let lastFocused = null;
+
+    const focusableControls = () => [closeButton, prevButton, nextButton]
+        .filter((control) => control && !control.hidden);
 
     const syncOrientation = () => {
         image.classList.remove('is-portrait', 'is-landscape', 'is-square');
@@ -222,6 +307,11 @@ if (lightboxTriggers.length > 0) {
 
         prevButton.hidden = items.length <= 1;
         nextButton.hidden = items.length <= 1;
+
+        if (status) {
+            const position = items.length > 1 ? `Image ${currentIndex + 1} of ${items.length}` : 'Image';
+            status.textContent = item.alt ? `${position}: ${item.alt}` : position;
+        }
     };
 
     const open = (trigger) => {
@@ -233,20 +323,36 @@ if (lightboxTriggers.length > 0) {
             return;
         }
 
+        lastFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         items = groupItems;
         currentIndex = Math.max(0, getGroupItems(trigger).indexOf(trigger));
         render();
         lightbox.classList.add('is-open');
         document.body.classList.add('lightbox-open');
+        closeButton?.focus();
     };
 
     const close = () => {
+        if (!lightbox.classList.contains('is-open')) {
+            return;
+        }
+
         lightbox.classList.remove('is-open');
         document.body.classList.remove('lightbox-open');
         image.removeAttribute('src');
         image.alt = '';
         items = [];
         currentIndex = 0;
+
+        if (status) {
+            status.textContent = '';
+        }
+
+        if (lastFocused && document.contains(lastFocused)) {
+            lastFocused.focus();
+        }
+
+        lastFocused = null;
     };
 
     const move = (direction) => {
@@ -260,6 +366,25 @@ if (lightboxTriggers.length > 0) {
 
     document.addEventListener('click', (event) => {
         const trigger = event.target.closest('[data-lightbox-trigger], .imported-gallery img, .wp-import-gallery img');
+
+        if (!trigger) {
+            return;
+        }
+
+        event.preventDefault();
+        open(trigger);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') {
+            return;
+        }
+
+        if (lightbox.classList.contains('is-open')) {
+            return;
+        }
+
+        const trigger = event.target.closest('.imported-gallery img, .wp-import-gallery img');
 
         if (!trigger) {
             return;
@@ -290,14 +415,44 @@ if (lightboxTriggers.length > 0) {
 
         if (event.key === 'Escape') {
             close();
+            return;
         }
 
         if (event.key === 'ArrowLeft') {
             move(-1);
+            return;
         }
 
         if (event.key === 'ArrowRight') {
             move(1);
+            return;
+        }
+
+        if (event.key === 'Tab') {
+            const controls = focusableControls();
+
+            if (controls.length === 0) {
+                event.preventDefault();
+                return;
+            }
+
+            const first = controls[0];
+            const last = controls[controls.length - 1];
+            const active = document.activeElement;
+
+            if (!lightbox.contains(active)) {
+                event.preventDefault();
+                first.focus();
+                return;
+            }
+
+            if (event.shiftKey && active === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && active === last) {
+                event.preventDefault();
+                first.focus();
+            }
         }
     });
 }

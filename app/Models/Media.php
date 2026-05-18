@@ -44,10 +44,74 @@ class Media extends Model
             return '/storage/'.ltrim($this->path, '/');
         }
 
-        return \Illuminate\Support\Facades\Storage::disk($this->disk ?? 'public')->url($this->path);
+        return Storage::disk($this->disk ?? 'public')->url($this->path);
     }
 
     public function webpPath(): ?string
+    {
+        return $this->encodedSiblingPath('webp');
+    }
+
+    public function webpPublicUrl(): ?string
+    {
+        return $this->encodedSiblingPublicUrl('webp');
+    }
+
+    public function webpVariantPath(int $width): ?string
+    {
+        return $this->encodedVariantPath($width, 'webp');
+    }
+
+    public function webpVariantUrl(int $width): ?string
+    {
+        return $this->encodedVariantUrl($width, 'webp');
+    }
+
+    /**
+     * Build a `srcset` string of WebP variants whose files exist on disk.
+     *
+     * @param  array<int>  $candidateWidths  widths to probe for variant files
+     */
+    public function webpSrcset(array $candidateWidths = [640, 1080, 1600]): ?string
+    {
+        return $this->encodedSrcset('webp', $candidateWidths);
+    }
+
+    public function avifPath(): ?string
+    {
+        return $this->encodedSiblingPath('avif');
+    }
+
+    public function avifPublicUrl(): ?string
+    {
+        return $this->encodedSiblingPublicUrl('avif');
+    }
+
+    public function avifVariantPath(int $width): ?string
+    {
+        return $this->encodedVariantPath($width, 'avif');
+    }
+
+    public function avifVariantUrl(int $width): ?string
+    {
+        return $this->encodedVariantUrl($width, 'avif');
+    }
+
+    /**
+     * Build a `srcset` string of AVIF variants whose files exist on disk.
+     *
+     * @param  array<int>  $candidateWidths  widths to probe for variant files
+     */
+    public function avifSrcset(array $candidateWidths = [640, 1080, 1600]): ?string
+    {
+        return $this->encodedSrcset('avif', $candidateWidths);
+    }
+
+    /**
+     * Sibling path next to the original at the same base name, e.g.
+     * `photo.jpg` → `photo.{format}`. Only derived for raster originals.
+     */
+    private function encodedSiblingPath(string $format): ?string
     {
         $path = trim((string) $this->path);
 
@@ -61,12 +125,12 @@ class Media extends Model
             return null;
         }
 
-        return preg_replace('/\.[^.]+$/', '.webp', $path);
+        return preg_replace('/\.[^.]+$/', '.'.$format, $path);
     }
 
-    public function webpPublicUrl(): ?string
+    private function encodedSiblingPublicUrl(string $format): ?string
     {
-        $path = $this->webpPath();
+        $path = $this->encodedSiblingPath($format);
 
         if ($path === null) {
             return null;
@@ -85,7 +149,7 @@ class Media extends Model
         return Storage::disk($disk)->url($path);
     }
 
-    public function webpVariantPath(int $width): ?string
+    private function encodedVariantPath(int $width, string $format): ?string
     {
         $path = trim((string) $this->path);
 
@@ -99,12 +163,12 @@ class Media extends Model
             return null;
         }
 
-        return preg_replace('/\.[^.]+$/', '-'.$width.'.webp', $path);
+        return preg_replace('/\.[^.]+$/', '-'.$width.'.'.$format, $path);
     }
 
-    public function webpVariantUrl(int $width): ?string
+    private function encodedVariantUrl(int $width, string $format): ?string
     {
-        $path = $this->webpVariantPath($width);
+        $path = $this->encodedVariantPath($width, $format);
 
         if ($path === null) {
             return null;
@@ -124,14 +188,13 @@ class Media extends Model
     }
 
     /**
-     * Build a `srcset` string of WebP variants whose files exist on disk.
+     * Build a `srcset` string of variant files of $format that exist on
+     * disk. The full-size sibling at the original width is included as
+     * the largest candidate when present. Returns null when none exist.
      *
-     * The full-size WebP at the original width is included as the largest
-     * candidate when present. Returns null if no variants are available.
-     *
-     * @param  array<int>  $candidateWidths  widths to probe for variant files
+     * @param  array<int>  $candidateWidths
      */
-    public function webpSrcset(array $candidateWidths = [640, 1080, 1600]): ?string
+    private function encodedSrcset(string $format, array $candidateWidths): ?string
     {
         $entries = [];
         $sourceWidth = (int) ($this->width ?? 0);
@@ -147,7 +210,7 @@ class Media extends Model
                 continue;
             }
 
-            $url = $this->webpVariantUrl($width);
+            $url = $this->encodedVariantUrl($width, $format);
 
             if ($url === null) {
                 continue;
@@ -160,10 +223,10 @@ class Media extends Model
             return null;
         }
 
-        $fullWebp = $this->webpPublicUrl();
+        $full = $this->encodedSiblingPublicUrl($format);
 
-        if ($fullWebp !== null && $sourceWidth > 0) {
-            $entries[$sourceWidth] = $fullWebp.' '.$sourceWidth.'w';
+        if ($full !== null && $sourceWidth > 0) {
+            $entries[$sourceWidth] = $full.' '.$sourceWidth.'w';
         }
 
         ksort($entries);

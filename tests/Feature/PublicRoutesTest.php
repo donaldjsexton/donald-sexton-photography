@@ -965,6 +965,46 @@ HTML,
         }
     }
 
+    public function test_layout_exposes_skip_link_to_main_content(): void
+    {
+        $response = $this->get('/inquire')->assertOk();
+
+        $response->assertSee('class="skip-link" href="#main-content"', false);
+        $response->assertSee('<main class="site-main" id="main-content" tabindex="-1">', false);
+    }
+
+    public function test_primary_navigation_exposes_accessible_toggle_wiring(): void
+    {
+        $response = $this->get('/inquire')->assertOk();
+
+        $response->assertSee('aria-expanded="false"', false);
+        $response->assertSee('aria-controls="site-nav"', false);
+        $response->assertSee('data-nav-toggle', false);
+        $response->assertSee('id="site-nav"', false);
+        $response->assertSee('data-nav-panel', false);
+    }
+
+    public function test_inquiry_validation_errors_are_associated_with_their_fields(): void
+    {
+        $response = $this->followingRedirects()
+            ->from(route('inquiry.create'))
+            ->post(route('inquiry.store'), [
+                'primary_name' => '',
+                'email' => 'not-an-email',
+                'event_type' => '',
+            ]);
+
+        $response->assertOk();
+        $response->assertSee('role="alert"', false);
+        $response->assertSee('aria-invalid="true"', false);
+        $response->assertSee('aria-describedby="primary_name-error"', false);
+        $response->assertSee('id="primary_name-error"', false);
+        $response->assertSee('aria-describedby="email-error"', false);
+        $response->assertSee('id="email-error"', false);
+        $response->assertSee('aria-describedby="event_type-error"', false);
+        $response->assertSee('class="field-error"', false);
+    }
+
     public function test_sitemap_lists_key_public_routes_with_lastmod_metadata(): void
     {
         Page::create([
