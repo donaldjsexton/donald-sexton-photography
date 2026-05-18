@@ -101,6 +101,7 @@
     @endif
 </head>
 <body class="@yield('body_class')">
+    <a class="skip-link" href="#main-content">Skip to main content</a>
     <header class="site-header" data-nav-root>
         <div class="site-header__bar">
             <div class="brand-lockup">
@@ -129,7 +130,7 @@
         </div>
     </header>
 
-    <main class="site-main">
+    <main class="site-main" id="main-content" tabindex="-1">
         @yield('content')
     </main>
 

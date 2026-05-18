@@ -55,11 +55,14 @@
 
             <div class="form-panel">
                 @if ($errors->any())
-                    <ul class="errors">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
+                    <div class="errors" role="alert" tabindex="-1" data-error-summary>
+                        <p class="errors__title">Please fix the following before sending:</p>
+                        <ul>
+                            @foreach ($errors->all() as $error)
+                                <li>{{ $error }}</li>
+                            @endforeach
+                        </ul>
+                    </div>
                 @endif
 
                 <form method="POST" action="{{ route('inquiry.store') }}">
@@ -78,29 +81,44 @@
                     <div class="field-grid">
                         <label>
                             Your name
-                            <input type="text" name="primary_name" value="{{ old('primary_name') }}" required>
+                            <input type="text" name="primary_name" id="primary_name" value="{{ old('primary_name') }}" required @error('primary_name') aria-invalid="true" aria-describedby="primary_name-error" @enderror>
+                            @error('primary_name')
+                                <p class="field-error" id="primary_name-error">{{ $message }}</p>
+                            @enderror
                         </label>
                         <label>
                             Email
-                            <input type="email" name="email" value="{{ old('email') }}" required>
+                            <input type="email" name="email" id="email" value="{{ old('email') }}" required @error('email') aria-invalid="true" aria-describedby="email-error" @enderror>
+                            @error('email')
+                                <p class="field-error" id="email-error">{{ $message }}</p>
+                            @enderror
                         </label>
                     </div>
 
                     <div class="field-grid">
                         <label>
                             Phone
-                            <input type="text" name="phone" value="{{ old('phone') }}">
+                            <input type="text" name="phone" id="phone" value="{{ old('phone') }}" @error('phone') aria-invalid="true" aria-describedby="phone-error" @enderror>
+                            @error('phone')
+                                <p class="field-error" id="phone-error">{{ $message }}</p>
+                            @enderror
                         </label>
                         <label>
                             Date
-                            <input type="date" name="event_date" value="{{ old('event_date') }}">
+                            <input type="date" name="event_date" id="event_date" value="{{ old('event_date') }}" @error('event_date') aria-invalid="true" aria-describedby="event_date-error" @enderror>
+                            @error('event_date')
+                                <p class="field-error" id="event_date-error">{{ $message }}</p>
+                            @enderror
                         </label>
                     </div>
 
                     <div class="field-grid">
                         <label>
                             What are you planning?
-                            <input type="text" name="event_type" value="{{ old('event_type', 'wedding') }}" required>
+                            <input type="text" name="event_type" id="event_type" value="{{ old('event_type', 'wedding') }}" required @error('event_type') aria-invalid="true" aria-describedby="event_type-error" @enderror>
+                            @error('event_type')
+                                <p class="field-error" id="event_type-error">{{ $message }}</p>
+                            @enderror
                         </label>
                     </div>
 
@@ -111,20 +129,28 @@
                                 <input
                                     type="text"
                                     name="venue_name"
+                                    id="venue_name"
                                     value="{{ old('venue_name') }}"
                                     placeholder="Start typing a venue name"
                                     autocomplete="off"
                                     data-venue-input
+                                    @if ($errors->has('venue_name') || $errors->has('venue_id')) aria-invalid="true" aria-describedby="venue_name-error" @endif
                                 >
                                 <input type="hidden" name="venue_id" value="{{ old('venue_id') }}" data-venue-id>
                                 <ul class="venue-autocomplete__list" data-venue-list hidden></ul>
                             </div>
+                            @if ($errors->has('venue_name') || $errors->has('venue_id'))
+                                <p class="field-error" id="venue_name-error">{{ $errors->first('venue_name') ?: $errors->first('venue_id') }}</p>
+                            @endif
                         </label>
                     </div>
 
                     <label>
                         Message
-                        <textarea name="message" rows="6">{{ old('message') }}</textarea>
+                        <textarea name="message" id="message" rows="6" @error('message') aria-invalid="true" aria-describedby="message-error" @enderror>{{ old('message') }}</textarea>
+                        @error('message')
+                            <p class="field-error" id="message-error">{{ $message }}</p>
+                        @enderror
                     </label>
 
                     <fieldset class="sms-consent-group">

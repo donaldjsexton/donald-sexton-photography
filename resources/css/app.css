@@ -53,6 +53,30 @@ body::before {
     display: none;
 }
 
+.skip-link {
+    position: fixed;
+    top: 0;
+    left: 50%;
+    z-index: 200;
+    transform: translate(-50%, -120%);
+    padding: 0.75rem 1.5rem;
+    background: var(--accent);
+    color: #fff;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    text-decoration: none;
+    border-radius: 0 0 0.5rem 0.5rem;
+    box-shadow: var(--shadow-soft);
+    transition: transform 0.2s ease;
+}
+
+.skip-link:focus {
+    transform: translate(-50%, 0);
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
 [data-reveal] {
     opacity: 0;
     transform: translate3d(0, 26px, 0);
@@ -2632,6 +2656,32 @@ textarea {
 .errors {
     padding-left: 1rem;
     color: #8a1f1f;
+}
+
+.errors__title {
+    margin: 0 0 0.5rem;
+    padding-left: 0;
+    font-family: var(--font-body);
+    font-size: 0.95rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #8a1f1f;
+    list-style: none;
+}
+
+.field-error {
+    margin: 0.4rem 0 0;
+    font-size: 0.85rem;
+    color: #8a1f1f;
+}
+
+[aria-invalid='true'] {
+    border-color: #8a1f1f;
+}
+
+[aria-invalid='true']:focus-visible {
+    outline: 2px solid #8a1f1f;
+    outline-offset: 1px;
 }
 
 .pagination {

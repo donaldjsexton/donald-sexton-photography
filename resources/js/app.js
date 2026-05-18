@@ -1,5 +1,11 @@
 import './bootstrap';
 
+const errorSummary = document.querySelector('[data-error-summary]');
+
+if (errorSummary) {
+    errorSummary.focus();
+}
+
 const siteHeader = document.querySelector('.site-header');
 
 if (siteHeader) {
@@ -120,11 +126,30 @@ if (revealElements.length > 0) {
     }
 }
 
+const importedGalleryImages = document.querySelectorAll('.imported-gallery img, .wp-import-gallery img');
+
+importedGalleryImages.forEach((node) => {
+    if (!node.hasAttribute('tabindex')) {
+        node.setAttribute('tabindex', '0');
+    }
+
+    if (!node.hasAttribute('role')) {
+        node.setAttribute('role', 'button');
+    }
+
+    if (!node.hasAttribute('aria-label')) {
+        node.setAttribute('aria-label', node.alt ? `View larger: ${node.alt}` : 'View larger image');
+    }
+});
+
 const lightboxTriggers = document.querySelectorAll('[data-lightbox-trigger], .imported-gallery img, .wp-import-gallery img');
 
 if (lightboxTriggers.length > 0) {
     const lightbox = document.createElement('div');
     lightbox.className = 'site-lightbox';
+    lightbox.setAttribute('role', 'dialog');
+    lightbox.setAttribute('aria-modal', 'true');
+    lightbox.setAttribute('aria-label', 'Image viewer');
     lightbox.innerHTML = `
         <button class="site-lightbox__close" type="button" aria-label="Close image">&times;</button>
         <button class="site-lightbox__nav site-lightbox__nav--prev" type="button" aria-label="Previous image">&#8249;</button>
@@ -143,6 +168,10 @@ if (lightboxTriggers.length > 0) {
 
     let items = [];
     let currentIndex = 0;
+    let lastFocused = null;
+
+    const focusableControls = () => [closeButton, prevButton, nextButton]
+        .filter((control) => control && !control.hidden);
 
     const syncOrientation = () => {
         image.classList.remove('is-portrait', 'is-landscape', 'is-square');
@@ -233,20 +262,32 @@ if (lightboxTriggers.length > 0) {
             return;
         }
 
+        lastFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         items = groupItems;
         currentIndex = Math.max(0, getGroupItems(trigger).indexOf(trigger));
         render();
         lightbox.classList.add('is-open');
         document.body.classList.add('lightbox-open');
+        closeButton?.focus();
     };
 
     const close = () => {
+        if (!lightbox.classList.contains('is-open')) {
+            return;
+        }
+
         lightbox.classList.remove('is-open');
         document.body.classList.remove('lightbox-open');
         image.removeAttribute('src');
         image.alt = '';
         items = [];
         currentIndex = 0;
+
+        if (lastFocused && document.contains(lastFocused)) {
+            lastFocused.focus();
+        }
+
+        lastFocused = null;
     };
 
     const move = (direction) => {
@@ -260,6 +301,25 @@ if (lightboxTriggers.length > 0) {
 
     document.addEventListener('click', (event) => {
         const trigger = event.target.closest('[data-lightbox-trigger], .imported-gallery img, .wp-import-gallery img');
+
+        if (!trigger) {
+            return;
+        }
+
+        event.preventDefault();
+        open(trigger);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ' && event.key !== 'Spacebar') {
+            return;
+        }
+
+        if (lightbox.classList.contains('is-open')) {
+            return;
+        }
+
+        const trigger = event.target.closest('.imported-gallery img, .wp-import-gallery img');
 
         if (!trigger) {
             return;
@@ -290,14 +350,44 @@ if (lightboxTriggers.length > 0) {
 
         if (event.key === 'Escape') {
             close();
+            return;
         }
 
         if (event.key === 'ArrowLeft') {
             move(-1);
+            return;
         }
 
         if (event.key === 'ArrowRight') {
             move(1);
+            return;
+        }
+
+        if (event.key === 'Tab') {
+            const controls = focusableControls();
+
+            if (controls.length === 0) {
+                event.preventDefault();
+                return;
+            }
+
+            const first = controls[0];
+            const last = controls[controls.length - 1];
+            const active = document.activeElement;
+
+            if (!lightbox.contains(active)) {
+                event.preventDefault();
+                first.focus();
+                return;
+            }
+
+            if (event.shiftKey && active === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && active === last) {
+                event.preventDefault();
+                first.focus();
+            }
         }
     });
 }
