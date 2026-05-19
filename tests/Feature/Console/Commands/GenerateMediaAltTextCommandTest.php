@@ -276,8 +276,20 @@ class GenerateMediaAltTextCommandTest extends TestCase
 
     public function test_raises_memory_limit_when_below_target(): void
     {
+        // PHP refuses to set memory_limit below current usage, so pick a
+        // baseline above real usage yet under the command's 256M target.
+        $baselineMb = (int) ceil(memory_get_usage(true) / 1048576) + 32;
+
+        if ($baselineMb >= 256) {
+            $this->markTestSkipped('Process already near 256M; cannot exercise the raise path.');
+        }
+
         $original = ini_get('memory_limit');
-        ini_set('memory_limit', '128M');
+
+        if (@ini_set('memory_limit', $baselineMb.'M') === false) {
+            ini_set('memory_limit', $original);
+            $this->markTestSkipped('Could not lower memory_limit to exercise the raise path.');
+        }
 
         try {
             Media::create(['path' => 'media/x.jpg', 'filename' => 'x.jpg', 'disk' => 'public']);
