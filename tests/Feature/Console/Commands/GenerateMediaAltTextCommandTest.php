@@ -255,6 +255,61 @@ class GenerateMediaAltTextCommandTest extends TestCase
         $this->assertSame('Alt text from the original jpeg', $media->fresh()->alt_text);
     }
 
+    public function test_skips_oversized_original_without_crashing_the_batch(): void
+    {
+        Storage::disk('public')->put('media/huge.jpg', str_repeat('H', 15 * 1024 * 1024 + 1));
+        Storage::disk('public')->put('media/small.jpg', 'small original bytes');
+
+        $huge = Media::create(['path' => 'media/huge.jpg', 'filename' => 'huge.jpg', 'disk' => 'public']);
+        $small = Media::create(['path' => 'media/small.jpg', 'filename' => 'small.jpg', 'disk' => 'public']);
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response($this->fakeToolPayload('Alt text for the small image')),
+        ]);
+
+        $this->artisan('media:generate-alt-text', ['--sleep' => 0])->assertSuccessful();
+
+        Http::assertSentCount(1);
+        $this->assertNull($huge->fresh()->alt_text);
+        $this->assertSame('Alt text for the small image', $small->fresh()->alt_text);
+    }
+
+    public function test_raises_memory_limit_when_below_target(): void
+    {
+        $original = ini_get('memory_limit');
+        ini_set('memory_limit', '128M');
+
+        try {
+            Media::create(['path' => 'media/x.jpg', 'filename' => 'x.jpg', 'disk' => 'public']);
+
+            Http::fake();
+
+            $this->artisan('media:generate-alt-text', ['--dry-run' => true])->assertSuccessful();
+
+            $this->assertSame('256M', ini_get('memory_limit'));
+        } finally {
+            ini_set('memory_limit', $original);
+        }
+    }
+
+    public function test_does_not_lower_an_unlimited_memory_limit(): void
+    {
+        $original = ini_get('memory_limit');
+        ini_set('memory_limit', '-1');
+
+        try {
+            Media::create(['path' => 'media/y.jpg', 'filename' => 'y.jpg', 'disk' => 'public']);
+
+            Http::fake();
+
+            $this->artisan('media:generate-alt-text', ['--dry-run' => true])->assertSuccessful();
+
+            $this->assertSame('-1', ini_get('memory_limit'));
+        } finally {
+            ini_set('memory_limit', $original);
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */

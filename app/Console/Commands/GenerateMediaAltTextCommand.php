@@ -19,8 +19,18 @@ use Illuminate\Console\Command;
 #[Description('Generate alt text for media records using Claude vision.')]
 class GenerateMediaAltTextCommand extends Command
 {
+    /**
+     * Raised because the admin console runs this synchronously inside a
+     * PHP-FPM worker (default 128M), where a single original photo plus
+     * its base64/JSON copies can exhaust the heap. Only raised when the
+     * active limit is lower, never lowered (CLI may run unlimited).
+     */
+    private const MEMORY_LIMIT = '256M';
+
     public function handle(AltTextGenerator $generator): int
     {
+        $this->raiseMemoryLimit(self::MEMORY_LIMIT);
+
         $isDryRun = (bool) $this->option('dry-run');
         $regenerateAll = (bool) $this->option('all');
         $ids = array_filter(array_map('intval', (array) $this->option('media')));
@@ -143,6 +153,47 @@ class GenerateMediaAltTextCommand extends Command
         }
 
         return $failed > 0 && $written === 0 ? self::FAILURE : self::SUCCESS;
+    }
+
+    private function raiseMemoryLimit(string $target): void
+    {
+        $current = $this->memoryLimitBytes((string) ini_get('memory_limit'));
+
+        if ($current < 0) {
+            return;
+        }
+
+        $targetBytes = $this->memoryLimitBytes($target);
+
+        if ($targetBytes > 0 && ($current === 0 || $current < $targetBytes)) {
+            @ini_set('memory_limit', $target);
+        }
+    }
+
+    /**
+     * Resolve a PHP memory_limit shorthand string to bytes. Returns -1
+     * for an unlimited limit and 0 when the value cannot be parsed.
+     */
+    private function memoryLimitBytes(string $value): int
+    {
+        $value = trim($value);
+
+        if ($value === '') {
+            return 0;
+        }
+
+        if ($value === '-1') {
+            return -1;
+        }
+
+        $number = (int) $value;
+
+        return match (strtolower(substr($value, -1))) {
+            'g' => $number * 1024 * 1024 * 1024,
+            'm' => $number * 1024 * 1024,
+            'k' => $number * 1024,
+            default => $number,
+        };
     }
 
     private function buildContext(Media $media): ?string

@@ -23,6 +23,15 @@ class AltTextGenerator
      */
     private const PREFERRED_VARIANT_WIDTHS = [1080, 640];
 
+    /**
+     * Hard ceiling on the source image we will read into memory. The
+     * request body holds the file, its base64 form, and the JSON copy of
+     * that base64 at once, so a large original can exceed even a raised
+     * memory_limit. Anything bigger is skipped (logged) so the batch keeps
+     * going; generating WebP variants lets such records be processed.
+     */
+    private const MAX_IMAGE_BYTES = 15 * 1024 * 1024;
+
     private const SYSTEM_PROMPT = <<<'PROMPT'
 You write concise, descriptive alt text for wedding and portrait photographs by Donald Sexton, a Tampa Bay wedding photographer based in Clearwater, Florida.
 
@@ -119,6 +128,18 @@ PROMPT;
 
         if ($path === null) {
             Log::warning('AltTextGenerator: file not found on disk.', ['media_id' => $media->id, 'path' => $media->path]);
+
+            return null;
+        }
+
+        $bytes = $storage->size($path);
+
+        if ($bytes > self::MAX_IMAGE_BYTES) {
+            Log::warning('AltTextGenerator: image too large to process within the memory budget; skipping. Run media:generate-variants for this record so a small WebP derivative can be used instead.', [
+                'media_id' => $media->id,
+                'path' => $path,
+                'bytes' => $bytes,
+            ]);
 
             return null;
         }
