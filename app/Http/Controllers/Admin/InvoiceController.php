@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RecordPaymentRequest;
+use App\Http\Requests\Admin\RecordRefundRequest;
 use App\Http\Requests\Admin\StoreInvoiceRequest;
 use App\Http\Requests\Admin\UpdateInvoiceRequest;
 use App\Mail\InvoiceSent;
@@ -307,5 +308,48 @@ class InvoiceController extends Controller
         return redirect()
             ->route('admin.invoices.show', $invoice)
             ->with('status', 'Payment recorded.');
+    }
+
+    public function recordRefund(RecordRefundRequest $request, Invoice $invoice, Payment $payment): RedirectResponse
+    {
+        if ($payment->invoice_id !== $invoice->id) {
+            abort(404);
+        }
+
+        $this->authorize('refund', $payment);
+
+        $data = $request->validated();
+        $refundCents = $this->composer->dollarsToCents($data['amount']);
+
+        DB::transaction(function () use ($invoice, $payment, $refundCents, $data) {
+            $newRefundedTotal = $payment->refunded_amount_cents + $refundCents;
+            $payment->forceFill([
+                'refunded_amount_cents' => $newRefundedTotal,
+                'refunded_at' => $data['refunded_at'] ?? now(),
+                'status' => $newRefundedTotal >= $payment->amount_cents
+                    ? Payment::STATUS_REFUNDED
+                    : Payment::STATUS_PARTIALLY_REFUNDED,
+            ])->save();
+
+            if ($data['reason'] ?? null) {
+                $invoice->forceFill([
+                    'internal_notes' => trim(
+                        ($invoice->internal_notes ? $invoice->internal_notes."\n\n" : '')
+                        .'Refund $'.number_format($refundCents / 100, 2).' on payment #'.$payment->id.': '.$data['reason']
+                    ),
+                ])->save();
+            }
+
+            $invoice->syncStatusFromPayments();
+
+            $refundedTotalForInvoice = $invoice->payments()->sum('refunded_amount_cents');
+            if ($refundedTotalForInvoice > 0 && $refundedTotalForInvoice >= $invoice->total_cents) {
+                $invoice->forceFill(['status' => Invoice::STATUS_REFUNDED])->save();
+            }
+        });
+
+        return redirect()
+            ->route('admin.invoices.show', $invoice)
+            ->with('status', 'Refund recorded.');
     }
 }
