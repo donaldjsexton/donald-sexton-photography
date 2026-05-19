@@ -207,6 +207,54 @@ class GenerateMediaAltTextCommandTest extends TestCase
         Http::assertNothingSent();
     }
 
+    public function test_prefers_small_webp_variant_over_full_size_original(): void
+    {
+        Storage::disk('public')->put('media/photo.jpg', str_repeat('O', 5000));
+        Storage::disk('public')->put('media/photo-640.webp', 'SMALL-640-WEBP');
+        Storage::disk('public')->put('media/photo-1080.webp', 'BEST-1080-WEBP');
+
+        $media = Media::create(['path' => 'media/photo.jpg', 'filename' => 'photo.jpg', 'disk' => 'public']);
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response($this->fakeToolPayload('Alt text from the small webp variant')),
+        ]);
+
+        $this->artisan('media:generate-alt-text', ['--sleep' => 0])->assertSuccessful();
+
+        Http::assertSent(function ($request): bool {
+            $image = collect($request->data()['messages'][0]['content'])
+                ->firstWhere('type', 'image')['source'];
+
+            return $image['media_type'] === 'image/webp'
+                && $image['data'] === base64_encode('BEST-1080-WEBP');
+        });
+
+        $this->assertSame('Alt text from the small webp variant', $media->fresh()->alt_text);
+    }
+
+    public function test_falls_back_to_full_size_webp_sibling_then_original(): void
+    {
+        Storage::disk('public')->put('media/only.jpg', 'ORIGINAL-JPEG-BYTES');
+
+        $media = Media::create(['path' => 'media/only.jpg', 'filename' => 'only.jpg', 'disk' => 'public']);
+
+        Http::fake([
+            'api.anthropic.com/*' => Http::response($this->fakeToolPayload('Alt text from the original jpeg')),
+        ]);
+
+        $this->artisan('media:generate-alt-text', ['--sleep' => 0])->assertSuccessful();
+
+        Http::assertSent(function ($request): bool {
+            $image = collect($request->data()['messages'][0]['content'])
+                ->firstWhere('type', 'image')['source'];
+
+            return $image['media_type'] === 'image/jpeg'
+                && $image['data'] === base64_encode('ORIGINAL-JPEG-BYTES');
+        });
+
+        $this->assertSame('Alt text from the original jpeg', $media->fresh()->alt_text);
+    }
+
     /**
      * @return array<string, mixed>
      */
