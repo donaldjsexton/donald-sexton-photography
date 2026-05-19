@@ -142,10 +142,44 @@
                             <tr>
                                 <td>{{ $payment->received_at?->format('M j, Y g:i a') ?: $payment->created_at?->format('M j, Y') }}</td>
                                 <td>{{ \App\Models\Payment::gatewayOptions()[$payment->gateway] ?? $payment->gateway }}</td>
-                                <td>${{ number_format($payment->amount_cents / 100, 2) }}</td>
-                                <td>{{ ucfirst($payment->status) }}</td>
+                                <td>
+                                    ${{ number_format($payment->amount_cents / 100, 2) }}
+                                    @if ($payment->refunded_amount_cents > 0)
+                                        <div class="meta" style="font-size:0.8rem;">
+                                            ${{ number_format($payment->refunded_amount_cents / 100, 2) }} refunded
+                                        </div>
+                                    @endif
+                                </td>
+                                <td>{{ \Illuminate\Support\Str::headline($payment->status) }}</td>
                                 <td><span class="meta">{{ $payment->gateway_payment_id ?: '—' }}</span></td>
                             </tr>
+                            @if (Auth::user()->can('refund', $payment) && $payment->refunded_amount_cents < $payment->amount_cents)
+                                <tr>
+                                    <td colspan="5" style="padding:0; border-top:0;">
+                                        <details style="padding:0.5rem 0.75rem; background:rgba(0,0,0,0.02);">
+                                            <summary style="cursor:pointer; font-size:0.85rem; color:var(--admin-ink-soft);">Record refund</summary>
+                                            <form method="POST" action="{{ route('admin.invoices.payments.refund', ['invoice' => $invoice, 'payment' => $payment]) }}" class="admin-form" style="margin-top:0.75rem;">
+                                                @csrf
+                                                <div class="field-grid">
+                                                    <label>
+                                                        Amount ($)
+                                                        <input type="number" step="0.01" min="0.01" max="{{ number_format(($payment->amount_cents - $payment->refunded_amount_cents) / 100, 2, '.', '') }}" name="amount" value="{{ number_format(($payment->amount_cents - $payment->refunded_amount_cents) / 100, 2, '.', '') }}" required>
+                                                    </label>
+                                                    <label>
+                                                        Refunded at
+                                                        <input type="datetime-local" name="refunded_at" value="{{ now()->format('Y-m-d\TH:i') }}">
+                                                    </label>
+                                                </div>
+                                                <label>
+                                                    Reason (optional)
+                                                    <input type="text" name="reason" maxlength="500" placeholder="Why this refund was issued">
+                                                </label>
+                                                <button class="cta-secondary" type="submit">Record Refund</button>
+                                            </form>
+                                        </details>
+                                    </td>
+                                </tr>
+                            @endif
                         @endforeach
                     </tbody>
                 </table>

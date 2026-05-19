@@ -105,6 +105,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/invoices/{invoice}/void', [AdminInvoiceController::class, 'void'])->name('invoices.void');
         Route::get('/invoices/{invoice}/pdf', [AdminInvoiceController::class, 'downloadPdf'])->name('invoices.pdf');
         Route::post('/invoices/{invoice}/payments', [AdminInvoiceController::class, 'recordPayment'])->name('invoices.payments.store');
+        Route::post('/invoices/{invoice}/payments/{payment}/refund', [AdminInvoiceController::class, 'recordRefund'])->name('invoices.payments.refund');
 
         Route::get('/contract-templates', [AdminContractTemplateController::class, 'index'])->name('contract-templates.index');
         Route::get('/contract-templates/create', [AdminContractTemplateController::class, 'create'])->name('contract-templates.create');
@@ -245,6 +246,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/contracts/{contract}', [PortalContractController::class, 'show'])->name('contracts.show');
         Route::get('/contracts/{contract}/pdf', [PortalContractController::class, 'downloadPdf'])->name('contracts.pdf');
         Route::post('/contracts/{contract}/sign', [PortalContractController::class, 'sign'])->name('contracts.sign');
+        Route::post('/contracts/{contract}/decline', [PortalContractController::class, 'decline'])->name('contracts.decline');
     });
 });
 

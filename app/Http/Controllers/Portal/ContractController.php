@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Portal\DeclineContractRequest;
 use App\Http\Requests\Portal\SignContractRequest;
+use App\Mail\ContractDeclined;
 use App\Mail\ContractSigned;
 use App\Models\Contract;
 use App\Services\Contracts\ContractPdfRenderer;
@@ -84,6 +86,32 @@ class ContractController extends Controller
         return redirect()
             ->route('portal.contracts.show', ['contract' => $model->uuid])
             ->with('status', 'Thanks — your contract has been signed.');
+    }
+
+    public function decline(DeclineContractRequest $request, string $contract): RedirectResponse
+    {
+        $model = $this->locate($contract);
+
+        if (! $model->isAwaitingSignature()) {
+            return redirect()
+                ->route('portal.contracts.show', ['contract' => $model->uuid])
+                ->with('status', 'This contract is no longer awaiting a response.');
+        }
+
+        $reason = $request->validated('reason');
+
+        $model->forceFill([
+            'status' => Contract::STATUS_DECLINED,
+            'declined_at' => now(),
+            'internal_notes' => trim(($model->internal_notes ? $model->internal_notes."\n\n" : '').'Declined by client'.($reason ? ': '.$reason : '.')),
+        ])->save();
+
+        Mail::to(config('payments.business.email') ?: config('mail.from.address'))
+            ->send(new ContractDeclined(contract: $model, reason: $reason));
+
+        return redirect()
+            ->route('portal.contracts.show', ['contract' => $model->uuid])
+            ->with('status', 'Thanks for letting us know. We will be in touch.');
     }
 
     private function locate(string $uuid): Contract

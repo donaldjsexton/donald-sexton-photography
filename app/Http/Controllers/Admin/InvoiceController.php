@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\RecordPaymentRequest;
+use App\Http\Requests\Admin\RecordRefundRequest;
 use App\Http\Requests\Admin\StoreInvoiceRequest;
 use App\Http\Requests\Admin\UpdateInvoiceRequest;
 use App\Mail\InvoiceSent;
@@ -30,6 +31,8 @@ class InvoiceController extends Controller
 
     public function index(Request $request): View
     {
+        $this->authorize('viewAny', Invoice::class);
+
         $status = (string) $request->query('status', 'all');
         $statusOptions = Invoice::statusOptions();
 
@@ -58,6 +61,8 @@ class InvoiceController extends Controller
 
     public function create(Request $request): View
     {
+        $this->authorize('create', Invoice::class);
+
         $client = $request->query('client_id')
             ? Client::find($request->integer('client_id'))
             : null;
@@ -99,6 +104,8 @@ class InvoiceController extends Controller
 
     public function store(StoreInvoiceRequest $request): RedirectResponse
     {
+        $this->authorize('create', Invoice::class);
+
         $data = $request->validated();
         $billableClass = $request->billableClass();
 
@@ -133,6 +140,8 @@ class InvoiceController extends Controller
 
     public function show(Invoice $invoice): View
     {
+        $this->authorize('view', $invoice);
+
         $invoice->load(['billable', 'bookedJob', 'lineItems', 'installments', 'payments']);
 
         return view('admin.invoices.show', [
@@ -143,10 +152,14 @@ class InvoiceController extends Controller
     public function edit(Invoice $invoice): View
     {
         if (! $invoice->isEditable()) {
+            $this->authorize('view', $invoice);
+
             return view('admin.invoices.show', [
                 'invoice' => $invoice->load(['billable', 'lineItems', 'installments', 'payments']),
             ]);
         }
+
+        $this->authorize('update', $invoice);
 
         $invoice->load(['lineItems', 'installments', 'billable']);
 
@@ -168,11 +181,7 @@ class InvoiceController extends Controller
 
     public function update(UpdateInvoiceRequest $request, Invoice $invoice): RedirectResponse
     {
-        if (! $invoice->isEditable()) {
-            return redirect()
-                ->route('admin.invoices.show', $invoice)
-                ->with('status', 'Sent or paid invoices cannot be edited. Void it first to make changes.');
-        }
+        $this->authorize('update', $invoice);
 
         $data = $request->validated();
         $billableClass = $request->billableClass();
@@ -206,11 +215,7 @@ class InvoiceController extends Controller
 
     public function destroy(Invoice $invoice): RedirectResponse
     {
-        if (! $invoice->isEditable()) {
-            return redirect()
-                ->route('admin.invoices.show', $invoice)
-                ->with('status', 'Only draft invoices can be deleted. Void it instead.');
-        }
+        $this->authorize('delete', $invoice);
 
         $invoice->delete();
 
@@ -221,11 +226,7 @@ class InvoiceController extends Controller
 
     public function send(Invoice $invoice, InvoicePdfRenderer $renderer): RedirectResponse
     {
-        if (! in_array($invoice->status, [Invoice::STATUS_DRAFT, Invoice::STATUS_SENT], true)) {
-            return redirect()
-                ->route('admin.invoices.show', $invoice)
-                ->with('status', 'This invoice cannot be sent in its current state.');
-        }
+        $this->authorize('send', $invoice);
 
         $invoice->loadMissing('billable');
         $recipientEmail = $invoice->billableEmail();
@@ -255,9 +256,7 @@ class InvoiceController extends Controller
 
     public function void(Invoice $invoice): RedirectResponse
     {
-        if ($invoice->status === Invoice::STATUS_VOID) {
-            return redirect()->route('admin.invoices.show', $invoice);
-        }
+        $this->authorize('void', $invoice);
 
         $invoice->update([
             'status' => Invoice::STATUS_VOID,
@@ -276,7 +275,16 @@ class InvoiceController extends Controller
 
     public function recordPayment(RecordPaymentRequest $request, Invoice $invoice): RedirectResponse
     {
+        $this->authorize('recordPayment', $invoice);
+
         $data = $request->validated();
+
+        if (! empty($data['gateway_payment_id'])
+            && Payment::findByGatewayPaymentId($data['gateway'], $data['gateway_payment_id'])) {
+            return redirect()
+                ->route('admin.invoices.show', $invoice)
+                ->with('status', 'A payment with that gateway reference is already on file.');
+        }
 
         DB::transaction(function () use ($invoice, $data) {
             $payment = $invoice->payments()->create([
@@ -300,5 +308,48 @@ class InvoiceController extends Controller
         return redirect()
             ->route('admin.invoices.show', $invoice)
             ->with('status', 'Payment recorded.');
+    }
+
+    public function recordRefund(RecordRefundRequest $request, Invoice $invoice, Payment $payment): RedirectResponse
+    {
+        if ($payment->invoice_id !== $invoice->id) {
+            abort(404);
+        }
+
+        $this->authorize('refund', $payment);
+
+        $data = $request->validated();
+        $refundCents = $this->composer->dollarsToCents($data['amount']);
+
+        DB::transaction(function () use ($invoice, $payment, $refundCents, $data) {
+            $newRefundedTotal = $payment->refunded_amount_cents + $refundCents;
+            $payment->forceFill([
+                'refunded_amount_cents' => $newRefundedTotal,
+                'refunded_at' => $data['refunded_at'] ?? now(),
+                'status' => $newRefundedTotal >= $payment->amount_cents
+                    ? Payment::STATUS_REFUNDED
+                    : Payment::STATUS_PARTIALLY_REFUNDED,
+            ])->save();
+
+            if ($data['reason'] ?? null) {
+                $invoice->forceFill([
+                    'internal_notes' => trim(
+                        ($invoice->internal_notes ? $invoice->internal_notes."\n\n" : '')
+                        .'Refund $'.number_format($refundCents / 100, 2).' on payment #'.$payment->id.': '.$data['reason']
+                    ),
+                ])->save();
+            }
+
+            $invoice->syncStatusFromPayments();
+
+            $refundedTotalForInvoice = $invoice->payments()->sum('refunded_amount_cents');
+            if ($refundedTotalForInvoice > 0 && $refundedTotalForInvoice >= $invoice->total_cents) {
+                $invoice->forceFill(['status' => Invoice::STATUS_REFUNDED])->save();
+            }
+        });
+
+        return redirect()
+            ->route('admin.invoices.show', $invoice)
+            ->with('status', 'Refund recorded.');
     }
 }

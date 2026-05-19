@@ -158,7 +158,7 @@ class InvoiceAdminCrudTest extends TestCase
             ],
         ]);
 
-        $response->assertRedirect(route('admin.invoices.show', $invoice));
+        $response->assertForbidden();
         $this->assertSame(0, $invoice->fresh()->lineItems()->count());
     }
 
@@ -202,7 +202,7 @@ class InvoiceAdminCrudTest extends TestCase
 
         $this->actingAs($admin)
             ->delete(route('admin.invoices.destroy', $sent))
-            ->assertRedirect(route('admin.invoices.show', $sent));
+            ->assertForbidden();
         $this->assertNotSoftDeleted($sent);
     }
 

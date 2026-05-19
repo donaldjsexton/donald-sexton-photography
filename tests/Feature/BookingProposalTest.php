@@ -70,7 +70,7 @@ class BookingProposalTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.contracts.send-proposal', $contract))
-            ->assertRedirect(route('admin.contracts.show', $contract));
+            ->assertForbidden();
 
         $this->assertSame(Contract::STATUS_DRAFT, $contract->fresh()->status);
     }

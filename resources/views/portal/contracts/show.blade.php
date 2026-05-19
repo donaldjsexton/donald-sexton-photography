@@ -64,6 +64,23 @@
                 <button type="submit" class="btn btn-primary">Sign Contract</button>
             </form>
         </section>
+
+        <section class="card stack">
+            <div>
+                <h3>Need to decline?</h3>
+                <p style="margin:0;">If this contract isn&rsquo;t right for you, let us know. You can add an optional note for our records.</p>
+            </div>
+
+            <form method="POST" action="{{ route('portal.contracts.decline', ['contract' => $contract->uuid]) }}" onsubmit="return confirm('Decline this contract? This cannot be undone from your end.');">
+                @csrf
+                <label class="field">
+                    <span>Optional reason</span>
+                    <textarea name="reason" rows="3" maxlength="2000" placeholder="Anything you'd like us to know (optional)">{{ old('reason') }}</textarea>
+                </label>
+
+                <button type="submit" class="btn btn-secondary">Decline contract</button>
+            </form>
+        </section>
     @elseif ($contract->isAwaitingSignature() && $contract->hasExpired())
         <section class="card">
             <h3>Offer expired</h3>

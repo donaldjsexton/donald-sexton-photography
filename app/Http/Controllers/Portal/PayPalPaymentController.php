@@ -53,6 +53,10 @@ class PayPalPaymentController extends Controller
             return $this->respond($request, 'Payment failed: '.$result->failureReason, $invoiceModel, status: 422);
         }
 
+        if (Payment::findByGatewayPaymentId(Payment::GATEWAY_PAYPAL, $result->gatewayPaymentId)) {
+            return $this->respond($request, 'Payment already recorded. Thank you!', $invoiceModel);
+        }
+
         DB::transaction(function () use ($invoiceModel, $result, $gateway) {
             $invoiceModel->payments()->create([
                 'gateway' => Payment::GATEWAY_PAYPAL,

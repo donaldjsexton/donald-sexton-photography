@@ -19,7 +19,7 @@
     </section>
 
     <div class="admin-table-wrap">
-        <table class="admin-table">
+        <table class="admin-table admin-table--cards admin-table--contracts">
             <thead>
                 <tr>
                     <th>Number</th>
@@ -34,8 +34,8 @@
             <tbody>
                 @forelse ($contracts as $contract)
                     <tr>
-                        <td><strong>{{ $contract->number }}</strong></td>
-                        <td>
+                        <td class="contracts-col--number" data-label="Number"><strong>{{ $contract->number }}</strong></td>
+                        <td class="contracts-col--counterparty" data-label="Counterparty">
                             @if ($contract->billable instanceof \App\Models\Client)
                                 <a href="{{ route('admin.clients.show', $contract->billable) }}">{{ $contract->billableName() }}</a>
                             @elseif ($contract->billable instanceof \App\Models\Venue)
@@ -45,11 +45,11 @@
                                 <span class="meta">—</span>
                             @endif
                         </td>
-                        <td>{{ $contract->title }}</td>
-                        <td>{{ $contract->issue_date?->format('M j, Y') ?: '—' }}</td>
-                        <td>{{ $statusOptions[$contract->status] ?? $contract->status }}</td>
-                        <td>{{ $contract->signed_at?->format('M j, Y') ?: '—' }}</td>
-                        <td><a href="{{ route('admin.contracts.show', $contract) }}">View</a></td>
+                        <td class="contracts-col--title" data-label="Title">{{ $contract->title }}</td>
+                        <td class="contracts-col--issued" data-label="Issued">{{ $contract->issue_date?->format('M j, Y') ?: '—' }}</td>
+                        <td class="contracts-col--status" data-label="Status">{{ $statusOptions[$contract->status] ?? $contract->status }}</td>
+                        <td class="contracts-col--signed" data-label="Signed">{{ $contract->signed_at?->format('M j, Y') ?: '—' }}</td>
+                        <td class="contracts-col--open"><a href="{{ route('admin.contracts.show', $contract) }}">View</a></td>
                     </tr>
                 @empty
                     <tr>

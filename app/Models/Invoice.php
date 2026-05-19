@@ -58,6 +58,7 @@ class Invoice extends Model
         'viewed_at',
         'paid_at',
         'voided_at',
+        'overdue_reminder_sent_at',
     ];
 
     protected function casts(): array
@@ -69,6 +70,7 @@ class Invoice extends Model
             'viewed_at' => 'datetime',
             'paid_at' => 'datetime',
             'voided_at' => 'datetime',
+            'overdue_reminder_sent_at' => 'datetime',
             'subtotal_cents' => 'integer',
             'discount_cents' => 'integer',
             'tax_cents' => 'integer',
@@ -246,9 +248,17 @@ class Invoice extends Model
 
     public function syncStatusFromPayments(bool $persist = true): self
     {
-        $paid = (int) $this->payments()
-            ->where('status', Payment::STATUS_COMPLETED)
+        $gross = (int) $this->payments()
+            ->whereIn('status', [
+                Payment::STATUS_COMPLETED,
+                Payment::STATUS_PARTIALLY_REFUNDED,
+                Payment::STATUS_REFUNDED,
+            ])
             ->sum('amount_cents');
+
+        $refunded = (int) $this->payments()->sum('refunded_amount_cents');
+
+        $paid = max(0, $gross - $refunded);
 
         $this->amount_paid_cents = $paid;
 

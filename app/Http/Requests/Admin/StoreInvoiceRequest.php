@@ -4,6 +4,7 @@ namespace App\Http\Requests\Admin;
 
 use App\Models\Client;
 use App\Models\Venue;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -43,9 +44,42 @@ class StoreInvoiceRequest extends FormRequest
 
             'installments' => ['nullable', 'array'],
             'installments.*.label' => ['nullable', 'string', 'max:255'],
-            'installments.*.due_date' => ['nullable', 'date'],
+            'installments.*.due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'installments.*.amount' => ['required_with:installments.*.label', 'numeric', 'min:0.01'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $lineItems = (array) $this->input('line_items', []);
+            $subtotal = 0.0;
+            foreach ($lineItems as $item) {
+                $subtotal += (float) ($item['quantity'] ?? 0) * (float) ($item['unit_price'] ?? 0);
+            }
+
+            $discount = (float) $this->input('discount', 0);
+            if ($discount > $subtotal && $subtotal > 0) {
+                $validator->errors()->add('discount', 'Discount cannot exceed the line-item subtotal ('.number_format($subtotal, 2).').');
+            }
+
+            if ($subtotal <= 0) {
+                $validator->errors()->add('line_items', 'An invoice must total more than zero.');
+            }
+
+            $installments = (array) $this->input('installments', []);
+            $installmentTotal = 0.0;
+            foreach ($installments as $installment) {
+                if ($installment['amount'] ?? null) {
+                    $installmentTotal += (float) $installment['amount'];
+                }
+            }
+
+            $total = max(0, $subtotal - $discount);
+            if ($installmentTotal > $total + 0.01) {
+                $validator->errors()->add('installments', 'Installments add up to '.number_format($installmentTotal, 2).' but the invoice total is only '.number_format($total, 2).'.');
+            }
+        });
     }
 
     public function billableClass(): string

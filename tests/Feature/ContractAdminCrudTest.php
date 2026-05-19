@@ -123,7 +123,7 @@ class ContractAdminCrudTest extends TestCase
             'body' => 'Hacked',
         ]);
 
-        $response->assertRedirect(route('admin.contracts.show', $contract));
+        $response->assertForbidden();
         $this->assertSame($originalTitle, $contract->fresh()->title);
     }
 
@@ -168,7 +168,7 @@ class ContractAdminCrudTest extends TestCase
 
         $this->actingAs($admin)
             ->delete(route('admin.contracts.destroy', $sent))
-            ->assertRedirect(route('admin.contracts.show', $sent));
+            ->assertForbidden();
         $this->assertNotSoftDeleted($sent);
     }
 

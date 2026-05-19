@@ -1718,3 +1718,8 @@ Schedule::command('media:generate-variants --summary-only')
     ->monthlyOn(1, '04:00')
     ->withoutOverlapping(360)
     ->runInBackground();
+
+Schedule::command('invoices:send-overdue-reminders')
+    ->dailyAt('09:00')
+    ->withoutOverlapping()
+    ->runInBackground();

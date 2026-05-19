@@ -3702,6 +3702,97 @@ textarea {
         letter-spacing: 0.08em;
         text-transform: uppercase;
     }
+
+    /* Invoices card layout */
+    .admin-table--invoices tbody tr {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "number  status"
+            "client  client"
+            "issued  due"
+            "total   balance"
+            "open    open";
+    }
+
+    .admin-table--invoices tbody tr .invoices-col--number { grid-area: number; }
+    .admin-table--invoices tbody tr .invoices-col--status {
+        grid-area: status;
+        justify-self: end;
+        align-self: center;
+        font-size: 0.85rem;
+    }
+    .admin-table--invoices tbody tr .invoices-col--client { grid-area: client; }
+    .admin-table--invoices tbody tr .invoices-col--issued { grid-area: issued; font-size: 0.85rem; opacity: 0.85; }
+    .admin-table--invoices tbody tr .invoices-col--due { grid-area: due; font-size: 0.85rem; opacity: 0.85; justify-self: end; }
+    .admin-table--invoices tbody tr .invoices-col--total { grid-area: total; text-align: left !important; }
+    .admin-table--invoices tbody tr .invoices-col--balance { grid-area: balance; text-align: right !important; font-weight: 600; }
+    .admin-table--invoices tbody tr .invoices-col--open { grid-area: open; }
+    .admin-table--invoices tbody tr .invoices-col--open a {
+        display: block;
+        min-height: 44px;
+        line-height: 44px;
+        text-align: center;
+        border: 1px solid var(--admin-line-strong);
+        border-radius: 0.55rem;
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .admin-table--invoices tbody tr .invoices-col--issued::before,
+    .admin-table--invoices tbody tr .invoices-col--due::before,
+    .admin-table--invoices tbody tr .invoices-col--total::before,
+    .admin-table--invoices tbody tr .invoices-col--balance::before {
+        content: attr(data-label) ": ";
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        opacity: 0.6;
+        display: block;
+    }
+
+    /* Contracts card layout */
+    .admin-table--contracts tbody tr {
+        grid-template-columns: 1fr auto;
+        grid-template-areas:
+            "number         status"
+            "counterparty   counterparty"
+            "title          title"
+            "issued         signed"
+            "open           open";
+    }
+
+    .admin-table--contracts tbody tr .contracts-col--number { grid-area: number; }
+    .admin-table--contracts tbody tr .contracts-col--status {
+        grid-area: status;
+        justify-self: end;
+        align-self: center;
+        font-size: 0.85rem;
+    }
+    .admin-table--contracts tbody tr .contracts-col--counterparty { grid-area: counterparty; }
+    .admin-table--contracts tbody tr .contracts-col--title { grid-area: title; font-size: 0.9rem; opacity: 0.9; }
+    .admin-table--contracts tbody tr .contracts-col--issued { grid-area: issued; font-size: 0.85rem; opacity: 0.85; }
+    .admin-table--contracts tbody tr .contracts-col--signed { grid-area: signed; font-size: 0.85rem; opacity: 0.85; justify-self: end; }
+    .admin-table--contracts tbody tr .contracts-col--open { grid-area: open; }
+    .admin-table--contracts tbody tr .contracts-col--open a {
+        display: block;
+        min-height: 44px;
+        line-height: 44px;
+        text-align: center;
+        border: 1px solid var(--admin-line-strong);
+        border-radius: 0.55rem;
+        font-size: 0.85rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .admin-table--contracts tbody tr .contracts-col--issued::before,
+    .admin-table--contracts tbody tr .contracts-col--signed::before {
+        content: attr(data-label) ": ";
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        opacity: 0.6;
+        display: block;
+    }
 }
 
 @media (max-width: 360px) {

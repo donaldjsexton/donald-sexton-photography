@@ -71,7 +71,7 @@ class InvoiceMailTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('admin.invoices.send', $invoice))
-            ->assertRedirect(route('admin.invoices.show', $invoice));
+            ->assertForbidden();
 
         Mail::assertNothingSent();
     }
