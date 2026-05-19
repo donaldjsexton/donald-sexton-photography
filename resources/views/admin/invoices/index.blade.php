@@ -18,7 +18,7 @@
     </section>
 
     <div class="admin-table-wrap">
-        <table class="admin-table">
+        <table class="admin-table admin-table--cards admin-table--invoices">
             <thead>
                 <tr>
                     <th>Number</th>
@@ -34,8 +34,8 @@
             <tbody>
                 @forelse ($invoices as $invoice)
                     <tr>
-                        <td><strong>{{ $invoice->number }}</strong></td>
-                        <td>
+                        <td class="invoices-col--number" data-label="Number"><strong>{{ $invoice->number }}</strong></td>
+                        <td class="invoices-col--client" data-label="Client">
                             @if ($invoice->billable instanceof \App\Models\Client)
                                 <a href="{{ route('admin.clients.show', $invoice->billable) }}">{{ $invoice->billableName() }}</a>
                             @elseif ($invoice->billable instanceof \App\Models\Venue)
@@ -45,12 +45,12 @@
                                 <span class="meta">—</span>
                             @endif
                         </td>
-                        <td>{{ $invoice->issue_date?->format('M j, Y') ?: '—' }}</td>
-                        <td>{{ $invoice->due_date?->format('M j, Y') ?: '—' }}</td>
-                        <td>{{ $statusOptions[$invoice->status] ?? $invoice->status }}</td>
-                        <td style="text-align:right;">${{ number_format($invoice->total_cents / 100, 2) }}</td>
-                        <td style="text-align:right;">${{ number_format($invoice->amountDueCents() / 100, 2) }}</td>
-                        <td><a href="{{ route('admin.invoices.show', $invoice) }}">View</a></td>
+                        <td class="invoices-col--issued" data-label="Issued">{{ $invoice->issue_date?->format('M j, Y') ?: '—' }}</td>
+                        <td class="invoices-col--due" data-label="Due">{{ $invoice->due_date?->format('M j, Y') ?: '—' }}</td>
+                        <td class="invoices-col--status" data-label="Status">{{ $statusOptions[$invoice->status] ?? $invoice->status }}</td>
+                        <td class="invoices-col--total" data-label="Total" style="text-align:right;">${{ number_format($invoice->total_cents / 100, 2) }}</td>
+                        <td class="invoices-col--balance" data-label="Balance" style="text-align:right;">${{ number_format($invoice->amountDueCents() / 100, 2) }}</td>
+                        <td class="invoices-col--open"><a href="{{ route('admin.invoices.show', $invoice) }}">View</a></td>
                     </tr>
                 @empty
                     <tr>
