@@ -31,6 +31,8 @@ class ContractController extends Controller
 
     public function index(Request $request): View
     {
+        $this->authorize('viewAny', Contract::class);
+
         $status = (string) $request->query('status', 'all');
         $statusOptions = Contract::statusOptions();
 
@@ -59,6 +61,8 @@ class ContractController extends Controller
 
     public function create(Request $request): View
     {
+        $this->authorize('create', Contract::class);
+
         $client = $request->query('client_id')
             ? Client::find($request->integer('client_id'))
             : null;
@@ -118,6 +122,8 @@ class ContractController extends Controller
 
     public function store(StoreContractRequest $request): RedirectResponse
     {
+        $this->authorize('create', Contract::class);
+
         $data = $request->validated();
         $billableClass = $request->billableClass();
 
@@ -142,6 +148,8 @@ class ContractController extends Controller
 
     public function show(Contract $contract): View
     {
+        $this->authorize('view', $contract);
+
         $contract->load(['billable', 'bookedJob', 'invoice', 'template']);
 
         return view('admin.contracts.show', [
@@ -152,10 +160,14 @@ class ContractController extends Controller
     public function edit(Contract $contract): View
     {
         if (! $contract->isEditable()) {
+            $this->authorize('view', $contract);
+
             return view('admin.contracts.show', [
                 'contract' => $contract->load(['billable', 'bookedJob', 'invoice', 'template']),
             ]);
         }
+
+        $this->authorize('update', $contract);
 
         $contract->load(['billable']);
         $billable = $contract->billable;
@@ -175,11 +187,7 @@ class ContractController extends Controller
 
     public function update(UpdateContractRequest $request, Contract $contract): RedirectResponse
     {
-        if (! $contract->isEditable()) {
-            return redirect()
-                ->route('admin.contracts.show', $contract)
-                ->with('status', 'Sent or signed contracts cannot be edited. Void it first to make changes.');
-        }
+        $this->authorize('update', $contract);
 
         $data = $request->validated();
         $billableClass = $request->billableClass();
@@ -204,11 +212,7 @@ class ContractController extends Controller
 
     public function destroy(Contract $contract): RedirectResponse
     {
-        if (! $contract->isEditable()) {
-            return redirect()
-                ->route('admin.contracts.show', $contract)
-                ->with('status', 'Only draft contracts can be deleted. Void it instead.');
-        }
+        $this->authorize('delete', $contract);
 
         $contract->delete();
 
@@ -219,11 +223,7 @@ class ContractController extends Controller
 
     public function send(Contract $contract, ContractPdfRenderer $renderer): RedirectResponse
     {
-        if (! in_array($contract->status, [Contract::STATUS_DRAFT, Contract::STATUS_SENT], true)) {
-            return redirect()
-                ->route('admin.contracts.show', $contract)
-                ->with('status', 'This contract cannot be sent in its current state.');
-        }
+        $this->authorize('send', $contract);
 
         $contract->loadMissing('billable');
         $recipientEmail = $contract->billableEmail();
@@ -251,26 +251,11 @@ class ContractController extends Controller
 
     public function sendProposal(Contract $contract): RedirectResponse
     {
-        if (! $contract->isProposal()) {
-            return redirect()
-                ->route('admin.contracts.show', $contract)
-                ->with('status', 'Attach an invoice to this contract before sending it as a proposal.');
-        }
-
-        if (! in_array($contract->status, [Contract::STATUS_DRAFT, Contract::STATUS_SENT], true)) {
-            return redirect()
-                ->route('admin.contracts.show', $contract)
-                ->with('status', 'This proposal cannot be sent in its current state.');
-        }
-
         $contract->loadMissing(['billable', 'invoice']);
-        $invoice = $contract->invoice;
 
-        if ($invoice === null || in_array($invoice->status, [Invoice::STATUS_VOID, Invoice::STATUS_PAID], true)) {
-            return redirect()
-                ->route('admin.contracts.show', $contract)
-                ->with('status', 'The linked invoice is not in a sendable state.');
-        }
+        $this->authorize('sendProposal', $contract);
+
+        $invoice = $contract->invoice;
 
         $recipientEmail = $contract->billableEmail();
 
@@ -307,9 +292,7 @@ class ContractController extends Controller
 
     public function void(Contract $contract): RedirectResponse
     {
-        if ($contract->status === Contract::STATUS_VOID) {
-            return redirect()->route('admin.contracts.show', $contract);
-        }
+        $this->authorize('void', $contract);
 
         $contract->update([
             'status' => Contract::STATUS_VOID,
