@@ -245,6 +245,7 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/contracts/{contract}', [PortalContractController::class, 'show'])->name('contracts.show');
         Route::get('/contracts/{contract}/pdf', [PortalContractController::class, 'downloadPdf'])->name('contracts.pdf');
         Route::post('/contracts/{contract}/sign', [PortalContractController::class, 'sign'])->name('contracts.sign');
+        Route::post('/contracts/{contract}/decline', [PortalContractController::class, 'decline'])->name('contracts.decline');
     });
 });
 
