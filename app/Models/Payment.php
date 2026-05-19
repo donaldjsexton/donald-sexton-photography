@@ -97,4 +97,16 @@ class Payment extends Model
     {
         return $this->status === self::STATUS_COMPLETED;
     }
+
+    public static function findByGatewayPaymentId(string $gateway, ?string $gatewayPaymentId): ?self
+    {
+        if ($gatewayPaymentId === null || $gatewayPaymentId === '') {
+            return null;
+        }
+
+        return static::query()
+            ->where('gateway', $gateway)
+            ->where('gateway_payment_id', $gatewayPaymentId)
+            ->first();
+    }
 }

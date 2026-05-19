@@ -278,6 +278,13 @@ class InvoiceController extends Controller
 
         $data = $request->validated();
 
+        if (! empty($data['gateway_payment_id'])
+            && Payment::findByGatewayPaymentId($data['gateway'], $data['gateway_payment_id'])) {
+            return redirect()
+                ->route('admin.invoices.show', $invoice)
+                ->with('status', 'A payment with that gateway reference is already on file.');
+        }
+
         DB::transaction(function () use ($invoice, $data) {
             $payment = $invoice->payments()->create([
                 'invoice_installment_id' => $data['invoice_installment_id'] ?? null,

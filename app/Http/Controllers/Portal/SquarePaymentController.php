@@ -43,6 +43,12 @@ class SquarePaymentController extends Controller
             return back()->with('status', 'Payment failed: '.$result->failureReason);
         }
 
+        if (Payment::findByGatewayPaymentId(Payment::GATEWAY_SQUARE, $result->gatewayPaymentId)) {
+            return redirect()
+                ->route('portal.invoices.show', ['invoice' => $invoiceModel->uuid])
+                ->with('status', 'Payment already recorded. Thank you!');
+        }
+
         DB::transaction(function () use ($invoiceModel, $result, $gateway) {
             $invoiceModel->payments()->create([
                 'gateway' => Payment::GATEWAY_SQUARE,
