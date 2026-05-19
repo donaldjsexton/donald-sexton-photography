@@ -2,8 +2,11 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\BookedJob;
 use App\Models\Client;
+use App\Models\Invoice;
 use App\Models\Venue;
+use Illuminate\Contracts\Validation\Validator;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -35,6 +38,31 @@ class StoreContractRequest extends FormRequest
             'expires_at' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'internal_notes' => ['nullable', 'string'],
         ];
+    }
+
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            $billableClass = $this->billableClass();
+            $billableId = (int) $this->input('billable_id');
+
+            if ($invoiceId = $this->input('invoice_id')) {
+                $invoice = Invoice::query()->find((int) $invoiceId);
+                if ($invoice && ($invoice->billable_type !== $billableClass || $invoice->billable_id !== $billableId)) {
+                    $validator->errors()->add('invoice_id', 'The linked invoice does not belong to the selected client or venue.');
+                }
+            }
+
+            if ($bookedJobId = $this->input('booked_job_id')) {
+                $bookedJob = BookedJob::query()->with('inquiry')->find((int) $bookedJobId);
+                if ($bookedJob && $billableClass === Client::class) {
+                    $clientIdOnJob = $bookedJob->inquiry?->client_id;
+                    if ($clientIdOnJob !== null && $clientIdOnJob !== $billableId) {
+                        $validator->errors()->add('booked_job_id', 'The selected job does not belong to this client.');
+                    }
+                }
+            }
+        });
     }
 
     public function billableClass(): string
