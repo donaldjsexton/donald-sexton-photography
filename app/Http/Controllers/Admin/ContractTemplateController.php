@@ -37,19 +37,19 @@ class ContractTemplateController extends Controller
         $this->authorize('create', ContractTemplate::class);
 
         $template = DB::transaction(function () use ($request) {
-            $template = ContractTemplate::create([
+            $makeDefault = (bool) $request->validated('is_default', false);
+
+            if ($makeDefault) {
+                ContractTemplate::query()->where('is_default', true)->update(['is_default' => false]);
+            }
+
+            return ContractTemplate::create([
                 'name' => $request->validated('name'),
                 'title' => $request->validated('title'),
                 'description' => $request->validated('description'),
                 'body' => $request->validated('body'),
-                'is_default' => (bool) $request->validated('is_default', false),
+                'is_default' => $makeDefault,
             ]);
-
-            if ($template->is_default) {
-                $this->clearOtherDefaults($template);
-            }
-
-            return $template;
         });
 
         return redirect()
@@ -72,17 +72,22 @@ class ContractTemplateController extends Controller
         $this->authorize('update', $contractTemplate);
 
         DB::transaction(function () use ($request, $contractTemplate) {
+            $makeDefault = (bool) $request->validated('is_default', false);
+
+            if ($makeDefault) {
+                ContractTemplate::query()
+                    ->whereKeyNot($contractTemplate->id)
+                    ->where('is_default', true)
+                    ->update(['is_default' => false]);
+            }
+
             $contractTemplate->update([
                 'name' => $request->validated('name'),
                 'title' => $request->validated('title'),
                 'description' => $request->validated('description'),
                 'body' => $request->validated('body'),
-                'is_default' => (bool) $request->validated('is_default', false),
+                'is_default' => $makeDefault,
             ]);
-
-            if ($contractTemplate->is_default) {
-                $this->clearOtherDefaults($contractTemplate);
-            }
         });
 
         return redirect()
@@ -99,13 +104,5 @@ class ContractTemplateController extends Controller
         return redirect()
             ->route('admin.contract-templates.index')
             ->with('status', 'Template removed.');
-    }
-
-    private function clearOtherDefaults(ContractTemplate $keep): void
-    {
-        ContractTemplate::query()
-            ->whereKeyNot($keep->id)
-            ->where('is_default', true)
-            ->update(['is_default' => false]);
     }
 }
