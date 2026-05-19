@@ -3,6 +3,7 @@
 namespace App\Services\Media;
 
 use App\Models\Media;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -12,6 +13,15 @@ class AltTextGenerator
     private const ENDPOINT = 'https://api.anthropic.com/v1/messages';
 
     public const ALT_TEXT_MAX_LENGTH = 125;
+
+    /**
+     * Widths of already-generated WebP derivatives to prefer over the
+     * full-size original, in order. Claude downsamples anything past
+     * ~1568px anyway, so a small derivative is equivalent for alt text
+     * while keeping peak memory in the hundreds of KB instead of tens
+     * of MB (original + base64 + JSON body copies of a 25MP photo).
+     */
+    private const PREFERRED_VARIANT_WIDTHS = [1080, 640];
 
     private const SYSTEM_PROMPT = <<<'PROMPT'
 You write concise, descriptive alt text for wedding and portrait photographs by Donald Sexton, a Tampa Bay wedding photographer based in Clearwater, Florida.
@@ -103,17 +113,19 @@ PROMPT;
         }
 
         $disk = $media->disk ?? 'public';
-        $path = $media->path;
+        $storage = Storage::disk($disk);
 
-        if (! Storage::disk($disk)->exists($path)) {
-            Log::warning('AltTextGenerator: file not found on disk.', ['media_id' => $media->id, 'path' => $path]);
+        $path = $this->preferredImagePath($media, $storage);
+
+        if ($path === null) {
+            Log::warning('AltTextGenerator: file not found on disk.', ['media_id' => $media->id, 'path' => $media->path]);
 
             return null;
         }
 
-        $contents = Storage::disk($disk)->get($path);
+        $contents = $storage->get($path);
 
-        if ($contents === null) {
+        if ($contents === null || $contents === '') {
             return null;
         }
 
@@ -126,11 +138,39 @@ PROMPT;
             default => 'image/jpeg',
         };
 
+        $encoded = base64_encode($contents);
+        unset($contents);
+
         return [
             'type' => 'base64',
             'media_type' => $mediaType,
-            'data' => base64_encode($contents),
+            'data' => $encoded,
         ];
+    }
+
+    /**
+     * Resolve the smallest already-generated WebP derivative that exists
+     * on disk, falling back to the full-size original only when none is
+     * available. This keeps a multi-MB original (and its base64/JSON
+     * copies) from being held in memory all at once.
+     */
+    private function preferredImagePath(Media $media, Filesystem $storage): ?string
+    {
+        $candidates = [];
+
+        foreach (self::PREFERRED_VARIANT_WIDTHS as $width) {
+            $candidates[] = $media->webpVariantPath($width);
+        }
+
+        $candidates[] = $media->webpPath();
+
+        foreach (array_filter($candidates) as $candidate) {
+            if ($storage->exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $media->path && $storage->exists($media->path) ? $media->path : null;
     }
 
     /**
