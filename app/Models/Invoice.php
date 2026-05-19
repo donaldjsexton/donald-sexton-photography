@@ -58,6 +58,7 @@ class Invoice extends Model
         'viewed_at',
         'paid_at',
         'voided_at',
+        'overdue_reminder_sent_at',
     ];
 
     protected function casts(): array
@@ -69,6 +70,7 @@ class Invoice extends Model
             'viewed_at' => 'datetime',
             'paid_at' => 'datetime',
             'voided_at' => 'datetime',
+            'overdue_reminder_sent_at' => 'datetime',
             'subtotal_cents' => 'integer',
             'discount_cents' => 'integer',
             'tax_cents' => 'integer',
