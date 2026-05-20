@@ -2,11 +2,14 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\ManagesPolymorphicMedia;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use App\Models\JournalPost;
+use App\Models\Media;
 use App\Models\Tag;
 use App\Models\Venue;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -15,6 +18,8 @@ use Illuminate\View\View;
 
 class JournalPostController extends Controller
 {
+    use ManagesPolymorphicMedia;
+
     public function index(): View
     {
         return view('admin.journal-posts.index', [
@@ -44,9 +49,29 @@ class JournalPostController extends Controller
 
     public function edit(JournalPost $journalPost): View
     {
-        $journalPost->loadMissing('heroMedia');
+        $journalPost->loadMissing(['heroMedia', 'media' => fn ($query) => $query->orderBy('mediables.sort_order')]);
 
         return view('admin.journal-posts.form', $this->formData($journalPost));
+    }
+
+    public function attachMedia(JournalPost $journalPost, Request $request): JsonResponse
+    {
+        return $this->attachMediaToOwner($journalPost, $request);
+    }
+
+    public function detachMedia(JournalPost $journalPost, Media $media): JsonResponse
+    {
+        return $this->detachMediaFromOwner($journalPost, $media);
+    }
+
+    public function reorderMedia(JournalPost $journalPost, Request $request): JsonResponse
+    {
+        return $this->reorderOwnerMedia($journalPost, $request);
+    }
+
+    public function setHero(JournalPost $journalPost, Media $media): JsonResponse
+    {
+        return $this->promoteOwnerHero($journalPost, $media);
     }
 
     public function update(Request $request, JournalPost $journalPost): RedirectResponse

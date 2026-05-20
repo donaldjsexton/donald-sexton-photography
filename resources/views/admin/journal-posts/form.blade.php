@@ -143,4 +143,15 @@
 
         <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Journal Post</button>
     </form>
+
+    @if ($post->exists)
+        <x-admin.story-gallery
+            :owner="$post"
+            :attach-url="route('admin.journal-posts.media.attach', $post)"
+            :detach-url-pattern="route('admin.journal-posts.media.detach', ['journalPost' => $post, 'media' => '__id__'])"
+            :reorder-url="route('admin.journal-posts.media.reorder', $post)"
+            :hero-url-pattern="route('admin.journal-posts.media.hero', ['journalPost' => $post, 'media' => '__id__'])"
+            :picker-url="route('admin.media.picker')"
+        />
+    @endif
 @endsection

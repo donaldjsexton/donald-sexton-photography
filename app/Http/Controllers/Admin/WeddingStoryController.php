@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Admin\Concerns\ManagesPolymorphicMedia;
 use App\Http\Controllers\Controller;
+use App\Models\Media;
 use App\Models\Tag;
 use App\Models\Venue;
 use App\Models\WeddingStory;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -14,6 +17,8 @@ use Illuminate\View\View;
 
 class WeddingStoryController extends Controller
 {
+    use ManagesPolymorphicMedia;
+
     public function index(): View
     {
         return view('admin.wedding-stories.index', [
@@ -43,9 +48,29 @@ class WeddingStoryController extends Controller
 
     public function edit(WeddingStory $weddingStory): View
     {
-        $weddingStory->loadMissing('heroMedia');
+        $weddingStory->loadMissing(['heroMedia', 'media' => fn ($query) => $query->orderBy('mediables.sort_order')]);
 
         return view('admin.wedding-stories.form', $this->formData($weddingStory));
+    }
+
+    public function attachMedia(WeddingStory $weddingStory, Request $request): JsonResponse
+    {
+        return $this->attachMediaToOwner($weddingStory, $request);
+    }
+
+    public function detachMedia(WeddingStory $weddingStory, Media $media): JsonResponse
+    {
+        return $this->detachMediaFromOwner($weddingStory, $media);
+    }
+
+    public function reorderMedia(WeddingStory $weddingStory, Request $request): JsonResponse
+    {
+        return $this->reorderOwnerMedia($weddingStory, $request);
+    }
+
+    public function setHero(WeddingStory $weddingStory, Media $media): JsonResponse
+    {
+        return $this->promoteOwnerHero($weddingStory, $media);
     }
 
     public function update(Request $request, WeddingStory $weddingStory): RedirectResponse
