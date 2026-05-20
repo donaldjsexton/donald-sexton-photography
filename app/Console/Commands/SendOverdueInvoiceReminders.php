@@ -50,12 +50,26 @@ class SendOverdueInvoiceReminders extends Command
                 continue;
             }
 
+            $now = now();
+
+            $claimed = Invoice::query()
+                ->whereKey($invoice->id)
+                ->whereNull('overdue_reminder_sent_at')
+                ->update(['overdue_reminder_sent_at' => $now]);
+
+            if ($claimed === 0) {
+                $skipped++;
+                $this->line("Invoice {$invoice->number}: reminder already claimed by another run, skipped.");
+
+                continue;
+            }
+
             Mail::to($recipient)->send(new InvoiceOverdueReminder(
                 invoice: $invoice,
                 payUrl: $renderer->signedPayUrl($invoice),
             ));
 
-            $invoice->forceFill(['overdue_reminder_sent_at' => now()])->save();
+            $invoice->overdue_reminder_sent_at = $now;
             $sent++;
 
             $this->info("Reminder sent for invoice {$invoice->number} to {$recipient}.");
