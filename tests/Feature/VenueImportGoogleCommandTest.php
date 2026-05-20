@@ -108,6 +108,24 @@ class VenueImportGoogleCommandTest extends TestCase
         $this->assertDatabaseCount('venues', 2);
     }
 
+    public function test_rerun_does_not_create_duplicate_venues(): void
+    {
+        config(['services.google.places_api_key' => 'test-key']);
+
+        Http::fake([
+            'places.googleapis.com/*' => Http::response($this->fakePlacesResponse([
+                $this->fakePlace('Repeatable Venue', 'Tampa', 'FL', 'ChIJ_repeat'),
+            ])),
+        ]);
+
+        $this->artisan('venue:import-google', ['query' => 'wedding venues Tampa'])->assertSuccessful();
+        $this->artisan('venue:import-google', ['query' => 'wedding venues Tampa'])
+            ->assertSuccessful()
+            ->expectsOutputToContain('skipped 1');
+
+        $this->assertDatabaseCount('venues', 1);
+    }
+
     public function test_dry_run_does_not_persist(): void
     {
         config(['services.google.places_api_key' => 'test-key']);

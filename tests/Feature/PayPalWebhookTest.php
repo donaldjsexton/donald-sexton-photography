@@ -121,6 +121,89 @@ class PayPalWebhookTest extends TestCase
         $this->assertSame(0, Payment::count());
     }
 
+    public function test_refund_event_marks_payment_refunded_and_is_idempotent_on_replay(): void
+    {
+        $invoice = Invoice::factory()->paid()->create([
+            'total_cents' => 50000,
+            'amount_paid_cents' => 50000,
+        ]);
+        $payment = Payment::factory()->paypal()->create([
+            'invoice_id' => $invoice->id,
+            'gateway_payment_id' => 'PP-CAP-REFUND',
+            'status' => Payment::STATUS_COMPLETED,
+            'amount_cents' => 50000,
+        ]);
+
+        $this->mockSuccessfulVerification();
+
+        $payload = $this->refundPayload(
+            refundId: 'REFUND-1',
+            captureId: 'PP-CAP-REFUND',
+            amount: '500.00',
+        );
+
+        $this->postJson(route('webhooks.paypal'), $payload, $this->signatureHeaders())->assertOk();
+
+        $payment->refresh();
+        $this->assertSame(Payment::STATUS_REFUNDED, $payment->status);
+        $this->assertSame(50000, $payment->refunded_amount_cents);
+
+        $this->postJson(route('webhooks.paypal'), $payload, $this->signatureHeaders())->assertOk();
+
+        $payment->refresh();
+        $this->assertSame(Payment::STATUS_REFUNDED, $payment->status);
+        $this->assertSame(50000, $payment->refunded_amount_cents);
+    }
+
+    public function test_multiple_distinct_partial_refunds_accumulate(): void
+    {
+        $invoice = Invoice::factory()->paid()->create([
+            'total_cents' => 50000,
+            'amount_paid_cents' => 50000,
+        ]);
+        $payment = Payment::factory()->paypal()->create([
+            'invoice_id' => $invoice->id,
+            'gateway_payment_id' => 'PP-CAP-PARTIAL',
+            'status' => Payment::STATUS_COMPLETED,
+            'amount_cents' => 50000,
+        ]);
+
+        $this->mockSuccessfulVerification();
+
+        $this->postJson(route('webhooks.paypal'), $this->refundPayload(
+            refundId: 'REFUND-A',
+            captureId: 'PP-CAP-PARTIAL',
+            amount: '200.00',
+        ), $this->signatureHeaders())->assertOk();
+
+        $this->postJson(route('webhooks.paypal'), $this->refundPayload(
+            refundId: 'REFUND-B',
+            captureId: 'PP-CAP-PARTIAL',
+            amount: '150.00',
+        ), $this->signatureHeaders())->assertOk();
+
+        $payment->refresh();
+        $this->assertSame(Payment::STATUS_PARTIALLY_REFUNDED, $payment->status);
+        $this->assertSame(35000, $payment->refunded_amount_cents);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function refundPayload(string $refundId, string $captureId, string $amount): array
+    {
+        return [
+            'event_type' => 'PAYMENT.CAPTURE.REFUNDED',
+            'resource' => [
+                'id' => $refundId,
+                'amount' => ['value' => $amount, 'currency_code' => 'USD'],
+                'links' => [
+                    ['rel' => 'up', 'href' => "https://api.paypal.com/v2/payments/captures/{$captureId}"],
+                ],
+            ],
+        ];
+    }
+
     private function mockSuccessfulVerification(): void
     {
         Http::fake([

@@ -80,12 +80,6 @@ class VenueImportGoogleCommand extends Command
                     continue;
                 }
 
-                if (Venue::query()->where('google_places_id', $parsed['google_places_id'])->exists()) {
-                    $skipped++;
-
-                    continue;
-                }
-
                 if (Venue::query()->where('name', $parsed['name'])->where('city', $parsed['city'])->exists()) {
                     $skipped++;
 
@@ -104,9 +98,17 @@ class VenueImportGoogleCommand extends Command
                     continue;
                 }
 
-                Venue::create($parsed);
-                $created++;
-                $this->line(sprintf('  + %s (%s, %s)', $parsed['name'], $parsed['city'] ?? '?', $parsed['state'] ?? '?'));
+                $venue = Venue::query()->firstOrCreate(
+                    ['google_places_id' => $parsed['google_places_id']],
+                    $parsed,
+                );
+
+                if ($venue->wasRecentlyCreated) {
+                    $created++;
+                    $this->line(sprintf('  + %s (%s, %s)', $parsed['name'], $parsed['city'] ?? '?', $parsed['state'] ?? '?'));
+                } else {
+                    $skipped++;
+                }
             }
         }
 

@@ -26,8 +26,7 @@ class WordPressJournalImporter
     public function __construct(
         private readonly RealWeddingPromoter $realWeddingPromoter,
         private readonly WordPressPostClassifier $postClassifier,
-    ) {
-    }
+    ) {}
 
     public function import(UploadedFile $file): ImportRun
     {
@@ -76,6 +75,7 @@ class WordPressJournalImporter
                     $wpStatus = (string) $wp->status;
                     if (in_array($wpStatus, ['auto-draft', 'trash', 'inherit'], true)) {
                         $summary['posts_skipped']++;
+
                         continue;
                     }
 
@@ -185,6 +185,7 @@ class WordPressJournalImporter
 
             if ($relativePath !== null && File::exists(public_path($relativePath))) {
                 $present++;
+
                 continue;
             }
 
@@ -217,11 +218,13 @@ class WordPressJournalImporter
 
             if ($relativePath === null) {
                 $failed++;
+
                 continue;
             }
 
             if (File::exists(public_path($relativePath))) {
                 $reused++;
+
                 continue;
             }
 
@@ -657,7 +660,7 @@ class WordPressJournalImporter
             $candidate = $sourceDir.'/'.$uploadsSuffix;
 
             if (File::exists($candidate)) {
-                File::copy($candidate, $absolutePath);
+                $this->atomicallyPlace($candidate, $absolutePath);
 
                 return;
             }
@@ -665,7 +668,7 @@ class WordPressJournalImporter
             $candidate = $sourceDir.'/wp-content/uploads/'.$uploadsSuffix;
 
             if (File::exists($candidate)) {
-                File::copy($candidate, $absolutePath);
+                $this->atomicallyPlace($candidate, $absolutePath);
 
                 return;
             }
@@ -676,7 +679,7 @@ class WordPressJournalImporter
             if ($baseSuffix !== $uploadsSuffix) {
                 foreach ([$sourceDir.'/'.$baseSuffix, $sourceDir.'/wp-content/uploads/'.$baseSuffix] as $candidate) {
                     if (File::exists($candidate)) {
-                        File::copy($candidate, $absolutePath);
+                        $this->atomicallyPlace($candidate, $absolutePath);
 
                         return;
                     }
@@ -684,7 +687,7 @@ class WordPressJournalImporter
             }
         }
 
-        $temporaryPath = tempnam(sys_get_temp_dir(), 'wp-upload-');
+        $temporaryPath = tempnam(dirname($absolutePath), '.wp-upload-');
 
         if ($temporaryPath === false) {
             throw new \RuntimeException('A temporary file could not be created for legacy media download.');
@@ -712,9 +715,36 @@ class WordPressJournalImporter
                 $process->mustRun();
             }
 
-            File::copy($temporaryPath, $absolutePath);
+            if (! @rename($temporaryPath, $absolutePath)) {
+                throw new \RuntimeException('Legacy media download could not be moved into place: '.$absolutePath);
+            }
         } finally {
-            @unlink($temporaryPath);
+            if (File::exists($temporaryPath)) {
+                @unlink($temporaryPath);
+            }
+        }
+    }
+
+    private function atomicallyPlace(string $source, string $destination): void
+    {
+        $temporaryPath = tempnam(dirname($destination), '.wp-upload-');
+
+        if ($temporaryPath === false) {
+            throw new \RuntimeException('A temporary file could not be created for legacy media placement.');
+        }
+
+        try {
+            if (! @copy($source, $temporaryPath)) {
+                throw new \RuntimeException('Legacy media could not be staged: '.$source);
+            }
+
+            if (! @rename($temporaryPath, $destination)) {
+                throw new \RuntimeException('Legacy media could not be moved into place: '.$destination);
+            }
+        } finally {
+            if (File::exists($temporaryPath)) {
+                @unlink($temporaryPath);
+            }
         }
     }
 

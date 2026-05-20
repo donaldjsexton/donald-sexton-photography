@@ -1422,13 +1422,16 @@ Artisan::command('pictime:sync-owners', function () {
             $from = '/journal/'.ltrim($post->slug, '/');
             $to = '/weddings/'.ltrim($story->slug, '/');
 
-            if (! Redirect::query()->where('from_path', $from)->exists()) {
-                Redirect::query()->create([
-                    'from_path' => $from,
+            $redirect = Redirect::query()->firstOrCreate(
+                ['from_path' => $from],
+                [
                     'to_path' => $to,
                     'status_code' => 301,
                     'source' => 'pictime_sync_owners',
-                ]);
+                ],
+            );
+
+            if ($redirect->wasRecentlyCreated) {
                 $summary['journal_redirects_created']++;
             }
         });

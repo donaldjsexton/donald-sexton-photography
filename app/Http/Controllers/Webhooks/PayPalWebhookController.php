@@ -31,8 +31,8 @@ class PayPalWebhookController extends Controller
         $resource = (array) ($payload['resource'] ?? []);
 
         match (true) {
+            $eventType === 'PAYMENT.CAPTURE.REFUNDED' => $this->syncRefund($resource),
             str_starts_with($eventType, 'PAYMENT.CAPTURE.') => $this->syncCapture($eventType, $resource),
-            str_starts_with($eventType, 'PAYMENT.CAPTURE.REFUNDED') => $this->syncRefund($resource),
             default => Log::info('PayPal webhook unhandled', ['event_type' => $eventType]),
         };
 
@@ -78,8 +78,9 @@ class PayPalWebhookController extends Controller
     private function syncRefund(array $resource): void
     {
         $captureId = $this->extractRefundedCaptureId($resource);
+        $refundId = (string) ($resource['id'] ?? '');
 
-        if (! $captureId) {
+        if (! $captureId || $refundId === '') {
             return;
         }
 
@@ -97,12 +98,27 @@ class PayPalWebhookController extends Controller
             return;
         }
 
-        $payment->refunded_amount_cents = $refundCents;
+        $payload = (array) $payment->payload;
+        $refunds = (array) ($payload['refunds'] ?? []);
+
+        if (isset($refunds[$refundId])) {
+            return;
+        }
+
+        $refunds[$refundId] = $resource;
+        $payload['refunds'] = $refunds;
+
+        $totalRefundedCents = array_sum(array_map(
+            fn (array $refund): int => (int) round(((float) ($refund['amount']['value'] ?? 0)) * 100),
+            $refunds,
+        ));
+
+        $payment->refunded_amount_cents = $totalRefundedCents;
         $payment->refunded_at = now();
-        $payment->status = $refundCents >= $payment->amount_cents
+        $payment->status = $totalRefundedCents >= $payment->amount_cents
             ? Payment::STATUS_REFUNDED
             : Payment::STATUS_PARTIALLY_REFUNDED;
-        $payment->payload = array_merge((array) $payment->payload, ['refund' => $resource]);
+        $payment->payload = $payload;
         $payment->save();
 
         $payment->invoice()->first()?->syncStatusFromPayments();
