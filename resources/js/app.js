@@ -1030,3 +1030,521 @@ if (mediaPickers.length > 0) {
         });
     });
 }
+
+// ── Story / journal gallery ──
+const storyGalleries = document.querySelectorAll('[data-story-gallery]');
+
+if (storyGalleries.length > 0) {
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+
+    const jsonFetch = async (url, options = {}) => {
+        const response = await fetch(url, {
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+                ...(options.body && !(options.body instanceof FormData) ? { 'Content-Type': 'application/json' } : {}),
+                ...(options.headers || {}),
+            },
+            ...options,
+        });
+
+        if (!response.ok) {
+            const error = new Error('Request failed');
+            error.status = response.status;
+            throw error;
+        }
+
+        if (response.status === 204) {
+            return null;
+        }
+
+        return response.json();
+    };
+
+    // ── Multi-select picker modal (shared across all galleries) ──
+    let multiModal = null;
+    let multiSearch = null;
+    let multiGrid = null;
+    let multiStatus = null;
+    let multiLoadMore = null;
+    let multiConfirm = null;
+    let multiSelected = new Map(); // id -> media
+    let multiPage = 1;
+    let multiLoading = false;
+    let multiResolver = null;
+    let multiSearchDebounce = null;
+    let multiEndpoint = null;
+
+    const ensureMultiModal = () => {
+        if (multiModal) {
+            return;
+        }
+
+        multiModal = document.createElement('div');
+        multiModal.className = 'media-picker-modal';
+        multiModal.setAttribute('role', 'dialog');
+        multiModal.setAttribute('aria-modal', 'true');
+        multiModal.setAttribute('aria-label', 'Add photos from library');
+        multiModal.hidden = true;
+        multiModal.innerHTML = `
+            <div class="media-picker-modal__backdrop" data-multi-close></div>
+            <div class="media-picker-modal__panel is-multi">
+                <header class="media-picker-modal__header">
+                    <div class="media-picker-modal__heading">
+                        <p class="eyebrow">Library</p>
+                        <h2>Add photos to gallery</h2>
+                    </div>
+                    <button type="button" class="media-picker-modal__close" data-multi-close aria-label="Close">&times;</button>
+                </header>
+                <div class="media-picker-modal__toolbar">
+                    <input type="search" class="media-picker-modal__search" placeholder="Search by filename, alt text, or ID…" autocomplete="off">
+                    <span class="media-picker-modal__status" aria-live="polite"></span>
+                </div>
+                <div class="media-picker-modal__grid" tabindex="0"></div>
+                <footer class="media-picker-modal__footer">
+                    <button type="button" class="cta-secondary media-picker-modal__more" hidden>Load more</button>
+                    <button type="button" class="cta media-picker-modal__confirm" disabled>Add 0 photos</button>
+                </footer>
+            </div>
+        `;
+
+        document.body.appendChild(multiModal);
+
+        multiSearch = multiModal.querySelector('.media-picker-modal__search');
+        multiGrid = multiModal.querySelector('.media-picker-modal__grid');
+        multiStatus = multiModal.querySelector('.media-picker-modal__status');
+        multiLoadMore = multiModal.querySelector('.media-picker-modal__more');
+        multiConfirm = multiModal.querySelector('.media-picker-modal__confirm');
+
+        multiModal.querySelectorAll('[data-multi-close]').forEach((node) => {
+            node.addEventListener('click', closeMulti);
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && multiModal && !multiModal.hidden) {
+                closeMulti();
+            }
+        });
+
+        multiSearch.addEventListener('input', () => {
+            clearTimeout(multiSearchDebounce);
+            multiSearchDebounce = setTimeout(() => loadMulti(true), 220);
+        });
+
+        multiLoadMore.addEventListener('click', () => loadMulti(false));
+
+        multiConfirm.addEventListener('click', () => {
+            if (multiSelected.size === 0) {
+                return;
+            }
+
+            const result = Array.from(multiSelected.values());
+            const resolver = multiResolver;
+            closeMulti();
+            resolver?.(result);
+        });
+
+        multiGrid.addEventListener('click', (event) => {
+            const tile = event.target.closest('[data-multi-tile]');
+
+            if (!tile) {
+                return;
+            }
+
+            const id = Number(tile.dataset.id);
+
+            if (multiSelected.has(id)) {
+                multiSelected.delete(id);
+                tile.classList.remove('is-selected');
+            } else {
+                multiSelected.set(id, {
+                    id,
+                    filename: tile.dataset.filename || '',
+                    url: tile.dataset.url || '',
+                    alt_text: tile.dataset.altText || '',
+                });
+                tile.classList.add('is-selected');
+            }
+
+            updateMultiConfirm();
+        });
+    };
+
+    const updateMultiConfirm = () => {
+        const count = multiSelected.size;
+        multiConfirm.disabled = count === 0;
+        multiConfirm.textContent = `Add ${count} photo${count === 1 ? '' : 's'}`;
+    };
+
+    const renderMultiTiles = (items, append) => {
+        if (!append) {
+            multiGrid.innerHTML = '';
+        }
+
+        if (items.length === 0 && !append) {
+            const empty = document.createElement('p');
+            empty.className = 'media-picker-modal__empty';
+            empty.textContent = 'No media matched your search.';
+            multiGrid.appendChild(empty);
+
+            return;
+        }
+
+        items.forEach((media) => {
+            const tile = document.createElement('button');
+            tile.type = 'button';
+            tile.className = 'media-picker-tile';
+
+            if (multiSelected.has(media.id)) {
+                tile.classList.add('is-selected');
+            }
+
+            tile.dataset.multiTile = '';
+            tile.dataset.id = String(media.id);
+            tile.dataset.filename = media.filename || '';
+            tile.dataset.url = media.url || '';
+            tile.dataset.altText = media.alt_text || '';
+
+            const figure = document.createElement('span');
+            figure.className = 'media-picker-tile__image';
+
+            if (media.url) {
+                const img = document.createElement('img');
+                img.loading = 'lazy';
+                img.decoding = 'async';
+                img.src = media.url;
+                img.alt = media.alt_text || media.filename || '';
+                figure.appendChild(img);
+            }
+
+            const idBadge = document.createElement('span');
+            idBadge.className = 'media-picker-tile__id';
+            idBadge.textContent = `#${media.id}`;
+            figure.appendChild(idBadge);
+
+            const check = document.createElement('span');
+            check.className = 'media-picker-tile__check';
+            check.textContent = '✓';
+            figure.appendChild(check);
+
+            tile.appendChild(figure);
+            multiGrid.appendChild(tile);
+        });
+    };
+
+    const loadMulti = (reset) => {
+        if (!multiEndpoint || multiLoading) {
+            return;
+        }
+
+        if (reset) {
+            multiPage = 1;
+            multiGrid.scrollTop = 0;
+            multiStatus.textContent = 'Searching…';
+        } else {
+            multiPage += 1;
+        }
+
+        const params = new URLSearchParams();
+        const term = multiSearch.value.trim();
+
+        if (term !== '') {
+            params.set('q', term);
+        }
+
+        params.set('page', String(multiPage));
+
+        multiLoading = true;
+        multiLoadMore.disabled = true;
+        multiLoadMore.textContent = 'Loading…';
+
+        fetch(`${multiEndpoint}?${params.toString()}`, {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Request failed');
+                }
+
+                return response.json();
+            })
+            .then((payload) => {
+                renderMultiTiles(payload.data || [], !reset);
+                multiLoadMore.hidden = !payload.has_more;
+                multiStatus.textContent = `${payload.total} result${payload.total === 1 ? '' : 's'}`;
+            })
+            .catch(() => {
+                multiStatus.textContent = 'Could not load media. Try again.';
+            })
+            .finally(() => {
+                multiLoading = false;
+                multiLoadMore.disabled = false;
+                multiLoadMore.textContent = 'Load more';
+            });
+    };
+
+    const openMulti = ({ endpoint, excludeIds }) => new Promise((resolve) => {
+        ensureMultiModal();
+        multiEndpoint = endpoint;
+        multiSelected = new Map();
+        multiResolver = resolve;
+        multiSearch.value = '';
+        multiGrid.innerHTML = '';
+        multiStatus.textContent = '';
+        multiLoadMore.hidden = true;
+        updateMultiConfirm();
+        multiModal.hidden = false;
+        document.body.classList.add('media-picker-modal-open');
+        loadMulti(true);
+        setTimeout(() => multiSearch.focus(), 50);
+    });
+
+    function closeMulti() {
+        if (!multiModal || multiModal.hidden) {
+            return;
+        }
+
+        multiModal.hidden = true;
+        document.body.classList.remove('media-picker-modal-open');
+
+        if (multiResolver) {
+            const resolver = multiResolver;
+            multiResolver = null;
+            resolver([]);
+        }
+    }
+
+    // ── Gallery instance ──
+    const setupGallery = (root) => {
+        const grid = root.querySelector('[data-story-grid]');
+        const emptyMessage = root.querySelector('[data-story-empty]');
+        const status = root.querySelector('[data-story-status]');
+        const countNode = root.querySelector('[data-story-count]');
+        const heroStat = root.querySelector('[data-story-hero-stat]');
+        const heroInput = document.querySelector(`form input[name="${root.dataset.heroInput || 'hero_media_id'}"]`);
+        const addButton = root.querySelector('[data-story-add]');
+
+        const attachUrl = root.dataset.attachUrl;
+        const reorderUrl = root.dataset.reorderUrl;
+        const detachUrlPattern = root.dataset.detachUrlPattern;
+        const heroUrlPattern = root.dataset.heroUrlPattern;
+        const pickerUrl = root.dataset.pickerUrl;
+
+        const flash = (message, isError = false) => {
+            if (!status) {
+                return;
+            }
+
+            status.textContent = message;
+            status.hidden = false;
+            status.classList.toggle('story-gallery__status--error', isError);
+
+            clearTimeout(flash._timer);
+            flash._timer = setTimeout(() => {
+                status.hidden = true;
+            }, 3200);
+        };
+
+        const renderTile = (item) => {
+            const li = document.createElement('li');
+            li.className = 'story-tile';
+
+            if (item.is_hero) {
+                li.classList.add('is-hero');
+            }
+
+            li.dataset.storyTile = '';
+            li.dataset.mediaId = String(item.id);
+            li.setAttribute('draggable', 'true');
+
+            li.innerHTML = `
+                <span class="story-tile__handle" aria-label="Drag to reorder" data-story-handle>⋮⋮</span>
+                ${item.is_hero ? '<span class="story-tile__hero-badge" aria-label="Hero photo">★ Hero</span>' : ''}
+                <a class="story-tile__photo" href="${item.edit_url}" tabindex="-1" aria-hidden="true">
+                    ${item.url ? `<img src="${item.url}" alt="${escapeAttr(item.alt_text || item.filename || '')}" loading="lazy">` : '<span class="story-tile__placeholder">No preview</span>'}
+                </a>
+                <div class="story-tile__actions">
+                    ${item.is_hero ? '' : '<button type="button" class="story-tile__action" data-story-hero title="Make hero">★</button>'}
+                    <a href="${item.edit_url}" class="story-tile__action" title="Open in library">↗</a>
+                    <button type="button" class="story-tile__action story-tile__action--danger" data-story-remove title="Remove from gallery">✕</button>
+                </div>
+            `;
+
+            attachTileHandlers(li);
+
+            return li;
+        };
+
+        const escapeAttr = (value) => String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('"', '&quot;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;');
+
+        const applyState = (payload) => {
+            grid.innerHTML = '';
+
+            if (!payload.items || payload.items.length === 0) {
+                grid.classList.add('is-empty');
+                emptyMessage?.removeAttribute('hidden');
+            } else {
+                grid.classList.remove('is-empty');
+                emptyMessage?.setAttribute('hidden', '');
+
+                payload.items.forEach((item) => {
+                    grid.appendChild(renderTile(item));
+                });
+            }
+
+            if (countNode) {
+                countNode.textContent = String(payload.items?.length ?? 0);
+            }
+
+            if (heroInput) {
+                heroInput.value = payload.hero_media_id ? String(payload.hero_media_id) : '';
+            }
+
+            if (heroStat) {
+                const valueNode = heroStat.querySelector('.story-stat__value');
+
+                if (valueNode) {
+                    if (payload.hero_media_id) {
+                        valueNode.textContent = '★';
+                        heroStat.classList.add('story-stat--ok');
+                        heroStat.classList.remove('story-stat--alert');
+                    } else {
+                        valueNode.textContent = '○';
+                        heroStat.classList.add('story-stat--alert');
+                        heroStat.classList.remove('story-stat--ok');
+                    }
+                }
+            }
+        };
+
+        const collectIds = () => Array.from(grid.querySelectorAll('[data-story-tile]'))
+            .map((node) => Number(node.dataset.mediaId))
+            .filter((id) => Number.isFinite(id));
+
+        const persistOrder = () => {
+            jsonFetch(reorderUrl, {
+                method: 'PATCH',
+                body: JSON.stringify({ media_ids: collectIds() }),
+            })
+                .then(applyState)
+                .catch(() => flash('Could not save the new order.', true));
+        };
+
+        const handleDetach = (tile) => {
+            const id = Number(tile.dataset.mediaId);
+
+            if (!confirm('Remove this photo from the gallery?')) {
+                return;
+            }
+
+            jsonFetch(detachUrlPattern.replace('__id__', String(id)), { method: 'DELETE' })
+                .then((payload) => {
+                    applyState(payload);
+                    flash('Photo removed.');
+                })
+                .catch(() => flash('Could not remove photo.', true));
+        };
+
+        const handleHero = (tile) => {
+            const id = Number(tile.dataset.mediaId);
+
+            jsonFetch(heroUrlPattern.replace('__id__', String(id)), { method: 'POST' })
+                .then((payload) => {
+                    applyState(payload);
+                    flash('Hero photo updated.');
+                })
+                .catch(() => flash('Could not set hero photo.', true));
+        };
+
+        // ── Drag-to-reorder ──
+        let dragSrc = null;
+
+        const attachTileHandlers = (tile) => {
+            tile.addEventListener('dragstart', (event) => {
+                dragSrc = tile;
+                tile.classList.add('is-dragging');
+                event.dataTransfer.effectAllowed = 'move';
+                event.dataTransfer.setData('text/plain', tile.dataset.mediaId || '');
+            });
+
+            tile.addEventListener('dragend', () => {
+                tile.classList.remove('is-dragging');
+                grid.querySelectorAll('.is-drop-target').forEach((n) => n.classList.remove('is-drop-target'));
+                dragSrc = null;
+            });
+
+            tile.addEventListener('dragover', (event) => {
+                if (!dragSrc || dragSrc === tile) {
+                    return;
+                }
+
+                event.preventDefault();
+                tile.classList.add('is-drop-target');
+            });
+
+            tile.addEventListener('dragleave', () => {
+                tile.classList.remove('is-drop-target');
+            });
+
+            tile.addEventListener('drop', (event) => {
+                event.preventDefault();
+                tile.classList.remove('is-drop-target');
+
+                if (!dragSrc || dragSrc === tile) {
+                    return;
+                }
+
+                const rect = tile.getBoundingClientRect();
+                const isAfter = event.clientX > rect.left + rect.width / 2 || event.clientY > rect.top + rect.height / 2;
+
+                if (isAfter) {
+                    tile.after(dragSrc);
+                } else {
+                    tile.before(dragSrc);
+                }
+
+                persistOrder();
+            });
+
+            tile.querySelector('[data-story-remove]')?.addEventListener('click', () => handleDetach(tile));
+            tile.querySelector('[data-story-hero]')?.addEventListener('click', () => handleHero(tile));
+        };
+
+        grid.querySelectorAll('[data-story-tile]').forEach(attachTileHandlers);
+
+        addButton?.addEventListener('click', async () => {
+            const existingIds = collectIds();
+            const selection = await openMulti({ endpoint: pickerUrl, excludeIds: existingIds });
+
+            if (selection.length === 0) {
+                return;
+            }
+
+            const fresh = selection.filter((m) => !existingIds.includes(m.id));
+
+            if (fresh.length === 0) {
+                flash('Those photos are already in this gallery.');
+                return;
+            }
+
+            jsonFetch(attachUrl, {
+                method: 'POST',
+                body: JSON.stringify({ media_ids: fresh.map((m) => m.id) }),
+            })
+                .then((payload) => {
+                    applyState(payload);
+                    flash(`Added ${fresh.length} photo${fresh.length === 1 ? '' : 's'}.`);
+                })
+                .catch(() => flash('Could not attach the selected photos.', true));
+        });
+    };
+
+    storyGalleries.forEach(setupGallery);
+}

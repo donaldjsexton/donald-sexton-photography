@@ -162,4 +162,15 @@
 
         <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Story</button>
     </form>
+
+    @if ($story->exists)
+        <x-admin.story-gallery
+            :owner="$story"
+            :attach-url="route('admin.wedding-stories.media.attach', $story)"
+            :detach-url-pattern="route('admin.wedding-stories.media.detach', ['weddingStory' => $story, 'media' => '__id__'])"
+            :reorder-url="route('admin.wedding-stories.media.reorder', $story)"
+            :hero-url-pattern="route('admin.wedding-stories.media.hero', ['weddingStory' => $story, 'media' => '__id__'])"
+            :picker-url="route('admin.media.picker')"
+        />
+    @endif
 @endsection

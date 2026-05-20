@@ -5,21 +5,111 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Media;
 use App\Services\Media\MediaOptimizer;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\View\View;
 
 class MediaController extends Controller
 {
+    private const VIEW_FILTERS = ['all', 'recent', 'unused', 'missing-alt', 'pictime', 'wp'];
+
     public function __construct(private readonly MediaOptimizer $optimizer) {}
 
-    public function index(): View
+    public function index(Request $request): View
     {
+        $filter = $request->string('filter')->toString();
+
+        if (! in_array($filter, self::VIEW_FILTERS, true)) {
+            $filter = 'all';
+        }
+
+        $term = $request->string('q')->trim()->toString();
+
+        $query = Media::query()
+            ->with([
+                'weddingStories:id,title,slug',
+                'journalPosts:id,title,slug',
+                'pages:id,title,slug',
+                'venues:id,name,slug',
+            ]);
+
+        $this->applyFilter($query, $filter);
+        $this->applySearch($query, $term);
+
+        $mediaItems = $query->latest()->paginate(48)->withQueryString();
+
         return view('admin.media.index', [
-            'mediaItems' => Media::query()->latest()->paginate(24),
+            'mediaItems' => $mediaItems,
+            'stats' => $this->buildStats(),
+            'recent' => Media::query()->latest()->take(8)->get(),
+            'filter' => $filter,
+            'search' => $term,
+            'filters' => self::VIEW_FILTERS,
         ]);
+    }
+
+    /**
+     * @return array{total:int,used:int,orphaned:int,missing_alt:int,this_month:int}
+     */
+    private function buildStats(): array
+    {
+        $total = Media::query()->count();
+        $used = Media::query()->whereExists(fn ($sub) => $sub
+            ->select(DB::raw(1))
+            ->from('mediables')
+            ->whereColumn('mediables.media_id', 'media.id')
+        )->count();
+
+        return [
+            'total' => $total,
+            'used' => $used,
+            'orphaned' => max(0, $total - $used),
+            'missing_alt' => Media::query()
+                ->where(fn ($q) => $q->whereNull('alt_text')->orWhere('alt_text', ''))
+                ->count(),
+            'this_month' => Media::query()
+                ->where('created_at', '>=', now()->startOfMonth())
+                ->count(),
+        ];
+    }
+
+    private function applyFilter(Builder $query, string $filter): void
+    {
+        match ($filter) {
+            'recent' => $query->where('created_at', '>=', now()->subDays(30)),
+            'unused' => $query->whereNotExists(fn ($sub) => $sub
+                ->select(DB::raw(1))
+                ->from('mediables')
+                ->whereColumn('mediables.media_id', 'media.id')
+            ),
+            'missing-alt' => $query->where(fn ($q) => $q->whereNull('alt_text')->orWhere('alt_text', '')),
+            'pictime' => $query->where('path', 'like', 'imports/pictime/%'),
+            'wp' => $query->whereNotNull('original_wp_attachment_id'),
+            default => null,
+        };
+    }
+
+    private function applySearch(Builder $query, string $term): void
+    {
+        if ($term === '') {
+            return;
+        }
+
+        $needle = '%'.strtolower($term).'%';
+
+        $query->where(function (Builder $builder) use ($term, $needle): void {
+            if (ctype_digit($term)) {
+                $builder->orWhere('id', (int) $term);
+            }
+
+            $builder
+                ->orWhereRaw('LOWER(filename) LIKE ?', [$needle])
+                ->orWhereRaw('LOWER(alt_text) LIKE ?', [$needle]);
+        });
     }
 
     public function picker(Request $request): JsonResponse

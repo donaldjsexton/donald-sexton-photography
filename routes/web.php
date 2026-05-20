@@ -151,12 +151,20 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/wedding-stories', [AdminWeddingStoryController::class, 'store'])->name('wedding-stories.store');
         Route::get('/wedding-stories/{weddingStory}/edit', [AdminWeddingStoryController::class, 'edit'])->name('wedding-stories.edit');
         Route::put('/wedding-stories/{weddingStory}', [AdminWeddingStoryController::class, 'update'])->name('wedding-stories.update');
+        Route::post('/wedding-stories/{weddingStory}/media', [AdminWeddingStoryController::class, 'attachMedia'])->name('wedding-stories.media.attach');
+        Route::patch('/wedding-stories/{weddingStory}/media/reorder', [AdminWeddingStoryController::class, 'reorderMedia'])->name('wedding-stories.media.reorder');
+        Route::delete('/wedding-stories/{weddingStory}/media/{media}', [AdminWeddingStoryController::class, 'detachMedia'])->name('wedding-stories.media.detach');
+        Route::post('/wedding-stories/{weddingStory}/media/{media}/hero', [AdminWeddingStoryController::class, 'setHero'])->name('wedding-stories.media.hero');
 
         Route::get('/journal-posts', [AdminJournalPostController::class, 'index'])->name('journal-posts.index');
         Route::get('/journal-posts/create', [AdminJournalPostController::class, 'create'])->name('journal-posts.create');
         Route::post('/journal-posts', [AdminJournalPostController::class, 'store'])->name('journal-posts.store');
         Route::get('/journal-posts/{journalPost}/edit', [AdminJournalPostController::class, 'edit'])->name('journal-posts.edit');
         Route::put('/journal-posts/{journalPost}', [AdminJournalPostController::class, 'update'])->name('journal-posts.update');
+        Route::post('/journal-posts/{journalPost}/media', [AdminJournalPostController::class, 'attachMedia'])->name('journal-posts.media.attach');
+        Route::patch('/journal-posts/{journalPost}/media/reorder', [AdminJournalPostController::class, 'reorderMedia'])->name('journal-posts.media.reorder');
+        Route::delete('/journal-posts/{journalPost}/media/{media}', [AdminJournalPostController::class, 'detachMedia'])->name('journal-posts.media.detach');
+        Route::post('/journal-posts/{journalPost}/media/{media}/hero', [AdminJournalPostController::class, 'setHero'])->name('journal-posts.media.hero');
 
         Route::get('/venues', [AdminVenueController::class, 'index'])->name('venues.index');
         Route::get('/venues/create', [AdminVenueController::class, 'create'])->name('venues.create');
