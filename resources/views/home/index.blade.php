@@ -125,9 +125,10 @@
                 <span>Destination</span>
             </div>
             <div class="cta-row">
+                <a class="cta" href="{{ route('inquiry.create') }}">Check Availability</a>
                 <a class="cta-secondary" href="{{ route('weddings.index') }}">See Wedding Stories</a>
-                <a class="cta-secondary" href="{{ route('inquiry.create') }}">Check Availability</a>
             </div>
+            <p class="home-hero__reassurance meta">A real reply within 24 hours.</p>
         </div>
     </section>
 
@@ -259,10 +260,37 @@
 
     <x-editorial.google-reviews />
 
+    <section class="section home-inline-inquiry" data-reveal>
+        <div class="page-shell--tight home-inline-inquiry__inner">
+            <div class="home-inline-inquiry__intro">
+                <p class="eyebrow">Start Your Inquiry</p>
+                <h2 class="section-title">Check your date in 30 seconds.</h2>
+                <p class="section-copy">Pop in your name, email, and the day you have in mind. I will take it from there — usually within 24 hours.</p>
+            </div>
+
+            <form class="home-inline-inquiry__form" method="GET" action="{{ route('inquiry.create') }}" data-inline-inquiry>
+                <label>
+                    Your name
+                    <input type="text" name="primary_name" autocomplete="name" required>
+                </label>
+                <label>
+                    Email
+                    <input type="email" name="email" autocomplete="email" required>
+                </label>
+                <label>
+                    Date
+                    <input type="date" name="event_date">
+                </label>
+                <button class="cta" type="submit">Continue</button>
+                <p class="meta home-inline-inquiry__note">Takes you to the full form with your details ready.</p>
+            </form>
+        </div>
+    </section>
+
     <x-editorial.page-closing
         eyebrow="Next Step"
         title="Have a date in mind?"
-        copy="Send your date, venue, and a short note. I will guide you from there."
+        copy="Send your date, venue, and a short note. I will guide you from there — most inquiries get a reply within 24 hours."
         :primary-href="route('inquiry.create')"
         primary-label="Check Availability"
         :secondary-href="route('weddings.index')"

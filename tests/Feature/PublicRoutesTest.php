@@ -1005,6 +1005,92 @@ HTML,
         $response->assertSee('class="field-error"', false);
     }
 
+    public function test_inquiry_form_renders_as_multistep_with_progress_indicator(): void
+    {
+        $response = $this->get('/inquire')->assertOk();
+
+        $response->assertSee('data-multistep-form', false);
+        $response->assertSee('data-step="1"', false);
+        $response->assertSee('data-step="2"', false);
+        $response->assertSee('data-step="3"', false);
+        $response->assertSee('data-step-indicator="1"', false);
+        $response->assertSee('data-form-next', false);
+        $response->assertSee('data-form-back', false);
+        $response->assertSee('data-form-submit', false);
+    }
+
+    public function test_inquiry_form_prefills_from_query_parameters(): void
+    {
+        $response = $this->get('/inquire?'.http_build_query([
+            'primary_name' => 'Avery',
+            'email' => 'avery@example.com',
+            'event_date' => '2027-10-12',
+        ]))->assertOk();
+
+        $response->assertSee('value="Avery"', false);
+        $response->assertSee('value="avery@example.com"', false);
+        $response->assertSee('value="2027-10-12"', false);
+    }
+
+    public function test_inquiry_form_renders_response_time_reassurance(): void
+    {
+        $this->get('/inquire')
+            ->assertOk()
+            ->assertSee('within 24 hours');
+    }
+
+    public function test_inquiry_form_shows_featured_testimonial_as_trust_card(): void
+    {
+        Testimonial::create([
+            'quote' => 'Donald made our wedding day feel completely effortless.',
+            'author_name' => 'Sam & Riley',
+            'author_context' => 'Married at Knotted Roots',
+            'is_featured' => true,
+            'sort_order' => 1,
+        ]);
+
+        $this->get('/inquire')
+            ->assertOk()
+            ->assertSee('data-form-trust', false)
+            ->assertSee('Donald made our wedding day feel completely effortless.');
+    }
+
+    public function test_thank_you_page_fires_generate_lead_event_after_submission(): void
+    {
+        SiteSetting::query()->updateOrCreate(['id' => 1], [
+            'google_analytics_measurement_id' => 'G-TESTID12',
+        ]);
+
+        $this->followingRedirects()->post('/inquire', [
+            'primary_name' => 'Pat',
+            'email' => 'pat@example.com',
+            'event_type' => 'wedding',
+        ])
+            ->assertOk()
+            ->assertSee('generate_lead', false)
+            ->assertSee("event: 'generate_lead'", false);
+    }
+
+    public function test_thank_you_page_does_not_fire_event_on_direct_visit(): void
+    {
+        SiteSetting::query()->updateOrCreate(['id' => 1], [
+            'google_analytics_measurement_id' => 'G-TESTID12',
+        ]);
+
+        $this->get('/thank-you')
+            ->assertOk()
+            ->assertDontSee("event: 'generate_lead'", false);
+    }
+
+    public function test_homepage_inline_inquiry_form_targets_inquire_route(): void
+    {
+        $response = $this->get('/')->assertOk();
+
+        $response->assertSee('data-inline-inquiry', false);
+        $response->assertSee('action="'.route('inquiry.create').'"', false);
+        $response->assertSee('method="GET"', false);
+    }
+
     public function test_sitemap_lists_key_public_routes_with_lastmod_metadata(): void
     {
         Page::create([

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Mail\InquiryAcknowledgment;
 use App\Mail\InquiryReceived;
 use App\Models\Inquiry;
+use App\Models\Testimonial;
 use App\Services\InquiryAvailabilityService;
 use App\Services\WebPushService;
 use Illuminate\Http\RedirectResponse;
@@ -14,9 +15,22 @@ use Illuminate\View\View;
 
 class InquiryController extends Controller
 {
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('inquiries.create');
+        $featuredTestimonials = Testimonial::query()
+            ->where('is_featured', true)
+            ->orderBy('sort_order')
+            ->limit(1)
+            ->get();
+
+        return view('inquiries.create', [
+            'prefill' => [
+                'primary_name' => trim((string) $request->query('primary_name', '')),
+                'email' => trim((string) $request->query('email', '')),
+                'event_date' => trim((string) $request->query('event_date', '')),
+            ],
+            'featuredTestimonials' => $featuredTestimonials,
+        ]);
     }
 
     public function store(Request $request): RedirectResponse
@@ -72,7 +86,7 @@ class InquiryController extends Controller
             $this->notifyStudio($existing);
             $this->pushNotify($existing);
 
-            return redirect()->route('inquiry.thank-you');
+            return redirect()->route('inquiry.thank-you')->with('inquiry_submitted', true);
         }
 
         $smsConsent = [];
@@ -92,7 +106,7 @@ class InquiryController extends Controller
         $this->acknowledgeClient($inquiry);
         $this->pushNotify($inquiry);
 
-        return redirect()->route('inquiry.thank-you');
+        return redirect()->route('inquiry.thank-you')->with('inquiry_submitted', true);
     }
 
     public function thankYou(): View
