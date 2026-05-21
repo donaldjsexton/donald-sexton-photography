@@ -135,16 +135,18 @@
     </main>
 
     <footer class="site-footer">
-        <nav class="shell site-footer__nav" aria-label="Footer">
-            <a href="{{ route('weddings.index') }}">Weddings</a>
-            <a href="{{ route('collections.index') }}">Collections</a>
-            <a href="{{ route('journal.index') }}">Journal</a>
-            <a href="{{ route('inquiry.create') }}">Inquire</a>
-        </nav>
-        <div class="shell site-footer__bar">
-            <p>Donald Sexton Photography</p>
-            <p>Calm wedding photography for Clearwater, Tampa, and wherever your people gather.</p>
-        </div>
+        @unless (request()->routeIs('home'))
+            <nav class="shell site-footer__nav" aria-label="Footer">
+                <a href="{{ route('weddings.index') }}">Weddings</a>
+                <a href="{{ route('collections.index') }}">Collections</a>
+                <a href="{{ route('journal.index') }}">Journal</a>
+                <a href="{{ route('inquiry.create') }}">Inquire</a>
+            </nav>
+            <div class="shell site-footer__bar">
+                <p>Donald Sexton Photography</p>
+                <p>Calm wedding photography for Clearwater, Tampa, and wherever your people gather.</p>
+            </div>
+        @endunless
         <nav class="shell site-footer__legal" aria-label="Legal">
             <a href="{{ route('legal.privacy') }}">Privacy Policy</a>
             <a href="{{ route('legal.terms') }}">Terms of Service</a>
