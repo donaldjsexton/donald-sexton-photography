@@ -1548,3 +1548,158 @@ if (storyGalleries.length > 0) {
 
     storyGalleries.forEach(setupGallery);
 }
+
+// ── Multi-step inquiry form ──
+const multistepForm = document.querySelector('[data-multistep-form]');
+
+if (multistepForm) {
+    const stepper = document.querySelector('[data-form-stepper]');
+    const steps = Array.from(multistepForm.querySelectorAll('[data-step]'));
+    const indicators = stepper
+        ? Array.from(stepper.querySelectorAll('[data-step-indicator]'))
+        : [];
+    const backButton = multistepForm.querySelector('[data-form-back]');
+    const nextButton = multistepForm.querySelector('[data-form-next]');
+    const submitButton = multistepForm.querySelector('[data-form-submit]');
+
+    if (steps.length > 1 && nextButton && submitButton) {
+        const gtag = (...args) => {
+            if (typeof window.gtag === 'function') {
+                window.gtag(...args);
+            } else {
+                window.dataLayer = window.dataLayer || [];
+                window.dataLayer.push(args);
+            }
+        };
+
+        const initialStepFromError = (() => {
+            const errored = multistepForm.querySelector('[aria-invalid="true"]');
+
+            if (!errored) {
+                return 1;
+            }
+
+            const owner = errored.closest('[data-step]');
+
+            return owner ? Number(owner.dataset.step) : 1;
+        })();
+
+        let currentStep = initialStepFromError;
+        let hasStarted = false;
+
+        multistepForm.classList.add('is-multistep');
+
+        if (stepper) {
+            stepper.hidden = false;
+        }
+
+        const showStep = (index) => {
+            steps.forEach((node) => {
+                const stepIndex = Number(node.dataset.step);
+                node.hidden = stepIndex !== index;
+            });
+
+            indicators.forEach((node) => {
+                const stepIndex = Number(node.dataset.stepIndicator);
+                node.classList.toggle('is-active', stepIndex === index);
+                node.classList.toggle('is-complete', stepIndex < index);
+            });
+
+            backButton.hidden = index === 1;
+            nextButton.hidden = index === steps.length;
+            submitButton.hidden = index !== steps.length;
+
+            const focusTarget = steps
+                .find((node) => Number(node.dataset.step) === index)
+                ?.querySelector('input:not([type="hidden"]), textarea, select');
+
+            if (focusTarget && document.activeElement !== focusTarget) {
+                setTimeout(() => focusTarget.focus({ preventScroll: false }), 50);
+            }
+
+            gtag('event', 'inquiry_step_view', {
+                event_category: 'inquiry',
+                event_label: `step_${index}`,
+            });
+
+            if (!hasStarted) {
+                hasStarted = true;
+                gtag('event', 'inquiry_form_start', {
+                    event_category: 'inquiry',
+                });
+            }
+        };
+
+        const validateStep = (index) => {
+            const step = steps.find((node) => Number(node.dataset.step) === index);
+
+            if (!step) {
+                return true;
+            }
+
+            const requiredFields = step.querySelectorAll('[required]');
+            let firstInvalid = null;
+
+            requiredFields.forEach((field) => {
+                field.removeAttribute('aria-invalid');
+
+                if (!field.checkValidity()) {
+                    field.setAttribute('aria-invalid', 'true');
+
+                    if (!firstInvalid) {
+                        firstInvalid = field;
+                    }
+                }
+            });
+
+            if (firstInvalid) {
+                firstInvalid.focus();
+                firstInvalid.reportValidity();
+
+                return false;
+            }
+
+            return true;
+        };
+
+        nextButton.addEventListener('click', () => {
+            if (!validateStep(currentStep)) {
+                return;
+            }
+
+            gtag('event', 'inquiry_step_complete', {
+                event_category: 'inquiry',
+                event_label: `step_${currentStep}`,
+            });
+
+            currentStep = Math.min(currentStep + 1, steps.length);
+            showStep(currentStep);
+        });
+
+        backButton?.addEventListener('click', () => {
+            currentStep = Math.max(currentStep - 1, 1);
+            showStep(currentStep);
+        });
+
+        multistepForm.addEventListener('submit', (event) => {
+            const submittedFromButton = event.submitter === submitButton;
+            const onFinalStep = currentStep === steps.length;
+
+            if (!submittedFromButton || !onFinalStep) {
+                event.preventDefault();
+
+                if (!onFinalStep) {
+                    nextButton.click();
+                }
+
+                return;
+            }
+
+            if (!validateStep(currentStep)) {
+                event.preventDefault();
+            }
+        });
+
+        showStep(currentStep);
+    }
+}
