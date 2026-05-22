@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettin
 use App\Http\Controllers\Admin\ImportRunController as AdminImportRunController;
 use App\Http\Controllers\Admin\InquiryController as AdminInquiryController;
 use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
+use App\Http\Controllers\Admin\JournalPostBlockController as AdminJournalPostBlockController;
 use App\Http\Controllers\Admin\JournalPostController as AdminJournalPostController;
 use App\Http\Controllers\Admin\LogController as AdminLogController;
 use App\Http\Controllers\Admin\MediaController as AdminMediaController;
@@ -178,6 +179,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::patch('/journal-posts/{journalPost}/media/reorder', [AdminJournalPostController::class, 'reorderMedia'])->name('journal-posts.media.reorder');
         Route::delete('/journal-posts/{journalPost}/media/{media}', [AdminJournalPostController::class, 'detachMedia'])->name('journal-posts.media.detach');
         Route::post('/journal-posts/{journalPost}/media/{media}/hero', [AdminJournalPostController::class, 'setHero'])->name('journal-posts.media.hero');
+
+        Route::post('/journal-posts/{journalPost}/blocks', [AdminJournalPostBlockController::class, 'store'])->name('journal-posts.blocks.store');
+        Route::put('/journal-posts/{journalPost}/blocks/{block}', [AdminJournalPostBlockController::class, 'update'])->name('journal-posts.blocks.update');
+        Route::delete('/journal-posts/{journalPost}/blocks/{block}', [AdminJournalPostBlockController::class, 'destroy'])->name('journal-posts.blocks.destroy');
+        Route::post('/journal-posts/{journalPost}/blocks/{block}/media', [AdminJournalPostBlockController::class, 'attachMedia'])->name('journal-posts.blocks.media.attach');
+        Route::delete('/journal-posts/{journalPost}/blocks/{block}/media/{media}', [AdminJournalPostBlockController::class, 'detachMedia'])->name('journal-posts.blocks.media.detach');
 
         Route::get('/venues', [AdminVenueController::class, 'index'])->name('venues.index');
         Route::get('/venues/create', [AdminVenueController::class, 'create'])->name('venues.create');

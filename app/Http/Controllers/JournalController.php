@@ -3,10 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\Category;
-use App\Models\Redirect;
 use App\Models\JournalPost;
+use App\Models\Redirect;
 use App\Models\Tag;
 use App\Models\WeddingStory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -57,7 +58,7 @@ class JournalController extends Controller
         }
 
         $post = JournalPost::published()
-            ->with(['heroMedia', 'categories', 'tags', 'venues', 'media'])
+            ->with(['heroMedia', 'categories', 'tags', 'venues', 'media', 'blocks.media'])
             ->where('slug', $slug)
             ->first();
 
@@ -81,10 +82,10 @@ class JournalController extends Controller
         if ($redirect) {
             return redirect()->to($redirect->to_path, $redirect->status_code);
         }
-        throw new NotFoundHttpException();
+        throw new NotFoundHttpException;
     }
 
-    private function basePostQuery(): \Illuminate\Database\Eloquent\Builder
+    private function basePostQuery(): Builder
     {
         return JournalPost::published()
             ->whereNotIn('slug', WeddingStory::published()->select('slug'))

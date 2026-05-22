@@ -2,9 +2,11 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasBlocks;
 use App\Models\Concerns\InteractsWithPicTime;
 use App\Support\PicTimeContent;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -14,6 +16,7 @@ use Illuminate\Support\Str;
 
 class JournalPost extends Model
 {
+    use HasBlocks;
     use HasFactory;
     use InteractsWithPicTime;
 
@@ -87,12 +90,12 @@ class JournalPost extends Model
      * recent published posts padding any remaining slots so every
      * journal detail page has outgoing internal links.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int,self>
+     * @return Collection<int,self>
      */
-    public static function relatedTo(self $post, int $limit = 3): \Illuminate\Database\Eloquent\Collection
+    public static function relatedTo(self $post, int $limit = 3): Collection
     {
         if ($limit <= 0) {
-            return new \Illuminate\Database\Eloquent\Collection;
+            return new Collection;
         }
 
         $tagIds = $post->relationLoaded('tags')
@@ -107,7 +110,7 @@ class JournalPost extends Model
             ->where('id', '!=', $post->id)
             ->with(['heroMedia', 'categories']);
 
-        $results = new \Illuminate\Database\Eloquent\Collection;
+        $results = new Collection;
 
         if ($tagIds !== []) {
             $tagMatches = $base()
@@ -156,12 +159,12 @@ class JournalPost extends Model
      * Venue match takes priority over tag match. No padding — an empty
      * collection means the section should not render.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int,WeddingStory>
+     * @return Collection<int,WeddingStory>
      */
-    public static function relatedStoriesTo(self $post, int $limit = 3): \Illuminate\Database\Eloquent\Collection
+    public static function relatedStoriesTo(self $post, int $limit = 3): Collection
     {
         if ($limit <= 0) {
-            return new \Illuminate\Database\Eloquent\Collection;
+            return new Collection;
         }
 
         $venueIds = $post->relationLoaded('venues')
@@ -175,7 +178,7 @@ class JournalPost extends Model
         $base = fn () => WeddingStory::published()
             ->with(['heroMedia', 'venue']);
 
-        $results = new \Illuminate\Database\Eloquent\Collection;
+        $results = new Collection;
 
         if ($venueIds !== []) {
             $venueMatches = $base()

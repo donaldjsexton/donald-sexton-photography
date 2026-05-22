@@ -89,9 +89,13 @@
     </form>
 
     @include('admin.blocks.manager', [
-        'context' => 'homepage',
+        'routePrefix' => 'admin.homepage.blocks',
+        'ownerInRoute' => false,
         'owner' => $settings,
         'blocks' => $homeBlocks,
         'blockTypes' => $blockTypes,
+        'managerTitle' => 'Homepage Sections',
+        'seedRoute' => 'admin.homepage.blocks.seed',
+        'emptyHint' => false,
     ])
 @endsection

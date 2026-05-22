@@ -99,10 +99,12 @@
 
     @if ($page->exists)
         @include('admin.blocks.manager', [
-            'context' => 'page',
+            'routePrefix' => 'admin.pages.blocks',
+            'ownerInRoute' => true,
             'owner' => $page,
             'blocks' => $page->allBlocks,
             'blockTypes' => $blockTypes,
+            'managerTitle' => 'Page Blocks',
         ])
     @endif
 @endsection

@@ -49,7 +49,7 @@ class JournalPostController extends Controller
 
     public function edit(JournalPost $journalPost): View
     {
-        $journalPost->loadMissing(['heroMedia', 'media' => fn ($query) => $query->orderBy('mediables.sort_order')]);
+        $journalPost->loadMissing(['heroMedia', 'media' => fn ($query) => $query->orderBy('mediables.sort_order'), 'allBlocks.media']);
 
         return view('admin.journal-posts.form', $this->formData($journalPost));
     }
@@ -134,6 +134,10 @@ class JournalPostController extends Controller
             'venues' => Venue::query()->orderBy('name')->get(),
             'postTypes' => ['advice', 'venue', 'real_wedding', 'engagement', 'brand', 'announcement'],
             'statuses' => ['draft', 'published', 'archived'],
+            'blockTypes' => array_filter(
+                (array) config('blocks.types'),
+                fn (array $definition): bool => ($definition['context'] ?? 'page') !== 'homepage',
+            ),
         ];
     }
 }

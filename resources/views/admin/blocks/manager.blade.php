@@ -4,27 +4,40 @@
     /**
      * Shared block manager.
      *
-     * Expects: $context ('page'|'homepage'), $owner (model), $blocks (allBlocks
-     * collection), $blockTypes (registry slice for this context).
+     * Expects:
+     *  - $routePrefix  e.g. 'admin.pages.blocks' (actions appended: .store/.update/...)
+     *  - $ownerInRoute bool — whether the owner is a positional route param
+     *  - $owner        model (used as the first route param when $ownerInRoute)
+     *  - $blocks       allBlocks collection
+     *  - $blockTypes   registry slice for this context
+     *  - $managerTitle heading text
+     *  - $seedRoute    optional route name for a "build defaults" button
+     *  - $emptyHint    bool — show the "no blocks yet" line when empty
      */
-    $blockRoute = function (string $name, array $params = []) use ($context, $owner) {
-        return $context === 'page'
-            ? route("admin.pages.$name", array_merge([$owner], $params))
-            : route("admin.homepage.$name", $params);
+    $managerTitle ??= 'Blocks';
+    $seedRoute ??= null;
+    $emptyHint ??= true;
+    $ownerInRoute ??= true;
+    $owner ??= null;
+
+    $blockRoute = function (string $action, array $params = []) use ($routePrefix, $ownerInRoute, $owner) {
+        $all = $ownerInRoute ? array_merge([$owner], $params) : $params;
+
+        return route("{$routePrefix}.{$action}", $all);
     };
 @endphp
 
 <section class="admin-block-manager">
     <div class="admin-section-header">
-        <h2>{{ $context === 'homepage' ? 'Homepage Sections' : 'Page Blocks' }}</h2>
-        <p class="meta">Compose this {{ $context === 'homepage' ? 'homepage' : 'page' }} from stackable sections. They render top to bottom in sort order.</p>
+        <h2>{{ $managerTitle }}</h2>
+        <p class="meta">Compose this surface from stackable sections. They render top to bottom in sort order.</p>
     </div>
 
-    @if ($context === 'homepage' && $blocks->isEmpty())
-        <form method="POST" action="{{ $blockRoute('blocks.seed') }}" class="admin-form">
+    @if ($seedRoute && $blocks->isEmpty())
+        <form method="POST" action="{{ route($seedRoute) }}" class="admin-form">
             @csrf
-            <p class="section-copy">This homepage still uses the classic layout. Build the default sections to start editing them as blocks.</p>
-            <button class="cta" type="submit" style="border: 0; cursor: pointer;">Build default homepage sections</button>
+            <p class="section-copy">This surface still uses the classic layout. Build the default sections to start editing them as blocks.</p>
+            <button class="cta" type="submit" style="border: 0; cursor: pointer;">Build default sections</button>
         </form>
     @endif
 
@@ -38,7 +51,7 @@
                 <span class="meta">order {{ $block->sort_order }}@unless ($block->is_visible) · hidden @endunless</span>
             </header>
 
-            <form method="POST" action="{{ $blockRoute('blocks.update', [$block]) }}" class="admin-form">
+            <form method="POST" action="{{ $blockRoute('update', [$block]) }}" class="admin-form">
                 @csrf
                 @method('PUT')
                 <input type="hidden" name="type" value="{{ $block->type }}">
@@ -106,7 +119,7 @@
                                         <img src="{{ $media->publicUrl() }}" alt="{{ $media->alt_text ?: $media->filename }}" loading="lazy">
                                     @endif
                                     <span class="meta">{{ $media->filename }}</span>
-                                    <form method="POST" action="{{ $blockRoute('blocks.media.detach', [$block, $media]) }}">
+                                    <form method="POST" action="{{ $blockRoute('media.detach', [$block, $media]) }}">
                                         @csrf
                                         @method('DELETE')
                                         <button class="cta-secondary" type="submit">Remove</button>
@@ -116,7 +129,7 @@
                         </ul>
                     @endif
 
-                    <form method="POST" action="{{ $blockRoute('blocks.media.attach', [$block]) }}" class="admin-form">
+                    <form method="POST" action="{{ $blockRoute('media.attach', [$block]) }}" class="admin-form">
                         @csrf
                         <x-admin.media-picker
                             name="media_id"
@@ -128,20 +141,20 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ $blockRoute('blocks.destroy', [$block]) }}" onsubmit="return confirm('Delete this block?');">
+            <form method="POST" action="{{ $blockRoute('destroy', [$block]) }}" onsubmit="return confirm('Delete this block?');">
                 @csrf
                 @method('DELETE')
                 <button class="cta-secondary admin-block-card__delete" type="submit">Delete block</button>
             </form>
         </article>
     @empty
-        @unless ($context === 'homepage')
+        @if ($emptyHint)
             <p class="section-copy">No blocks yet. Add your first section below.</p>
-        @endunless
+        @endif
     @endforelse
 
     @if ($blockTypes !== [])
-        <form method="POST" action="{{ $blockRoute('blocks.store') }}" class="admin-form admin-block-add">
+        <form method="POST" action="{{ $blockRoute('store') }}" class="admin-form admin-block-add">
             @csrf
             <div class="field-grid">
                 <label>
