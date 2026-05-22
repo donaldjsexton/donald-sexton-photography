@@ -87,19 +87,8 @@
         return-label="Back to Weddings"
     />
 
-    @if ($story->storyBlocks->isNotEmpty())
-        <section class="section">
-            <div class="page-shell--wide page-stack">
-                <x-editorial.section-heading
-                    eyebrow="Story Sequence"
-                    title="More from this wedding day."
-                />
-
-                @foreach ($story->storyBlocks as $block)
-                    <x-editorial.story-block :block="$block" />
-                @endforeach
-            </div>
-        </section>
+    @if ($story->blocks->isNotEmpty())
+        <x-blocks :blocks="$story->blocks" />
     @endif
 
     @if (! empty($relatedPosts) && $relatedPosts->isNotEmpty())

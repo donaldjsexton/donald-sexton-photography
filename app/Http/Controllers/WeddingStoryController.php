@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\JournalPost;
 use App\Models\Redirect;
 use App\Models\WeddingStory;
 use Illuminate\Http\RedirectResponse;
@@ -26,7 +25,7 @@ class WeddingStoryController extends Controller
     public function show(string $slug): View|RedirectResponse
     {
         $story = WeddingStory::published()
-            ->with(['heroMedia', 'venue', 'storyBlocks', 'tags', 'media'])
+            ->with(['heroMedia', 'venue', 'blocks.media', 'tags', 'media'])
             ->where('slug', $slug)
             ->first();
 
@@ -40,7 +39,7 @@ class WeddingStoryController extends Controller
                 return redirect()->to($redirect->to_path, $redirect->status_code);
             }
 
-            throw new NotFoundHttpException();
+            throw new NotFoundHttpException;
         }
 
         return view('weddings.show', [
