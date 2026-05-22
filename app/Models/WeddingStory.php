@@ -2,20 +2,22 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\HasBlocks;
 use App\Models\Concerns\InteractsWithPicTime;
 use App\Support\PicTimeContent;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\MorphToMany;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 class WeddingStory extends Model
 {
+    use HasBlocks;
     use HasFactory;
     use InteractsWithPicTime;
 
@@ -65,11 +67,6 @@ class WeddingStory extends Model
         return $this->belongsTo(Venue::class);
     }
 
-    public function storyBlocks(): HasMany
-    {
-        return $this->hasMany(StoryBlock::class)->orderBy('sort_order');
-    }
-
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class)->withTimestamps();
@@ -101,12 +98,12 @@ class WeddingStory extends Model
      * overlap, with recent published stories padding any remaining slots
      * so every detail page has outgoing internal links.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int,self>
+     * @return Collection<int,self>
      */
-    public static function similarTo(self $story, int $limit = 3): \Illuminate\Database\Eloquent\Collection
+    public static function similarTo(self $story, int $limit = 3): Collection
     {
         if ($limit <= 0) {
-            return new \Illuminate\Database\Eloquent\Collection;
+            return new Collection;
         }
 
         $tagIds = $story->relationLoaded('tags')
@@ -117,7 +114,7 @@ class WeddingStory extends Model
             ->where('id', '!=', $story->id)
             ->with(['heroMedia', 'venue']);
 
-        $results = new \Illuminate\Database\Eloquent\Collection;
+        $results = new Collection;
 
         if ($story->venue_id) {
             $venueMatches = $base()
@@ -166,12 +163,12 @@ class WeddingStory extends Model
      * Venue match takes priority over tag match. No padding — an empty
      * collection means the section should not render.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int,JournalPost>
+     * @return Collection<int,JournalPost>
      */
-    public static function relatedPostsTo(self $story, int $limit = 3): \Illuminate\Database\Eloquent\Collection
+    public static function relatedPostsTo(self $story, int $limit = 3): Collection
     {
         if ($limit <= 0) {
-            return new \Illuminate\Database\Eloquent\Collection;
+            return new Collection;
         }
 
         $tagIds = $story->relationLoaded('tags')
@@ -181,7 +178,7 @@ class WeddingStory extends Model
         $base = fn () => JournalPost::published()
             ->with(['heroMedia', 'categories']);
 
-        $results = new \Illuminate\Database\Eloquent\Collection;
+        $results = new Collection;
 
         if ($story->venue_id) {
             $venueMatches = $base()

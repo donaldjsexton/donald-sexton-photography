@@ -87,4 +87,15 @@
 
         <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Homepage Settings</button>
     </form>
+
+    @include('admin.blocks.manager', [
+        'routePrefix' => 'admin.homepage.blocks',
+        'ownerInRoute' => false,
+        'owner' => $settings,
+        'blocks' => $homeBlocks,
+        'blockTypes' => $blockTypes,
+        'managerTitle' => 'Homepage Sections',
+        'seedRoute' => 'admin.homepage.blocks.seed',
+        'emptyHint' => false,
+    ])
 @endsection

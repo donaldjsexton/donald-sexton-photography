@@ -96,4 +96,15 @@
 
         <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Page</button>
     </form>
+
+    @if ($page->exists)
+        @include('admin.blocks.manager', [
+            'routePrefix' => 'admin.pages.blocks',
+            'ownerInRoute' => true,
+            'owner' => $page,
+            'blocks' => $page->allBlocks,
+            'blockTypes' => $blockTypes,
+            'managerTitle' => 'Page Blocks',
+        ])
+    @endif
 @endsection

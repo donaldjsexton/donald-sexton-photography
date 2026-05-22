@@ -9,13 +9,16 @@ use App\Http\Controllers\Admin\ContractController as AdminContractController;
 use App\Http\Controllers\Admin\ContractTemplateController as AdminContractTemplateController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
+use App\Http\Controllers\Admin\HomepageBlockController as AdminHomepageBlockController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
 use App\Http\Controllers\Admin\ImportRunController as AdminImportRunController;
 use App\Http\Controllers\Admin\InquiryController as AdminInquiryController;
 use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
+use App\Http\Controllers\Admin\JournalPostBlockController as AdminJournalPostBlockController;
 use App\Http\Controllers\Admin\JournalPostController as AdminJournalPostController;
 use App\Http\Controllers\Admin\LogController as AdminLogController;
 use App\Http\Controllers\Admin\MediaController as AdminMediaController;
+use App\Http\Controllers\Admin\PageBlockController as AdminPageBlockController;
 use App\Http\Controllers\Admin\PageController as AdminPageController;
 use App\Http\Controllers\Admin\PicTimeImportController as AdminPicTimeImportController;
 use App\Http\Controllers\Admin\PushSubscriptionController as AdminPushSubscriptionController;
@@ -64,6 +67,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('/homepage', [AdminHomepageSettingsController::class, 'edit'])->name('homepage.edit');
         Route::put('/homepage', [AdminHomepageSettingsController::class, 'update'])->name('homepage.update');
+        Route::post('/homepage/blocks/seed', [AdminHomepageBlockController::class, 'seed'])->name('homepage.blocks.seed');
+        Route::post('/homepage/blocks', [AdminHomepageBlockController::class, 'store'])->name('homepage.blocks.store');
+        Route::put('/homepage/blocks/{block}', [AdminHomepageBlockController::class, 'update'])->name('homepage.blocks.update');
+        Route::delete('/homepage/blocks/{block}', [AdminHomepageBlockController::class, 'destroy'])->name('homepage.blocks.destroy');
+        Route::post('/homepage/blocks/{block}/media', [AdminHomepageBlockController::class, 'attachMedia'])->name('homepage.blocks.media.attach');
+        Route::delete('/homepage/blocks/{block}/media/{media}', [AdminHomepageBlockController::class, 'detachMedia'])->name('homepage.blocks.media.detach');
         Route::get('/settings', [AdminSettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [AdminSettingsController::class, 'update'])->name('settings.update');
         Route::get('/settings/google/connect', [AdminGoogleOAuthController::class, 'redirect'])->name('settings.google.connect');
@@ -145,6 +154,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/pages', [AdminPageController::class, 'store'])->name('pages.store');
         Route::get('/pages/{page}/edit', [AdminPageController::class, 'edit'])->name('pages.edit');
         Route::put('/pages/{page}', [AdminPageController::class, 'update'])->name('pages.update');
+        Route::post('/pages/{page}/blocks', [AdminPageBlockController::class, 'store'])->name('pages.blocks.store');
+        Route::put('/pages/{page}/blocks/{block}', [AdminPageBlockController::class, 'update'])->name('pages.blocks.update');
+        Route::delete('/pages/{page}/blocks/{block}', [AdminPageBlockController::class, 'destroy'])->name('pages.blocks.destroy');
+        Route::post('/pages/{page}/blocks/{block}/media', [AdminPageBlockController::class, 'attachMedia'])->name('pages.blocks.media.attach');
+        Route::delete('/pages/{page}/blocks/{block}/media/{media}', [AdminPageBlockController::class, 'detachMedia'])->name('pages.blocks.media.detach');
 
         Route::get('/wedding-stories', [AdminWeddingStoryController::class, 'index'])->name('wedding-stories.index');
         Route::get('/wedding-stories/create', [AdminWeddingStoryController::class, 'create'])->name('wedding-stories.create');
@@ -165,6 +179,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::patch('/journal-posts/{journalPost}/media/reorder', [AdminJournalPostController::class, 'reorderMedia'])->name('journal-posts.media.reorder');
         Route::delete('/journal-posts/{journalPost}/media/{media}', [AdminJournalPostController::class, 'detachMedia'])->name('journal-posts.media.detach');
         Route::post('/journal-posts/{journalPost}/media/{media}/hero', [AdminJournalPostController::class, 'setHero'])->name('journal-posts.media.hero');
+
+        Route::post('/journal-posts/{journalPost}/blocks', [AdminJournalPostBlockController::class, 'store'])->name('journal-posts.blocks.store');
+        Route::put('/journal-posts/{journalPost}/blocks/{block}', [AdminJournalPostBlockController::class, 'update'])->name('journal-posts.blocks.update');
+        Route::delete('/journal-posts/{journalPost}/blocks/{block}', [AdminJournalPostBlockController::class, 'destroy'])->name('journal-posts.blocks.destroy');
+        Route::post('/journal-posts/{journalPost}/blocks/{block}/media', [AdminJournalPostBlockController::class, 'attachMedia'])->name('journal-posts.blocks.media.attach');
+        Route::delete('/journal-posts/{journalPost}/blocks/{block}/media/{media}', [AdminJournalPostBlockController::class, 'detachMedia'])->name('journal-posts.blocks.media.detach');
 
         Route::get('/venues', [AdminVenueController::class, 'index'])->name('venues.index');
         Route::get('/venues/create', [AdminVenueController::class, 'create'])->name('venues.create');

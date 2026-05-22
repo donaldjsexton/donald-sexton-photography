@@ -10,7 +10,7 @@ class PageController extends Controller
     public function about(): View
     {
         $page = Page::published()
-            ->with('heroMedia')
+            ->with(['heroMedia', 'blocks.media'])
             ->where('slug', 'about')
             ->first();
 
@@ -42,7 +42,7 @@ HTML,
     public function location(string $slug): View
     {
         $page = Page::published()
-            ->with('heroMedia')
+            ->with(['heroMedia', 'blocks.media'])
             ->where('template', 'location')
             ->where('slug', $slug)
             ->firstOrFail();

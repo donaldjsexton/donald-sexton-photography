@@ -153,5 +153,14 @@
             :hero-url-pattern="route('admin.journal-posts.media.hero', ['journalPost' => $post, 'media' => '__id__'])"
             :picker-url="route('admin.media.picker')"
         />
+
+        @include('admin.blocks.manager', [
+            'routePrefix' => 'admin.journal-posts.blocks',
+            'ownerInRoute' => true,
+            'owner' => $post,
+            'blocks' => $post->allBlocks,
+            'blockTypes' => $blockTypes,
+            'managerTitle' => 'Journal Blocks',
+        ])
     @endif
 @endsection

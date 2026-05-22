@@ -74,6 +74,10 @@
         </x-editorial.reading-section>
     @endif
 
+    @if ($post->blocks->isNotEmpty())
+        <x-blocks :blocks="$post->blocks" />
+    @endif
+
     @if ($post->venues->isNotEmpty())
         <section class="section" data-reveal aria-labelledby="post-venues-heading">
             <div class="detail-shell post-venues">

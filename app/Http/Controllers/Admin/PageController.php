@@ -25,6 +25,7 @@ class PageController extends Controller
             'page' => new Page(['status' => 'draft', 'template' => 'custom']),
             'templates' => $this->templates(),
             'statuses' => $this->statuses(),
+            'blockTypes' => $this->blockTypes(),
         ]);
     }
 
@@ -41,12 +42,13 @@ class PageController extends Controller
 
     public function edit(Page $page): View
     {
-        $page->loadMissing('heroMedia');
+        $page->loadMissing(['heroMedia', 'allBlocks.media']);
 
         return view('admin.pages.form', [
             'page' => $page,
             'templates' => $this->templates(),
             'statuses' => $this->statuses(),
+            'blockTypes' => $this->blockTypes(),
         ]);
     }
 
@@ -94,5 +96,16 @@ class PageController extends Controller
     private function statuses(): array
     {
         return ['draft', 'published', 'archived'];
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function blockTypes(): array
+    {
+        return array_filter(
+            (array) config('blocks.types'),
+            fn (array $definition): bool => ($definition['context'] ?? 'page') !== 'homepage',
+        );
     }
 }
