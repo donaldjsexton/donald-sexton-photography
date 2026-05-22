@@ -69,6 +69,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/homepage', [AdminHomepageSettingsController::class, 'update'])->name('homepage.update');
         Route::post('/homepage/blocks/seed', [AdminHomepageBlockController::class, 'seed'])->name('homepage.blocks.seed');
         Route::post('/homepage/blocks', [AdminHomepageBlockController::class, 'store'])->name('homepage.blocks.store');
+        Route::patch('/homepage/blocks/reorder', [AdminHomepageBlockController::class, 'reorder'])->name('homepage.blocks.reorder');
         Route::put('/homepage/blocks/{block}', [AdminHomepageBlockController::class, 'update'])->name('homepage.blocks.update');
         Route::delete('/homepage/blocks/{block}', [AdminHomepageBlockController::class, 'destroy'])->name('homepage.blocks.destroy');
         Route::post('/homepage/blocks/{block}/media', [AdminHomepageBlockController::class, 'attachMedia'])->name('homepage.blocks.media.attach');
@@ -155,6 +156,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/pages/{page}/edit', [AdminPageController::class, 'edit'])->name('pages.edit');
         Route::put('/pages/{page}', [AdminPageController::class, 'update'])->name('pages.update');
         Route::post('/pages/{page}/blocks', [AdminPageBlockController::class, 'store'])->name('pages.blocks.store');
+        Route::patch('/pages/{page}/blocks/reorder', [AdminPageBlockController::class, 'reorder'])->name('pages.blocks.reorder');
         Route::put('/pages/{page}/blocks/{block}', [AdminPageBlockController::class, 'update'])->name('pages.blocks.update');
         Route::delete('/pages/{page}/blocks/{block}', [AdminPageBlockController::class, 'destroy'])->name('pages.blocks.destroy');
         Route::post('/pages/{page}/blocks/{block}/media', [AdminPageBlockController::class, 'attachMedia'])->name('pages.blocks.media.attach');
@@ -181,6 +183,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/journal-posts/{journalPost}/media/{media}/hero', [AdminJournalPostController::class, 'setHero'])->name('journal-posts.media.hero');
 
         Route::post('/journal-posts/{journalPost}/blocks', [AdminJournalPostBlockController::class, 'store'])->name('journal-posts.blocks.store');
+        Route::patch('/journal-posts/{journalPost}/blocks/reorder', [AdminJournalPostBlockController::class, 'reorder'])->name('journal-posts.blocks.reorder');
         Route::put('/journal-posts/{journalPost}/blocks/{block}', [AdminJournalPostBlockController::class, 'update'])->name('journal-posts.blocks.update');
         Route::delete('/journal-posts/{journalPost}/blocks/{block}', [AdminJournalPostBlockController::class, 'destroy'])->name('journal-posts.blocks.destroy');
         Route::post('/journal-posts/{journalPost}/blocks/{block}/media', [AdminJournalPostBlockController::class, 'attachMedia'])->name('journal-posts.blocks.media.attach');

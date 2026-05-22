@@ -27,10 +27,10 @@
     };
 @endphp
 
-<section class="admin-block-manager">
+<section class="admin-block-manager" data-block-manager data-reorder-url="{{ $blockRoute('reorder') }}">
     <div class="admin-section-header">
         <h2>{{ $managerTitle }}</h2>
-        <p class="meta">Compose this surface from stackable sections. They render top to bottom in sort order.</p>
+        <p class="meta">Compose this surface from stackable sections. Drag the ⋮⋮ handle to reorder, or set sort order by hand.</p>
     </div>
 
     @if ($seedRoute && $blocks->isEmpty())
@@ -41,12 +41,14 @@
         </form>
     @endif
 
+    <div class="admin-block-list" data-block-list>
     @forelse ($blocks as $block)
         @php
             $usesMedia = data_get($blockTypes, $block->type.'.media', 0);
         @endphp
-        <article class="admin-block-card">
+        <article class="admin-block-card" data-block-card data-block-id="{{ $block->id }}" draggable="true">
             <header class="admin-block-card__header">
+                <span class="admin-block-card__handle" data-block-handle aria-label="Drag to reorder" title="Drag to reorder">⋮⋮</span>
                 <strong>{{ $block->typeLabel() }}</strong>
                 <span class="meta">order {{ $block->sort_order }}@unless ($block->is_visible) · hidden @endunless</span>
             </header>
@@ -152,6 +154,7 @@
             <p class="section-copy">No blocks yet. Add your first section below.</p>
         @endif
     @endforelse
+    </div>
 
     @if ($blockTypes !== [])
         <form method="POST" action="{{ $blockRoute('store') }}" class="admin-form admin-block-add">

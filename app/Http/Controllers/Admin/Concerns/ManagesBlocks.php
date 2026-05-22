@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Symfony\Component\HttpFoundation\Response;
 
 trait ManagesBlocks
 {
@@ -57,6 +58,33 @@ trait ManagesBlocks
         $block->delete();
 
         return $this->blocksEditorRedirect('Block removed.', $owner);
+    }
+
+    protected function reorderBlocks(Request $request, Model $owner): Response
+    {
+        $validated = $request->validate([
+            'block_ids' => ['required', 'array'],
+            'block_ids.*' => ['integer'],
+        ]);
+
+        $ownedIds = $owner->allBlocks()->pluck('id')->all();
+        $position = 0;
+
+        foreach ($validated['block_ids'] as $id) {
+            $id = (int) $id;
+
+            if (! in_array($id, $ownedIds, true)) {
+                continue;
+            }
+
+            Block::whereKey($id)->update(['sort_order' => $position++]);
+        }
+
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->noContent();
+        }
+
+        return $this->blocksEditorRedirect('Order updated.', $owner);
     }
 
     protected function attachBlockMedia(Request $request, Model $owner, Block $block): RedirectResponse
