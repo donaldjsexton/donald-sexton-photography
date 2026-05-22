@@ -282,18 +282,8 @@
                     <input type="date" name="event_date">
                 </label>
                 <button class="cta" type="submit">Continue</button>
-                <p class="meta home-inline-inquiry__note">Takes you to the full form with your details ready.</p>
+                <p class="meta home-inline-inquiry__note">Takes you to the full form with your details ready, or <a href="{{ route('weddings.index') }}">browse wedding stories first</a>.</p>
             </form>
         </div>
     </section>
-
-    <x-editorial.page-closing
-        eyebrow="Next Step"
-        title="Have a date in mind?"
-        copy="Send your date, venue, and a short note. I will guide you from there — most inquiries get a reply within 24 hours."
-        :primary-href="route('inquiry.create')"
-        primary-label="Check Availability"
-        :secondary-href="route('weddings.index')"
-        secondary-label="See Wedding Stories"
-    />
 @endsection

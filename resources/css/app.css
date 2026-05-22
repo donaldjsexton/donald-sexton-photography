@@ -367,11 +367,6 @@ img {
     padding-bottom: 0.4rem;
 }
 
-.site-footer__legal:first-child {
-    padding-top: 1.6rem;
-    border-top: 1px solid var(--line);
-}
-
 .site-footer__legal a {
     color: var(--muted);
     font-size: 0.72rem;

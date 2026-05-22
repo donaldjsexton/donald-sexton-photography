@@ -461,7 +461,7 @@ const stickyCta = document.querySelector('[data-sticky-cta]');
 
 if (stickyCta && 'IntersectionObserver' in window) {
     const mobileView = window.matchMedia('(max-width: 980px)');
-    const pageClosing = document.querySelector('.page-closing');
+    const pageClosing = document.querySelector('.page-closing, .home-inline-inquiry');
     let pastHero = false;
     let closingVisible = false;
 
