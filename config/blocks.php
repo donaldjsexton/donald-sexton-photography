@@ -76,6 +76,68 @@ return [
             'media' => 0,
         ],
 
+        /*
+        |----------------------------------------------------------------------
+        | Homepage section blocks
+        |----------------------------------------------------------------------
+        |
+        | Art-directed sections that compose the homepage. They are dynamic:
+        | their curated content (stories, testimonials, journal posts,
+        | collections) resolves through App\Support\HomeContent, while their
+        | editable copy lives on the block. Scoped to 'homepage' so they stay
+        | out of the generic page palette.
+        |
+        */
+
+        'home_hero' => [
+            'label' => 'Home · Hero',
+            'context' => 'homepage',
+            'fields' => ['heading', 'body'],
+            'media' => 0,
+        ],
+
+        'home_statement' => [
+            'label' => 'Home · Statement',
+            'context' => 'homepage',
+            'fields' => [],
+            'media' => 0,
+        ],
+
+        'home_discover' => [
+            'label' => 'Home · Discover',
+            'context' => 'homepage',
+            'fields' => ['body'],
+            'media' => 0,
+        ],
+
+        'home_portfolio' => [
+            'label' => 'Home · Portfolio',
+            'context' => 'homepage',
+            'fields' => [],
+            'media' => 0,
+        ],
+
+        'home_journal' => [
+            'label' => 'Home · Journal',
+            'context' => 'homepage',
+            'fields' => [],
+            'media' => 0,
+        ],
+
+        'home_reviews' => [
+            'label' => 'Home · Reviews',
+            'context' => 'homepage',
+            'fields' => [],
+            'media' => 0,
+        ],
+
+        'home_inquiry' => [
+            'label' => 'Home · Inquiry',
+            'context' => 'homepage',
+            'fields' => ['heading', 'body'],
+            'media' => 0,
+        ],
+
     ],
 
 ];

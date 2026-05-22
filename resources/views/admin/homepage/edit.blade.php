@@ -87,4 +87,11 @@
 
         <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Homepage Settings</button>
     </form>
+
+    @include('admin.blocks.manager', [
+        'context' => 'homepage',
+        'owner' => $settings,
+        'blocks' => $homeBlocks,
+        'blockTypes' => $blockTypes,
+    ])
 @endsection

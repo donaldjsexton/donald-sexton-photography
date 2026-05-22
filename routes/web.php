@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\ContractController as AdminContractController;
 use App\Http\Controllers\Admin\ContractTemplateController as AdminContractTemplateController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
+use App\Http\Controllers\Admin\HomepageBlockController as AdminHomepageBlockController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
 use App\Http\Controllers\Admin\ImportRunController as AdminImportRunController;
 use App\Http\Controllers\Admin\InquiryController as AdminInquiryController;
@@ -65,6 +66,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('/homepage', [AdminHomepageSettingsController::class, 'edit'])->name('homepage.edit');
         Route::put('/homepage', [AdminHomepageSettingsController::class, 'update'])->name('homepage.update');
+        Route::post('/homepage/blocks/seed', [AdminHomepageBlockController::class, 'seed'])->name('homepage.blocks.seed');
+        Route::post('/homepage/blocks', [AdminHomepageBlockController::class, 'store'])->name('homepage.blocks.store');
+        Route::put('/homepage/blocks/{block}', [AdminHomepageBlockController::class, 'update'])->name('homepage.blocks.update');
+        Route::delete('/homepage/blocks/{block}', [AdminHomepageBlockController::class, 'destroy'])->name('homepage.blocks.destroy');
+        Route::post('/homepage/blocks/{block}/media', [AdminHomepageBlockController::class, 'attachMedia'])->name('homepage.blocks.media.attach');
+        Route::delete('/homepage/blocks/{block}/media/{media}', [AdminHomepageBlockController::class, 'detachMedia'])->name('homepage.blocks.media.detach');
         Route::get('/settings', [AdminSettingsController::class, 'edit'])->name('settings.edit');
         Route::put('/settings', [AdminSettingsController::class, 'update'])->name('settings.update');
         Route::get('/settings/google/connect', [AdminGoogleOAuthController::class, 'redirect'])->name('settings.google.connect');

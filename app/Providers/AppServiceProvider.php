@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Mail\GmailApiTransport;
+use App\Models\HomepageSetting;
 use App\Models\JournalPost;
 use App\Models\Page;
 use App\Models\SiteSetting;
@@ -11,6 +12,7 @@ use App\Observers\IndexNowObserver;
 use App\Services\Gmail\GmailApiReader;
 use App\Services\Gmail\GmailReader;
 use App\Services\GoogleClient;
+use App\Support\HomeContent;
 use Illuminate\Mail\MailManager;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\View;
@@ -25,6 +27,10 @@ class AppServiceProvider extends ServiceProvider
         });
 
         $this->app->bind(GmailReader::class, GmailApiReader::class);
+
+        $this->app->scoped(HomeContent::class, function () {
+            return new HomeContent(HomepageSetting::query()->with('heroMedia')->first());
+        });
     }
 
     public function boot(): void

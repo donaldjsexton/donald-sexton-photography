@@ -103,6 +103,9 @@ class PageController extends Controller
      */
     private function blockTypes(): array
     {
-        return (array) config('blocks.types');
+        return array_filter(
+            (array) config('blocks.types'),
+            fn (array $definition): bool => ($definition['context'] ?? 'page') !== 'homepage',
+        );
     }
 }
