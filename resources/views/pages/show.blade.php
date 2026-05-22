@@ -6,26 +6,30 @@
 
 @section('content')
     <x-editorial.page-hero
-        :eyebrow="$eyebrow"
+        :eyebrow="$eyebrow ?? null"
         :title="$page->title"
         :copy="$page->excerpt"
         :media="$page->heroMedia"
         ratio="portrait"
     />
 
-    @if ($page->body)
+    @if ($page->blocks->isNotEmpty())
+        <x-blocks :blocks="$page->blocks" />
+    @elseif ($page->body)
         <x-editorial.reading-section>
             {!! $page->body !!}
         </x-editorial.reading-section>
     @endif
 
-    <x-editorial.page-closing
-        eyebrow="Next Step"
-        title="Want to keep going?"
-        copy="You can keep looking through the work, or you can send your date and venue."
-        :primary-href="route('inquiry.create')"
-        primary-label="Check Availability"
-        :secondary-href="route('weddings.index')"
-        secondary-label="See Wedding Stories"
-    />
+    @unless ($page->blocks->contains(fn ($block) => $block->type === 'cta'))
+        <x-editorial.page-closing
+            eyebrow="Next Step"
+            title="Want to keep going?"
+            copy="You can keep looking through the work, or you can send your date and venue."
+            :primary-href="route('inquiry.create')"
+            primary-label="Check Availability"
+            :secondary-href="route('weddings.index')"
+            secondary-label="See Wedding Stories"
+        />
+    @endunless
 @endsection

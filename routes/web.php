@@ -16,6 +16,7 @@ use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
 use App\Http\Controllers\Admin\JournalPostController as AdminJournalPostController;
 use App\Http\Controllers\Admin\LogController as AdminLogController;
 use App\Http\Controllers\Admin\MediaController as AdminMediaController;
+use App\Http\Controllers\Admin\PageBlockController as AdminPageBlockController;
 use App\Http\Controllers\Admin\PageController as AdminPageController;
 use App\Http\Controllers\Admin\PicTimeImportController as AdminPicTimeImportController;
 use App\Http\Controllers\Admin\PushSubscriptionController as AdminPushSubscriptionController;
@@ -145,6 +146,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/pages', [AdminPageController::class, 'store'])->name('pages.store');
         Route::get('/pages/{page}/edit', [AdminPageController::class, 'edit'])->name('pages.edit');
         Route::put('/pages/{page}', [AdminPageController::class, 'update'])->name('pages.update');
+        Route::post('/pages/{page}/blocks', [AdminPageBlockController::class, 'store'])->name('pages.blocks.store');
+        Route::put('/pages/{page}/blocks/{block}', [AdminPageBlockController::class, 'update'])->name('pages.blocks.update');
+        Route::delete('/pages/{page}/blocks/{block}', [AdminPageBlockController::class, 'destroy'])->name('pages.blocks.destroy');
+        Route::post('/pages/{page}/blocks/{block}/media', [AdminPageBlockController::class, 'attachMedia'])->name('pages.blocks.media.attach');
+        Route::delete('/pages/{page}/blocks/{block}/media/{media}', [AdminPageBlockController::class, 'detachMedia'])->name('pages.blocks.media.detach');
 
         Route::get('/wedding-stories', [AdminWeddingStoryController::class, 'index'])->name('wedding-stories.index');
         Route::get('/wedding-stories/create', [AdminWeddingStoryController::class, 'create'])->name('wedding-stories.create');
