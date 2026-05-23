@@ -16,26 +16,18 @@ class CurrentSite
 {
     private ?Site $site = null;
 
-    private bool $resolvedDefault = false;
-
     public function set(?Site $site): void
     {
         $this->site = $site;
-        $this->resolvedDefault = true;
     }
 
     public function get(): ?Site
     {
-        if ($this->site !== null) {
-            return $this->site;
-        }
-
-        if (! $this->resolvedDefault) {
-            $this->resolvedDefault = true;
-
-            if (Schema::hasTable('sites')) {
-                $this->site = Site::default();
-            }
+        // Only a concrete site is cached. A null result (e.g. resolved before
+        // the default site exists, such as mid-migration) is never cached, so
+        // resolution is retried once the default becomes available.
+        if ($this->site === null && Schema::hasTable('sites')) {
+            $this->site = Site::default();
         }
 
         return $this->site;
@@ -49,6 +41,5 @@ class CurrentSite
     public function forget(): void
     {
         $this->site = null;
-        $this->resolvedDefault = false;
     }
 }

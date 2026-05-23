@@ -2,6 +2,8 @@
 
 namespace Tests\Feature;
 
+use App\Models\Collection;
+use App\Models\Inquiry;
 use App\Models\Page;
 use App\Models\Site;
 use App\Tenancy\CurrentSite;
@@ -63,6 +65,29 @@ class TenancyTest extends TestCase
 
         // The apex (default tenant) must not see site B's page.
         $this->get('http://example.com/studio-page')->assertNotFound();
+    }
+
+    public function test_crm_and_content_models_are_tenant_scoped(): void
+    {
+        $default = Site::default();
+        $siteB = Site::factory()->create(['subdomain' => 'second']);
+
+        app(CurrentSite::class)->set($default);
+        $collectionA = Collection::create(['name' => 'Package A', 'slug' => 'package-a']);
+        $inquiryA = Inquiry::create(['primary_name' => 'A', 'email' => 'a@example.com', 'status' => 'new', 'source' => 'site_form']);
+
+        app(CurrentSite::class)->set($siteB);
+        $collectionB = Collection::create(['name' => 'Package B', 'slug' => 'package-b']);
+        $inquiryB = Inquiry::create(['primary_name' => 'B', 'email' => 'b@example.com', 'status' => 'new', 'source' => 'site_form']);
+
+        $this->assertSame([$collectionB->id], Collection::query()->pluck('id')->all());
+        $this->assertSame([$inquiryB->id], Inquiry::query()->pluck('id')->all());
+
+        app(CurrentSite::class)->set($default);
+        $this->assertSame([$collectionA->id], Collection::query()->pluck('id')->all());
+        $this->assertSame([$inquiryA->id], Inquiry::query()->pluck('id')->all());
+
+        $this->assertSame(2, Collection::withoutSiteScope()->count());
     }
 
     public function test_tls_check_endpoint_validates_known_hosts(): void

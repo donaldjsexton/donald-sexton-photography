@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToSite;
 use Database\Factories\BookedJobFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class BookedJob extends Model
 {
+    use BelongsToSite;
+
     /** @use HasFactory<BookedJobFactory> */
     use HasFactory;
 

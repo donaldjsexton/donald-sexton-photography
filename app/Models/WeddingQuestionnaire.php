@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToSite;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 class WeddingQuestionnaire extends Model
 {
+    use BelongsToSite;
+
     protected $fillable = [
         'inquiry_id',
         'token',
