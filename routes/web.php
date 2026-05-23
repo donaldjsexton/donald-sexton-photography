@@ -51,8 +51,10 @@ use App\Http\Controllers\VenueController;
 use App\Http\Controllers\Webhooks\PayPalWebhookController;
 use App\Http\Controllers\Webhooks\SquareWebhookController;
 use App\Http\Controllers\WeddingStoryController;
+use App\Models\Site;
 use App\Models\SiteSetting;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -288,6 +290,23 @@ Route::post('/webhooks/square', SquareWebhookController::class)
 Route::post('/webhooks/paypal', PayPalWebhookController::class)
     ->name('webhooks.paypal')
     ->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::get('/tenancy/tls-check', function (Request $request) {
+    $domain = strtolower(trim((string) $request->query('domain')));
+    $appDomain = strtolower((string) config('app.domain'));
+
+    abort_if($domain === '', 400);
+
+    $known = $domain === $appDomain
+        || (str_ends_with($domain, '.'.$appDomain) && Site::query()->active()
+            ->where('subdomain', trim(substr($domain, 0, -(strlen($appDomain) + 1)), '.'))
+            ->exists())
+        || Site::query()->active()->where('primary_domain', $domain)->exists();
+
+    abort_unless($known, 404);
+
+    return response('', 200);
+})->name('tenancy.tls-check');
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/llms.txt', LlmsTxtController::class)->name('llms');

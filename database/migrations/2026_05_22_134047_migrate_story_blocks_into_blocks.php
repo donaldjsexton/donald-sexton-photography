@@ -37,10 +37,17 @@ return new class extends Migration
                     return;
                 }
 
+                // Inherit the parent story's tenant when site scoping already
+                // exists. On the original migration ordering the column is not
+                // present yet, so this is null and gets backfilled later.
+                $siteId = Schema::hasColumn('wedding_stories', 'site_id')
+                    ? DB::table('wedding_stories')->where('id', $storyId)->value('site_id')
+                    : null;
+
                 $rows = $storyBlocks->map(fn ($block): array => [
                     'blockable_type' => $morphType,
                     'blockable_id' => $storyId,
-                    'site_id' => null,
+                    'site_id' => $siteId,
                     'type' => $this->mapType($block->block_type),
                     'heading' => $block->heading,
                     'subheading' => null,

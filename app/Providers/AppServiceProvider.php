@@ -13,6 +13,7 @@ use App\Services\Gmail\GmailApiReader;
 use App\Services\Gmail\GmailReader;
 use App\Services\GoogleClient;
 use App\Support\HomeContent;
+use App\Tenancy\CurrentSite;
 use Illuminate\Mail\MailManager;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\View;
@@ -22,6 +23,8 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(CurrentSite::class);
+
         $this->app->singleton(GoogleClient::class, function () {
             return new GoogleClient(SiteSetting::current());
         });
