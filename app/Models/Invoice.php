@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToSite;
 use Database\Factories\InvoiceFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -15,6 +16,8 @@ use Illuminate\Support\Str;
 
 class Invoice extends Model
 {
+    use BelongsToSite;
+
     /** @use HasFactory<InvoiceFactory> */
     use HasFactory;
 

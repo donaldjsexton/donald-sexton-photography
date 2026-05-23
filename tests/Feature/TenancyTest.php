@@ -2,10 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Models\Client;
 use App\Models\Collection;
 use App\Models\Inquiry;
+use App\Models\Invoice;
 use App\Models\Page;
 use App\Models\Site;
+use App\Models\User;
 use App\Tenancy\CurrentSite;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -88,6 +91,42 @@ class TenancyTest extends TestCase
         $this->assertSame([$inquiryA->id], Inquiry::query()->pluck('id')->all());
 
         $this->assertSame(2, Collection::withoutSiteScope()->count());
+    }
+
+    public function test_authenticatables_and_billing_are_tenant_scoped(): void
+    {
+        $default = Site::default();
+        $siteB = Site::factory()->create(['subdomain' => 'second']);
+
+        app(CurrentSite::class)->set($default);
+        $userA = User::factory()->create();
+        $clientA = Client::factory()->create();
+
+        app(CurrentSite::class)->set($siteB);
+        $userB = User::factory()->create();
+        $clientB = Client::factory()->create();
+
+        $this->assertSame([$userB->id], User::query()->pluck('id')->all());
+        $this->assertSame([$clientB->id], Client::query()->pluck('id')->all());
+
+        app(CurrentSite::class)->set($default);
+        $this->assertSame([$userA->id], User::query()->pluck('id')->all());
+        $this->assertSame([$clientA->id], Client::query()->pluck('id')->all());
+    }
+
+    public function test_invoices_resolve_across_tenants_for_webhooks(): void
+    {
+        $default = Site::default();
+        $siteB = Site::factory()->create(['subdomain' => 'second']);
+
+        app(CurrentSite::class)->set($siteB);
+        $invoice = Invoice::factory()->create();
+
+        // A webhook runs without that tenant's context (default fallback).
+        app(CurrentSite::class)->set($default);
+
+        $this->assertNull(Invoice::find($invoice->id));
+        $this->assertNotNull(Invoice::withoutSiteScope()->find($invoice->id));
     }
 
     public function test_tls_check_endpoint_validates_known_hosts(): void
