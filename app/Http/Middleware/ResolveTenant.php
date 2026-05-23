@@ -11,13 +11,6 @@ use Symfony\Component\HttpFoundation\Response;
 class ResolveTenant
 {
     /**
-     * Subdomains that never map to a tenant.
-     *
-     * @var list<string>
-     */
-    private const RESERVED = ['www', 'admin', 'app', 'api', 'mail', 'ftp', 'cdn', 'assets', 'static'];
-
-    /**
      * Handle an incoming request.
      *
      * @param  Closure(Request): (Response)  $next
@@ -44,7 +37,7 @@ class ResolveTenant
 
         $subdomain = trim(substr($host, 0, -(strlen($appDomain) + 1)), '.');
 
-        if ($subdomain === '' || in_array($subdomain, self::RESERVED, true)) {
+        if ($subdomain === '' || Site::isReservedSubdomain($subdomain)) {
             return null;
         }
 

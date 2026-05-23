@@ -12,6 +12,13 @@ class Site extends Model
     /** @use HasFactory<SiteFactory> */
     use HasFactory;
 
+    /**
+     * Subdomains that can never be claimed by a tenant.
+     *
+     * @var list<string>
+     */
+    public const RESERVED_SUBDOMAINS = ['www', 'admin', 'app', 'api', 'mail', 'ftp', 'cdn', 'assets', 'static'];
+
     protected $fillable = [
         'name',
         'subdomain',
@@ -36,5 +43,10 @@ class Site extends Model
     {
         return static::query()->where('is_default', true)->first()
             ?? static::query()->orderBy('id')->first();
+    }
+
+    public static function isReservedSubdomain(string $subdomain): bool
+    {
+        return in_array(strtolower(trim($subdomain)), self::RESERVED_SUBDOMAINS, true);
     }
 }

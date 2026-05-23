@@ -35,6 +35,7 @@ use App\Http\Controllers\JournalController;
 use App\Http\Controllers\JournalFeedController;
 use App\Http\Controllers\LegacyRedirectController;
 use App\Http\Controllers\LlmsTxtController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\ContractController as PortalContractController;
@@ -212,6 +213,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 });
 
 Route::get('/', HomeController::class)->name('home');
+
+Route::get('/start', [OnboardingController::class, 'create'])->name('onboarding.create');
+Route::post('/start', [OnboardingController::class, 'store'])->name('onboarding.store');
 
 Route::get('/about', [PageController::class, 'about'])->name('pages.about');
 Route::get('/collections', [CollectionController::class, 'index'])->name('collections.index');
