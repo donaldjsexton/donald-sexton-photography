@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ConsoleCommandController as AdminConsoleCommandCo
 use App\Http\Controllers\Admin\ContractController as AdminContractController;
 use App\Http\Controllers\Admin\ContractTemplateController as AdminContractTemplateController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\DomainController as AdminDomainController;
 use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
 use App\Http\Controllers\Admin\HomepageBlockController as AdminHomepageBlockController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
@@ -53,6 +54,7 @@ use App\Http\Controllers\Webhooks\PayPalWebhookController;
 use App\Http\Controllers\Webhooks\SquareWebhookController;
 use App\Http\Controllers\WeddingStoryController;
 use App\Models\Site;
+use App\Models\SiteDomain;
 use App\Models\SiteSetting;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
 use Illuminate\Http\Request;
@@ -70,6 +72,12 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('/homepage', [AdminHomepageSettingsController::class, 'edit'])->name('homepage.edit');
         Route::put('/homepage', [AdminHomepageSettingsController::class, 'update'])->name('homepage.update');
+
+        Route::get('/domains', [AdminDomainController::class, 'index'])->name('domains.index');
+        Route::post('/domains', [AdminDomainController::class, 'store'])->name('domains.store');
+        Route::post('/domains/{siteDomain}/verify', [AdminDomainController::class, 'verify'])->name('domains.verify');
+        Route::delete('/domains/{siteDomain}', [AdminDomainController::class, 'destroy'])->name('domains.destroy');
+
         Route::post('/homepage/blocks/seed', [AdminHomepageBlockController::class, 'seed'])->name('homepage.blocks.seed');
         Route::post('/homepage/blocks', [AdminHomepageBlockController::class, 'store'])->name('homepage.blocks.store');
         Route::patch('/homepage/blocks/reorder', [AdminHomepageBlockController::class, 'reorder'])->name('homepage.blocks.reorder');
@@ -305,7 +313,8 @@ Route::get('/tenancy/tls-check', function (Request $request) {
         || (str_ends_with($domain, '.'.$appDomain) && Site::query()->active()
             ->where('subdomain', trim(substr($domain, 0, -(strlen($appDomain) + 1)), '.'))
             ->exists())
-        || Site::query()->active()->where('primary_domain', $domain)->exists();
+        || Site::query()->active()->where('primary_domain', $domain)->exists()
+        || SiteDomain::query()->verified()->where('host', $domain)->exists();
 
     abort_unless($known, 404);
 

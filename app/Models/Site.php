@@ -6,6 +6,7 @@ use Database\Factories\SiteFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Site extends Model
 {
@@ -32,6 +33,14 @@ class Site extends Model
         return [
             'is_default' => 'boolean',
         ];
+    }
+
+    /**
+     * @return HasMany<SiteDomain, $this>
+     */
+    public function domains(): HasMany
+    {
+        return $this->hasMany(SiteDomain::class);
     }
 
     public function scopeActive(Builder $query): Builder
