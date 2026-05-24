@@ -4,15 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\Site;
 use App\Tenancy\SiteProvisioner;
+use App\Tenancy\VendorPresets;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class OnboardingController extends Controller
 {
     public function create(): View
     {
-        return view('onboarding.create');
+        return view('onboarding.create', [
+            'vendorOptions' => VendorPresets::options(),
+        ]);
     }
 
     public function store(Request $request, SiteProvisioner $provisioner): RedirectResponse
@@ -29,6 +33,7 @@ class OnboardingController extends Controller
                     }
                 },
             ],
+            'vendor_type' => ['nullable', Rule::in(VendorPresets::types())],
             'admin_name' => ['required', 'string', 'max:255'],
             'admin_email' => ['required', 'email', 'max:255'],
             'admin_password' => ['required', 'string', 'min:8', 'confirmed'],
@@ -36,6 +41,7 @@ class OnboardingController extends Controller
 
         $site = $provisioner->provision([
             'name' => $validated['name'],
+            'vendor_type' => $validated['vendor_type'] ?? null,
             'subdomain' => strtolower(trim($validated['subdomain'])),
             'admin_name' => $validated['admin_name'],
             'admin_email' => $validated['admin_email'],

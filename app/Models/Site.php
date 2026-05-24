@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Tenancy\VendorPresets;
 use Database\Factories\SiteFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -22,6 +23,7 @@ class Site extends Model
 
     protected $fillable = [
         'name',
+        'vendor_type',
         'subdomain',
         'primary_domain',
         'is_default',
@@ -57,5 +59,10 @@ class Site extends Model
     public static function isReservedSubdomain(string $subdomain): bool
     {
         return in_array(strtolower(trim($subdomain)), self::RESERVED_SUBDOMAINS, true);
+    }
+
+    public function vendorLabel(string $key, string $default = ''): string
+    {
+        return VendorPresets::label($this->vendor_type ?: VendorPresets::default(), $key, $default);
     }
 }

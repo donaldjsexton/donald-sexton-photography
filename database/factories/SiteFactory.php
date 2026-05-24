@@ -21,6 +21,7 @@ class SiteFactory extends Factory
 
         return [
             'name' => $this->faker->company(),
+            'vendor_type' => 'photographer',
             'subdomain' => $subdomain,
             'primary_domain' => null,
             'is_default' => false,

@@ -27,9 +27,11 @@ class HomepageBlocksSeeder
     /**
      * Create the default home blocks if none exist yet. Idempotent.
      *
+     * @param  array<string, array{heading?: ?string, subheading?: ?string, body?: ?string}>  $copy
+     *                                                                                               Per-block-type copy overrides keyed by type.
      * @return int Number of blocks created.
      */
-    public static function seed(): int
+    public static function seed(array $copy = []): int
     {
         $settings = HomepageSetting::query()->firstOrCreate([]);
 
@@ -40,6 +42,9 @@ class HomepageBlocksSeeder
         foreach (self::DEFAULT_TYPES as $sortOrder => $type) {
             $settings->allBlocks()->create([
                 'type' => $type,
+                'heading' => $copy[$type]['heading'] ?? null,
+                'subheading' => $copy[$type]['subheading'] ?? null,
+                'body' => $copy[$type]['body'] ?? null,
                 'is_visible' => true,
                 'sort_order' => $sortOrder,
             ]);
