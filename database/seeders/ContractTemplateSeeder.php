@@ -97,7 +97,7 @@ class ContractTemplateSeeder extends Seeder
             The booking fee is non-refundable. If the Client cancels, the booking fee is retained as liquidated damages, and the Client remains responsible for any costs the Photographer has reasonably incurred up to the date of cancellation.
 
             DELIVERY
-            Edited images are delivered through the private online gallery. Post-production typically takes about two weeks per one thousand images, with a minimum of two weeks; the Photographer will confirm an estimated delivery date during the pre-event consultation. The gallery remains available for download for the period communicated by the Photographer.
+            Edited images are delivered through the private online gallery. Post-production generally takes around a month, though the timeline varies with the size of the gallery and the time of year; the Photographer will confirm an estimated delivery date during the pre-event consultation. The gallery remains available for download for the period communicated by the Photographer.
 
             ACKNOWLEDGMENT
             By signing, the Client confirms they have read, understood, and agree to the terms of this Agreement.
