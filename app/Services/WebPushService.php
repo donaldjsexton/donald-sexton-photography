@@ -13,12 +13,22 @@ class WebPushService
 
     private const PRIVATE_KEY_BYTES = 32;
 
-    public function notify(string $title, string $body, ?string $url = null): void
+    /**
+     * Send a push notification to every stored subscription.
+     *
+     * Returns a summary so callers and diagnostics can tell what happened.
+     * When delivery is skipped, `skipped` holds the reason; otherwise it is
+     * null and `sent`/`failed` describe the per-subscription outcome.
+     *
+     * @return array{skipped: string|null, sent: int, failed: int, total: int}
+     */
+    public function notify(string $title, string $body, ?string $url = null): array
     {
         $subscriptions = PushSubscription::all();
+        $total = $subscriptions->count();
 
         if ($subscriptions->isEmpty()) {
-            return;
+            return self::result('no_subscriptions', 0, 0, 0);
         }
 
         $publicKey = self::normalizeKey(config('services.webpush.public_key'));
@@ -27,19 +37,19 @@ class WebPushService
         if ($publicKey === null || $privateKey === null) {
             Log::warning('WebPushService: VAPID keys are not configured; skipping notification.');
 
-            return;
+            return self::result('missing_keys', 0, 0, $total);
         }
 
         if (! self::isValidKey($publicKey, self::PUBLIC_KEY_BYTES)) {
             Log::warning('WebPushService: VAPID_PUBLIC_KEY is not a valid base64url-encoded P-256 public key (65 bytes when decoded); skipping notification.');
 
-            return;
+            return self::result('invalid_public_key', 0, 0, $total);
         }
 
         if (! self::isValidKey($privateKey, self::PRIVATE_KEY_BYTES)) {
             Log::warning('WebPushService: VAPID_PRIVATE_KEY is not a valid base64url-encoded P-256 private key (32 bytes when decoded); skipping notification.');
 
-            return;
+            return self::result('invalid_private_key', 0, 0, $total);
         }
 
         $auth = [
@@ -70,13 +80,50 @@ class WebPushService
             );
         }
 
+        $sent = 0;
+        $failed = 0;
+
         foreach ($webPush->flush() as $report) {
+            if ($report->isSuccess()) {
+                $sent++;
+
+                continue;
+            }
+
+            $failed++;
+
             if ($report->isSubscriptionExpired()) {
                 PushSubscription::query()
                     ->where('endpoint', $report->getEndpoint())
                     ->delete();
+
+                continue;
             }
+
+            // A live subscription the push service rejected (bad VAPID, payload,
+            // rate limit, etc.). Without this the failure is invisible and the
+            // notification just silently never arrives.
+            Log::warning('WebPushService: push delivery failed.', [
+                'endpoint' => $report->getEndpoint(),
+                'status' => $report->getResponse()?->getStatusCode(),
+                'reason' => $report->getReason(),
+            ]);
         }
+
+        return self::result(null, $sent, $failed, $total);
+    }
+
+    /**
+     * @return array{skipped: string|null, sent: int, failed: int, total: int}
+     */
+    private static function result(?string $skipped, int $sent, int $failed, int $total): array
+    {
+        return [
+            'skipped' => $skipped,
+            'sent' => $sent,
+            'failed' => $failed,
+            'total' => $total,
+        ];
     }
 
     /**

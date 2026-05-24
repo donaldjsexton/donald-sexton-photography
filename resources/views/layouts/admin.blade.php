@@ -219,18 +219,27 @@
             toggle.disabled = false;
         }
 
+        function showError(message) {
+            label.textContent = message;
+            toggle.classList.remove('is-subscribed');
+            toggle.disabled = false;
+        }
+
         navigator.serviceWorker.register('/sw.js').then(function (reg) {
-            reg.pushManager.getSubscription().then(function (sub) {
+            return reg.pushManager.getSubscription().then(function (sub) {
                 updateUI(!!sub);
             });
+        }).catch(function (error) {
+            console.error('Push: service worker registration failed', error);
+            showError('Push unavailable');
         });
 
         toggle.addEventListener('click', function () {
             toggle.disabled = true;
             navigator.serviceWorker.ready.then(function (reg) {
-                reg.pushManager.getSubscription().then(function (sub) {
+                return reg.pushManager.getSubscription().then(function (sub) {
                     if (sub) {
-                        fetch('/admin/push/unsubscribe', {
+                        return fetch('/admin/push/unsubscribe', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -242,32 +251,42 @@
                         }).then(function () {
                             updateUI(false);
                         });
-                    } else {
-                        reg.pushManager.subscribe({
-                            userVisibleOnly: true,
-                            applicationServerKey: urlBase64ToUint8Array(vapidKey.content),
-                        }).then(function (newSub) {
-                            var key = newSub.getKey('p256dh');
-                            var auth = newSub.getKey('auth');
-                            return fetch('/admin/push/subscribe', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json',
-                                    'X-CSRF-TOKEN': csrfToken.content,
+                    }
+
+                    return reg.pushManager.subscribe({
+                        userVisibleOnly: true,
+                        applicationServerKey: urlBase64ToUint8Array(vapidKey.content),
+                    }).then(function (newSub) {
+                        var key = newSub.getKey('p256dh');
+                        var auth = newSub.getKey('auth');
+                        return fetch('/admin/push/subscribe', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken.content,
+                            },
+                            body: JSON.stringify({
+                                endpoint: newSub.endpoint,
+                                keys: {
+                                    p256dh: btoa(String.fromCharCode.apply(null, new Uint8Array(key))),
+                                    auth: btoa(String.fromCharCode.apply(null, new Uint8Array(auth))),
                                 },
-                                body: JSON.stringify({
-                                    endpoint: newSub.endpoint,
-                                    keys: {
-                                        p256dh: btoa(String.fromCharCode.apply(null, new Uint8Array(key))),
-                                        auth: btoa(String.fromCharCode.apply(null, new Uint8Array(auth))),
-                                    },
-                                }),
-                            });
-                        }).then(function () {
+                            }),
+                        }).then(function (response) {
+                            if (!response.ok) {
+                                throw new Error('Subscribe request failed: ' + response.status);
+                            }
                             updateUI(true);
                         });
-                    }
+                    });
                 });
+            }).catch(function (error) {
+                console.error('Push: toggle failed', error);
+                if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+                    showError('Notifications blocked');
+                } else {
+                    showError('Could not enable');
+                }
             });
         });
     })();
