@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\ContractTemplate;
 use App\Models\HomepageSetting;
 use App\Models\Page;
 use App\Models\Site;
@@ -41,6 +42,42 @@ class VendorOnboardingTest extends TestCase
         $blocks = HomepageSetting::query()->first()->allBlocks()->get()->keyBy('type');
         $this->assertStringContainsString('keeps your celebration moving', (string) $blocks['home_hero']->body);
         $this->assertSame('Nights worth replaying.', $blocks['home_portfolio']->heading);
+    }
+
+    public function test_provisioning_a_photographer_creates_the_wedding_agreement(): void
+    {
+        $site = app(SiteProvisioner::class)->provision([
+            'name' => 'Shutter Co',
+            'subdomain' => 'shutterco',
+            'admin_name' => 'Pat',
+            'admin_email' => 'pat@shutterco.test',
+            'admin_password' => 'password1234',
+        ]);
+
+        app(CurrentSite::class)->set($site);
+
+        $template = ContractTemplate::query()->where('is_default', true)->firstOrFail();
+        $this->assertSame('Wedding Photography Agreement', $template->name);
+        $this->assertStringContainsString('online gallery', $template->body);
+    }
+
+    public function test_provisioning_a_dj_creates_a_generalized_services_agreement(): void
+    {
+        $site = app(SiteProvisioner::class)->provision([
+            'name' => 'Beat Drop',
+            'vendor_type' => 'dj',
+            'subdomain' => 'beatdrop',
+            'admin_name' => 'Jo',
+            'admin_email' => 'jo@beatdrop.test',
+            'admin_password' => 'password1234',
+        ]);
+
+        app(CurrentSite::class)->set($site);
+
+        $template = ContractTemplate::query()->where('is_default', true)->firstOrFail();
+        $this->assertSame('DJ Services Agreement', $template->name);
+        $this->assertStringContainsString('booking fee', $template->body);
+        $this->assertStringNotContainsStringIgnoringCase('online gallery', $template->body);
     }
 
     public function test_unknown_vendor_type_falls_back_to_default(): void
