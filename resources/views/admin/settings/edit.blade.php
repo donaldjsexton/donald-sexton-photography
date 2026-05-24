@@ -26,6 +26,7 @@
         <nav class="admin-section-nav admin-settings-nav" aria-label="Settings sections">
             <a class="{{ $currentTab === 'analytics' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'analytics']) }}#analytics-settings">Analytics</a>
             <a class="{{ $currentTab === 'integrations' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'integrations']) }}#integrations-settings">Google</a>
+            <a class="{{ $currentTab === 'payments' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'payments']) }}#payments-settings">Payments</a>
             <a class="{{ $currentTab === 'discovery' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'discovery']) }}#discovery-settings">Discovery</a>
             <a class="{{ $currentTab === 'imports' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'imports']) }}#import-settings">Imports</a>
         </nav>
@@ -119,25 +120,6 @@
                 </article>
             </section>
 
-            <section class="admin-dashboard-row" id="square-settings">
-                <article class="admin-card admin-card--feature admin-settings-focus">
-                    @if ($siteSettings->squareIsConnected())
-                        <p class="eyebrow">Payments</p>
-                        <h3 class="feature-title">Square is connected</h3>
-                        <p class="section-copy">Card payments on your invoices go straight to your Square account{{ $siteSettings->square_location_id ? ' (location '.$siteSettings->square_location_id.')' : '' }}.</p>
-                        <form method="POST" action="{{ route('admin.settings.square.disconnect') }}">
-                            @csrf
-                            <button class="cta-secondary" type="submit" style="cursor: pointer; border: 0;">Disconnect Square</button>
-                        </form>
-                    @else
-                        <p class="eyebrow">Payments</p>
-                        <h3 class="feature-title">Connect Square</h3>
-                        <p class="section-copy">Connect your Square account so clients can pay invoices by card and the money lands in your account.</p>
-                        <a class="cta" href="{{ route('admin.settings.square.connect') }}">Connect Square Account</a>
-                    @endif
-                </article>
-            </section>
-
             @if ($googleConnected && $siteSettings->googleHasScope('https://www.googleapis.com/auth/business.manage'))
                 <section class="admin-dashboard-row">
                     <x-admin.section-header
@@ -195,6 +177,41 @@
                     </article>
                 </section>
             @endif
+        @endif
+
+        @if ($currentTab === 'payments')
+            <section class="admin-dashboard-row">
+                <x-admin.section-header
+                    eyebrow="Payments"
+                    title="Connect how you get paid"
+                    description="Link your own payment accounts so invoice payments land directly with you."
+                />
+            </section>
+
+            <section class="admin-dashboard-row" id="payments-settings">
+                <article class="admin-card admin-card--feature admin-settings-focus">
+                    @if ($siteSettings->squareIsConnected())
+                        <p class="eyebrow">Square</p>
+                        <h3 class="feature-title">Square is connected</h3>
+                        <p class="section-copy">Card payments on your invoices go straight to your Square account{{ $siteSettings->square_location_id ? ' (location '.$siteSettings->square_location_id.')' : '' }}.</p>
+                        <form method="POST" action="{{ route('admin.settings.square.disconnect') }}">
+                            @csrf
+                            <button class="cta-secondary" type="submit" style="cursor: pointer; border: 0;">Disconnect Square</button>
+                        </form>
+                    @else
+                        <p class="eyebrow">Square</p>
+                        <h3 class="feature-title">Connect Square</h3>
+                        <p class="section-copy">Connect your Square account so clients can pay invoices by card and the money lands in your account.</p>
+                        <a class="cta" href="{{ route('admin.settings.square.connect') }}">Connect Square Account</a>
+                    @endif
+                </article>
+
+                <article class="admin-card admin-settings-focus">
+                    <p class="eyebrow">PayPal</p>
+                    <h3 class="feature-title">PayPal is coming soon</h3>
+                    <p class="section-copy">Per-account PayPal connection is on the way. In the meantime, Square covers card payments.</p>
+                </article>
+            </section>
         @endif
 
         @if ($currentTab === 'discovery')
