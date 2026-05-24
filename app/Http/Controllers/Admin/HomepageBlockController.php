@@ -11,6 +11,7 @@ use App\Support\HomepageBlocksSeeder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class HomepageBlockController extends Controller
 {
@@ -39,6 +40,11 @@ class HomepageBlockController extends Controller
     public function destroy(Block $block): RedirectResponse
     {
         return $this->removeBlock($this->owner(), $block);
+    }
+
+    public function reorder(Request $request): Response
+    {
+        return $this->reorderBlocks($request, $this->owner());
     }
 
     public function attachMedia(Request $request, Block $block): RedirectResponse

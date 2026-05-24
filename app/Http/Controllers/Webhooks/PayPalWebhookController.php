@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\Payments\PayPalGateway;
 use Illuminate\Http\JsonResponse;
@@ -69,7 +70,7 @@ class PayPalWebhookController extends Controller
         $payment->payload = array_merge((array) $payment->payload, ['webhook' => $resource]);
         $payment->save();
 
-        $payment->invoice()->first()?->syncStatusFromPayments();
+        Invoice::withoutSiteScope()->find($payment->invoice_id)?->syncStatusFromPayments();
     }
 
     /**
@@ -121,7 +122,7 @@ class PayPalWebhookController extends Controller
         $payment->payload = $payload;
         $payment->save();
 
-        $payment->invoice()->first()?->syncStatusFromPayments();
+        Invoice::withoutSiteScope()->find($payment->invoice_id)?->syncStatusFromPayments();
     }
 
     /**

@@ -56,6 +56,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Domain
+    |--------------------------------------------------------------------------
+    |
+    | The bare domain the app is served from, used for subdomain-based tenant
+    | resolution (e.g. "studio" in "studio.example.com"). Defaults to the host
+    | of APP_URL when APP_DOMAIN is not set explicitly.
+    |
+    */
+
+    'domain' => env('APP_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |

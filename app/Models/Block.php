@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToSite;
 use Database\Factories\BlockFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,6 +12,8 @@ use Illuminate\Database\Eloquent\Relations\MorphToMany;
 
 class Block extends Model
 {
+    use BelongsToSite;
+
     /** @use HasFactory<BlockFactory> */
     use HasFactory;
 

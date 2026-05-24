@@ -1703,3 +1703,97 @@ if (multistepForm) {
         showStep(currentStep);
     }
 }
+
+// ── Block manager drag-to-reorder ──
+document.querySelectorAll('[data-block-manager]').forEach((manager) => {
+    const list = manager.querySelector('[data-block-list]');
+    const reorderUrl = manager.dataset.reorderUrl;
+
+    if (!list || !reorderUrl) {
+        return;
+    }
+
+    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+    let dragging = null;
+    let viaHandle = false;
+
+    const persist = () => {
+        const ids = Array.from(list.querySelectorAll('[data-block-card]'))
+            .map((card) => Number(card.dataset.blockId))
+            .filter((id) => Number.isInteger(id));
+
+        fetch(reorderUrl, {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({ block_ids: ids }),
+        }).then((response) => {
+            if (response.ok) {
+                window.location.reload();
+            }
+        });
+    };
+
+    list.querySelectorAll('[data-block-handle]').forEach((handle) => {
+        handle.addEventListener('mousedown', () => { viaHandle = true; });
+        handle.addEventListener('touchstart', () => { viaHandle = true; }, { passive: true });
+    });
+
+    list.querySelectorAll('[data-block-card]').forEach((card) => {
+        card.addEventListener('dragstart', (event) => {
+            if (!viaHandle) {
+                event.preventDefault();
+                return;
+            }
+
+            dragging = card;
+            card.classList.add('is-dragging');
+            event.dataTransfer.effectAllowed = 'move';
+
+            try {
+                event.dataTransfer.setData('text/plain', card.dataset.blockId ?? '');
+            } catch (_) {
+                // Some browsers disallow setData here; ignore.
+            }
+        });
+
+        card.addEventListener('dragend', () => {
+            viaHandle = false;
+            dragging?.classList.remove('is-dragging');
+            dragging = null;
+            list.querySelectorAll('.is-drop-target').forEach((node) => node.classList.remove('is-drop-target'));
+        });
+
+        card.addEventListener('dragover', (event) => {
+            if (!dragging || dragging === card) {
+                return;
+            }
+
+            event.preventDefault();
+            event.dataTransfer.dropEffect = 'move';
+            card.classList.add('is-drop-target');
+        });
+
+        card.addEventListener('dragleave', () => card.classList.remove('is-drop-target'));
+
+        card.addEventListener('drop', (event) => {
+            event.preventDefault();
+            card.classList.remove('is-drop-target');
+
+            if (!dragging || dragging === card) {
+                return;
+            }
+
+            const rect = card.getBoundingClientRect();
+            const dropAfter = (event.clientY - rect.top) > rect.height / 2;
+            list.insertBefore(dragging, dropAfter ? card.nextSibling : card);
+
+            persist();
+        });
+    });
+});

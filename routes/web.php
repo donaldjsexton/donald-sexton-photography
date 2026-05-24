@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\ConsoleCommandController as AdminConsoleCommandCo
 use App\Http\Controllers\Admin\ContractController as AdminContractController;
 use App\Http\Controllers\Admin\ContractTemplateController as AdminContractTemplateController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controllers\Admin\DomainController as AdminDomainController;
 use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
 use App\Http\Controllers\Admin\HomepageBlockController as AdminHomepageBlockController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
@@ -35,6 +36,7 @@ use App\Http\Controllers\JournalController;
 use App\Http\Controllers\JournalFeedController;
 use App\Http\Controllers\LegacyRedirectController;
 use App\Http\Controllers\LlmsTxtController;
+use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\ContractController as PortalContractController;
@@ -51,8 +53,11 @@ use App\Http\Controllers\VenueController;
 use App\Http\Controllers\Webhooks\PayPalWebhookController;
 use App\Http\Controllers\Webhooks\SquareWebhookController;
 use App\Http\Controllers\WeddingStoryController;
+use App\Models\Site;
+use App\Models\SiteDomain;
 use App\Models\SiteSetting;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('admin')->name('admin.')->group(function () {
@@ -67,8 +72,15 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('/homepage', [AdminHomepageSettingsController::class, 'edit'])->name('homepage.edit');
         Route::put('/homepage', [AdminHomepageSettingsController::class, 'update'])->name('homepage.update');
+
+        Route::get('/domains', [AdminDomainController::class, 'index'])->name('domains.index');
+        Route::post('/domains', [AdminDomainController::class, 'store'])->name('domains.store');
+        Route::post('/domains/{siteDomain}/verify', [AdminDomainController::class, 'verify'])->name('domains.verify');
+        Route::delete('/domains/{siteDomain}', [AdminDomainController::class, 'destroy'])->name('domains.destroy');
+
         Route::post('/homepage/blocks/seed', [AdminHomepageBlockController::class, 'seed'])->name('homepage.blocks.seed');
         Route::post('/homepage/blocks', [AdminHomepageBlockController::class, 'store'])->name('homepage.blocks.store');
+        Route::patch('/homepage/blocks/reorder', [AdminHomepageBlockController::class, 'reorder'])->name('homepage.blocks.reorder');
         Route::put('/homepage/blocks/{block}', [AdminHomepageBlockController::class, 'update'])->name('homepage.blocks.update');
         Route::delete('/homepage/blocks/{block}', [AdminHomepageBlockController::class, 'destroy'])->name('homepage.blocks.destroy');
         Route::post('/homepage/blocks/{block}/media', [AdminHomepageBlockController::class, 'attachMedia'])->name('homepage.blocks.media.attach');
@@ -155,6 +167,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/pages/{page}/edit', [AdminPageController::class, 'edit'])->name('pages.edit');
         Route::put('/pages/{page}', [AdminPageController::class, 'update'])->name('pages.update');
         Route::post('/pages/{page}/blocks', [AdminPageBlockController::class, 'store'])->name('pages.blocks.store');
+        Route::patch('/pages/{page}/blocks/reorder', [AdminPageBlockController::class, 'reorder'])->name('pages.blocks.reorder');
         Route::put('/pages/{page}/blocks/{block}', [AdminPageBlockController::class, 'update'])->name('pages.blocks.update');
         Route::delete('/pages/{page}/blocks/{block}', [AdminPageBlockController::class, 'destroy'])->name('pages.blocks.destroy');
         Route::post('/pages/{page}/blocks/{block}/media', [AdminPageBlockController::class, 'attachMedia'])->name('pages.blocks.media.attach');
@@ -181,6 +194,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/journal-posts/{journalPost}/media/{media}/hero', [AdminJournalPostController::class, 'setHero'])->name('journal-posts.media.hero');
 
         Route::post('/journal-posts/{journalPost}/blocks', [AdminJournalPostBlockController::class, 'store'])->name('journal-posts.blocks.store');
+        Route::patch('/journal-posts/{journalPost}/blocks/reorder', [AdminJournalPostBlockController::class, 'reorder'])->name('journal-posts.blocks.reorder');
         Route::put('/journal-posts/{journalPost}/blocks/{block}', [AdminJournalPostBlockController::class, 'update'])->name('journal-posts.blocks.update');
         Route::delete('/journal-posts/{journalPost}/blocks/{block}', [AdminJournalPostBlockController::class, 'destroy'])->name('journal-posts.blocks.destroy');
         Route::post('/journal-posts/{journalPost}/blocks/{block}/media', [AdminJournalPostBlockController::class, 'attachMedia'])->name('journal-posts.blocks.media.attach');
@@ -207,6 +221,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
 });
 
 Route::get('/', HomeController::class)->name('home');
+
+Route::get('/start', [OnboardingController::class, 'create'])->name('onboarding.create');
+Route::post('/start', [OnboardingController::class, 'store'])->name('onboarding.store');
 
 Route::get('/about', [PageController::class, 'about'])->name('pages.about');
 Route::get('/collections', [CollectionController::class, 'index'])->name('collections.index');
@@ -285,6 +302,24 @@ Route::post('/webhooks/square', SquareWebhookController::class)
 Route::post('/webhooks/paypal', PayPalWebhookController::class)
     ->name('webhooks.paypal')
     ->withoutMiddleware([ValidateCsrfToken::class]);
+
+Route::get('/tenancy/tls-check', function (Request $request) {
+    $domain = strtolower(trim((string) $request->query('domain')));
+    $appDomain = strtolower((string) config('app.domain'));
+
+    abort_if($domain === '', 400);
+
+    $known = $domain === $appDomain
+        || (str_ends_with($domain, '.'.$appDomain) && Site::query()->active()
+            ->where('subdomain', trim(substr($domain, 0, -(strlen($appDomain) + 1)), '.'))
+            ->exists())
+        || Site::query()->active()->where('primary_domain', $domain)->exists()
+        || SiteDomain::query()->verified()->where('host', $domain)->exists();
+
+    abort_unless($known, 404);
+
+    return response('', 200);
+})->name('tenancy.tls-check');
 
 Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
 Route::get('/llms.txt', LlmsTxtController::class)->name('llms');

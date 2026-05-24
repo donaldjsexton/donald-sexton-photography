@@ -10,6 +10,7 @@ use App\Models\Page;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class PageBlockController extends Controller
 {
@@ -28,6 +29,11 @@ class PageBlockController extends Controller
     public function destroy(Page $page, Block $block): RedirectResponse
     {
         return $this->removeBlock($page, $block);
+    }
+
+    public function reorder(Request $request, Page $page): Response
+    {
+        return $this->reorderBlocks($request, $page);
     }
 
     public function attachMedia(Request $request, Page $page, Block $block): RedirectResponse

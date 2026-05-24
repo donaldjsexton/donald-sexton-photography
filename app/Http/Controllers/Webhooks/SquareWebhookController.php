@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Webhooks;
 
 use App\Http\Controllers\Controller;
+use App\Models\Invoice;
 use App\Models\Payment;
 use App\Services\Payments\SquareGateway;
 use Illuminate\Http\JsonResponse;
@@ -67,7 +68,7 @@ class SquareWebhookController extends Controller
         $payment->payload = array_merge((array) $payment->payload, ['webhook' => $squarePayment]);
         $payment->save();
 
-        $invoice = $payment->invoice()->first();
+        $invoice = Invoice::withoutSiteScope()->find($payment->invoice_id);
         $invoice?->syncStatusFromPayments();
     }
 

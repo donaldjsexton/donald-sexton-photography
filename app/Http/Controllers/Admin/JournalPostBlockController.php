@@ -10,6 +10,7 @@ use App\Models\Media;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 class JournalPostBlockController extends Controller
 {
@@ -28,6 +29,11 @@ class JournalPostBlockController extends Controller
     public function destroy(JournalPost $journalPost, Block $block): RedirectResponse
     {
         return $this->removeBlock($journalPost, $block);
+    }
+
+    public function reorder(Request $request, JournalPost $journalPost): Response
+    {
+        return $this->reorderBlocks($request, $journalPost);
     }
 
     public function attachMedia(Request $request, JournalPost $journalPost, Block $block): RedirectResponse

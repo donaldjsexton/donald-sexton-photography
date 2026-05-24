@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToSite;
 use Illuminate\Auth\Authenticatable;
 use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
@@ -18,6 +19,7 @@ use Illuminate\Notifications\Notifiable;
 class Venue extends Model implements AuthenticatableContract, CanResetPasswordContract
 {
     use Authenticatable;
+    use BelongsToSite;
     use CanResetPassword;
     use HasFactory;
     use Notifiable;

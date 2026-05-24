@@ -13,6 +13,9 @@ use App\Services\Gmail\GmailApiReader;
 use App\Services\Gmail\GmailReader;
 use App\Services\GoogleClient;
 use App\Support\HomeContent;
+use App\Tenancy\CurrentSite;
+use App\Tenancy\DnsTxtDomainVerifier;
+use App\Tenancy\DomainVerifier;
 use Illuminate\Mail\MailManager;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\View;
@@ -22,11 +25,15 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(CurrentSite::class);
+
         $this->app->singleton(GoogleClient::class, function () {
             return new GoogleClient(SiteSetting::current());
         });
 
         $this->app->bind(GmailReader::class, GmailApiReader::class);
+
+        $this->app->bind(DomainVerifier::class, DnsTxtDomainVerifier::class);
 
         $this->app->scoped(HomeContent::class, function () {
             return new HomeContent(HomepageSetting::query()->with('heroMedia')->first());

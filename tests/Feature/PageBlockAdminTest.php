@@ -128,6 +128,42 @@ class PageBlockAdminTest extends TestCase
         $this->assertSame(0, $block->media()->count());
     }
 
+    public function test_admin_can_reorder_blocks(): void
+    {
+        $user = User::factory()->create();
+        $page = Page::factory()->create();
+
+        $first = Block::factory()->create(['blockable_id' => $page->id, 'blockable_type' => $page->getMorphClass(), 'sort_order' => 0]);
+        $second = Block::factory()->create(['blockable_id' => $page->id, 'blockable_type' => $page->getMorphClass(), 'sort_order' => 1]);
+        $third = Block::factory()->create(['blockable_id' => $page->id, 'blockable_type' => $page->getMorphClass(), 'sort_order' => 2]);
+
+        $this->actingAs($user)->patch(route('admin.pages.blocks.reorder', $page), [
+            'block_ids' => [$third->id, $first->id, $second->id],
+        ])->assertRedirect(route('admin.pages.edit', $page));
+
+        $this->assertSame(0, $third->refresh()->sort_order);
+        $this->assertSame(1, $first->refresh()->sort_order);
+        $this->assertSame(2, $second->refresh()->sort_order);
+    }
+
+    public function test_reorder_returns_no_content_for_ajax_and_ignores_foreign_blocks(): void
+    {
+        $user = User::factory()->create();
+        $page = Page::factory()->create();
+        $foreign = Block::factory()->create();
+
+        $first = Block::factory()->create(['blockable_id' => $page->id, 'blockable_type' => $page->getMorphClass(), 'sort_order' => 0]);
+        $second = Block::factory()->create(['blockable_id' => $page->id, 'blockable_type' => $page->getMorphClass(), 'sort_order' => 1]);
+
+        $this->actingAs($user)->patchJson(route('admin.pages.blocks.reorder', $page), [
+            'block_ids' => [$foreign->id, $second->id, $first->id],
+        ])->assertNoContent();
+
+        $this->assertSame(0, $second->refresh()->sort_order);
+        $this->assertSame(1, $first->refresh()->sort_order);
+        $this->assertSame(0, $foreign->refresh()->sort_order);
+    }
+
     public function test_admin_cannot_manage_a_block_through_a_mismatched_page(): void
     {
         $user = User::factory()->create();
