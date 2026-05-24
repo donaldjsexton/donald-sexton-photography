@@ -39,10 +39,8 @@ return new class extends Migration
                     continue;
                 }
 
-                Schema::table($table, function (Blueprint $blueprint) use ($column): void {
-                    $blueprint->dropUnique([$column]);
-                    $blueprint->unique(['site_id', $column]);
-                });
+                $this->dropUniqueOnColumns($table, [$column]);
+                $this->addUniqueOnColumns($table, ['site_id', $column]);
             }
         }
     }
@@ -59,10 +57,8 @@ return new class extends Migration
                     continue;
                 }
 
-                Schema::table($table, function (Blueprint $blueprint) use ($column): void {
-                    $blueprint->dropUnique(['site_id', $column]);
-                    $blueprint->unique([$column]);
-                });
+                $this->dropUniqueOnColumns($table, ['site_id', $column]);
+                $this->addUniqueOnColumns($table, [$column]);
             }
         }
     }
@@ -70,5 +66,77 @@ return new class extends Migration
     private function scopable(string $table): bool
     {
         return Schema::hasTable($table) && Schema::hasColumn($table, 'site_id');
+    }
+
+    /**
+     * Drop any unique index covering exactly the given columns, looked up by
+     * its real name. Doing this by introspection (rather than assuming the
+     * conventional name) keeps the migration safe across databases whose
+     * existing schema was created or restored outside these migrations.
+     *
+     * @param  list<string>  $columns
+     */
+    private function dropUniqueOnColumns(string $table, array $columns): void
+    {
+        foreach (Schema::getIndexes($table) as $index) {
+            if (($index['unique'] ?? false)
+                && ! ($index['primary'] ?? false)
+                && ($index['columns'] ?? []) === $columns) {
+                $this->dropUniqueByName($table, $index['name']);
+            }
+        }
+    }
+
+    /**
+     * @param  list<string>  $columns
+     */
+    private function addUniqueOnColumns(string $table, array $columns): void
+    {
+        if ($this->hasUniqueOnColumns($table, $columns)) {
+            return;
+        }
+
+        Schema::table($table, function (Blueprint $blueprint) use ($columns): void {
+            $blueprint->unique($columns);
+        });
+    }
+
+    /**
+     * @param  list<string>  $columns
+     */
+    private function hasUniqueOnColumns(string $table, array $columns): bool
+    {
+        foreach (Schema::getIndexes($table) as $index) {
+            if (($index['unique'] ?? false) && ($index['columns'] ?? []) === $columns) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function dropUniqueByName(string $table, string $name): void
+    {
+        $connection = Schema::getConnection();
+
+        if ($connection->getDriverName() === 'pgsql') {
+            // A unique may exist as a table constraint or as a bare index, and
+            // only one of these statements matches; IF EXISTS keeps the other a
+            // no-op so the surrounding transaction is never aborted.
+            $grammar = $connection->getSchemaGrammar();
+
+            $connection->statement(sprintf(
+                'alter table %s drop constraint if exists %s',
+                $grammar->wrapTable($table),
+                $grammar->wrap($name),
+            ));
+            $connection->statement(sprintf('drop index if exists %s', $grammar->wrap($name)));
+
+            return;
+        }
+
+        Schema::table($table, function (Blueprint $blueprint) use ($name): void {
+            $blueprint->dropIndex($name);
+        });
     }
 };
