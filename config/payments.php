@@ -79,6 +79,13 @@ return [
     'gateways' => [
         'square' => [
             'enabled' => env('SQUARE_ENABLED', false),
+            // Platform OAuth application used to connect tenant Square accounts.
+            // client_id is the Square Application ID; client_secret is the OAuth secret.
+            'oauth' => [
+                'client_id' => env('SQUARE_OAUTH_CLIENT_ID', env('SQUARE_APPLICATION_ID')),
+                'client_secret' => env('SQUARE_OAUTH_CLIENT_SECRET'),
+                'scopes' => ['MERCHANT_PROFILE_READ', 'PAYMENTS_WRITE', 'PAYMENTS_READ'],
+            ],
             'sandbox' => [
                 'access_token' => env('SQUARE_SANDBOX_ACCESS_TOKEN'),
                 'application_id' => env('SQUARE_SANDBOX_APPLICATION_ID'),

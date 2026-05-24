@@ -3,6 +3,7 @@
 namespace App\Services\Payments;
 
 use App\Models\Invoice;
+use App\Models\SiteSetting;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Square\Environments;
@@ -162,11 +163,27 @@ class SquareGateway
     }
 
     /**
+     * Credentials for the active tenant. A connected tenant's OAuth access
+     * token and location take precedence; the platform application_id and
+     * webhook key always come from config. Falls back entirely to config when
+     * no tenant has connected (e.g. the default site using its own keys).
+     *
      * @return array<string, mixed>
      */
     private function credentials(): array
     {
-        return (array) config('payments.gateways.square.'.$this->mode(), []);
+        $config = (array) config('payments.gateways.square.'.$this->mode(), []);
+
+        $settings = SiteSetting::current();
+
+        if ($settings->squareIsConnected()) {
+            return array_merge($config, [
+                'access_token' => $settings->square_access_token,
+                'location_id' => $settings->square_location_id ?: ($config['location_id'] ?? null),
+            ]);
+        }
+
+        return $config;
     }
 
     private function extractErrorMessage(SquareApiException $e): string

@@ -24,6 +24,7 @@ use App\Http\Controllers\Admin\PageController as AdminPageController;
 use App\Http\Controllers\Admin\PicTimeImportController as AdminPicTimeImportController;
 use App\Http\Controllers\Admin\PushSubscriptionController as AdminPushSubscriptionController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
+use App\Http\Controllers\Admin\SquareOAuthController as AdminSquareOAuthController;
 use App\Http\Controllers\Admin\VenueController as AdminVenueController;
 use App\Http\Controllers\Admin\WeddingStoryController as AdminWeddingStoryController;
 use App\Http\Controllers\Admin\WordPressImportController as AdminWordPressImportController;
@@ -90,6 +91,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/settings/google/connect', [AdminGoogleOAuthController::class, 'redirect'])->name('settings.google.connect');
         Route::get('/settings/google/callback', [AdminGoogleOAuthController::class, 'callback'])->name('settings.google.callback');
         Route::post('/settings/google/disconnect', [AdminGoogleOAuthController::class, 'disconnect'])->name('settings.google.disconnect');
+        Route::get('/settings/square/connect', [AdminSquareOAuthController::class, 'redirect'])->name('settings.square.connect');
+        Route::get('/settings/square/callback', [AdminSquareOAuthController::class, 'callback'])->name('settings.square.callback');
+        Route::post('/settings/square/disconnect', [AdminSquareOAuthController::class, 'disconnect'])->name('settings.square.disconnect');
         Route::post('/settings/google/business-profile', [AdminSettingsController::class, 'updateBusinessProfile'])->name('settings.gbp.update');
         Route::get('/inquiries', [AdminInquiryController::class, 'index'])->name('inquiries.index');
         Route::get('/inquiries/create', [AdminInquiryController::class, 'create'])->name('inquiries.create');
