@@ -2,6 +2,7 @@
 
 namespace App\Tenancy;
 
+use App\Models\ContractTemplate;
 use App\Models\Page;
 use App\Models\Site;
 use App\Models\User;
@@ -57,6 +58,16 @@ class SiteProvisioner
                 ]);
 
                 HomepageBlocksSeeder::seed($onboarding['home'] ?? []);
+
+                $contract = ContractTemplatePresets::forVendorType($vendorType);
+
+                ContractTemplate::create([
+                    'name' => $contract['name'],
+                    'title' => $contract['title'],
+                    'description' => $contract['description'],
+                    'body' => $contract['body'],
+                    'is_default' => true,
+                ]);
             } finally {
                 $this->currentSite->set($previous);
             }
