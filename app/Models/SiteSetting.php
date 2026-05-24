@@ -20,6 +20,11 @@ class SiteSetting extends Model
         'google_refresh_token',
         'google_token_expires_at',
         'google_granted_scopes',
+        'square_merchant_id',
+        'square_access_token',
+        'square_refresh_token',
+        'square_token_expires_at',
+        'square_location_id',
         'gmail_last_history_id',
         'gmail_last_synced_at',
         'gbp_account_name',
@@ -43,12 +48,22 @@ class SiteSetting extends Model
         'gmail_last_synced_at' => 'datetime',
         'gbp_snapshot' => 'array',
         'gbp_snapshot_fetched_at' => 'datetime',
+        'square_access_token' => 'encrypted',
+        'square_refresh_token' => 'encrypted',
+        'square_token_expires_at' => 'datetime',
     ];
 
     protected $hidden = [
         'google_access_token',
         'google_refresh_token',
+        'square_access_token',
+        'square_refresh_token',
     ];
+
+    public function squareIsConnected(): bool
+    {
+        return filled($this->square_access_token) && filled($this->square_merchant_id);
+    }
 
     public static function current(): self
     {

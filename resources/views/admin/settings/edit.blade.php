@@ -119,6 +119,25 @@
                 </article>
             </section>
 
+            <section class="admin-dashboard-row" id="square-settings">
+                <article class="admin-card admin-card--feature admin-settings-focus">
+                    @if ($siteSettings->squareIsConnected())
+                        <p class="eyebrow">Payments</p>
+                        <h3 class="feature-title">Square is connected</h3>
+                        <p class="section-copy">Card payments on your invoices go straight to your Square account{{ $siteSettings->square_location_id ? ' (location '.$siteSettings->square_location_id.')' : '' }}.</p>
+                        <form method="POST" action="{{ route('admin.settings.square.disconnect') }}">
+                            @csrf
+                            <button class="cta-secondary" type="submit" style="cursor: pointer; border: 0;">Disconnect Square</button>
+                        </form>
+                    @else
+                        <p class="eyebrow">Payments</p>
+                        <h3 class="feature-title">Connect Square</h3>
+                        <p class="section-copy">Connect your Square account so clients can pay invoices by card and the money lands in your account.</p>
+                        <a class="cta" href="{{ route('admin.settings.square.connect') }}">Connect Square Account</a>
+                    @endif
+                </article>
+            </section>
+
             @if ($googleConnected && $siteSettings->googleHasScope('https://www.googleapis.com/auth/business.manage'))
                 <section class="admin-dashboard-row">
                     <x-admin.section-header
