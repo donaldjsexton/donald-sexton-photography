@@ -1,5 +1,8 @@
 @props([
     'content',
+    'eyebrow' => null,
+    'title' => null,
+    'copy' => null,
 ])
 
 @php
@@ -11,9 +14,9 @@
     <div class="page-shell--wide page-stack">
         <x-editorial.section-heading
             class="section-header--centered home-portfolio__header"
-            eyebrow="Wedding Stories"
-            title="A few good places to start."
-            copy="These stories show how a full wedding day can feel in photos."
+            :eyebrow="$eyebrow ?: 'Wedding Stories'"
+            :title="$title ?: 'A few good places to start.'"
+            :copy="$copy ?: 'These stories show how a full wedding day can feel in photos.'"
         />
 
         <div class="portfolio-list home-portfolio__list">

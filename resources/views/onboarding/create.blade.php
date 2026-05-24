@@ -29,6 +29,15 @@
                 </label>
 
                 <label>
+                    What do you do?
+                    <select name="vendor_type">
+                        @foreach ($vendorOptions as $value => $label)
+                            <option value="{{ $value }}" @selected(old('vendor_type') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </label>
+
+                <label>
                     Site address
                     <span class="meta">Your site will live at <strong>your-name.{{ config('app.domain') }}</strong></span>
                     <input type="text" name="subdomain" value="{{ old('subdomain') }}" placeholder="your-name" required>

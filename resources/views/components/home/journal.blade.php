@@ -1,5 +1,8 @@
 @props([
     'content',
+    'eyebrow' => null,
+    'title' => null,
+    'copy' => null,
 ])
 
 @php
@@ -9,9 +12,9 @@
 <section class="section home-journal" data-reveal>
     <div class="page-shell--wide page-stack">
         <x-editorial.section-heading
-            eyebrow="Journal"
-            title="Ideas, places, and real wedding days."
-            copy="Use the journal for planning tips, venue notes, and recent stories."
+            :eyebrow="$eyebrow ?: 'Journal'"
+            :title="$title ?: 'Ideas, places, and real wedding days.'"
+            :copy="$copy ?: 'Use the journal for planning tips, venue notes, and recent stories.'"
         />
 
         <div class="archive-grid">

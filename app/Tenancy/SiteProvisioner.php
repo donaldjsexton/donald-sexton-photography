@@ -19,13 +19,17 @@ class SiteProvisioner
     public function __construct(private CurrentSite $currentSite) {}
 
     /**
-     * @param  array{name: string, subdomain: string, admin_name: string, admin_email: string, admin_password: string}  $attributes
+     * @param  array{name: string, subdomain: string, admin_name: string, admin_email: string, admin_password: string, vendor_type?: ?string}  $attributes
      */
     public function provision(array $attributes): Site
     {
-        return DB::transaction(function () use ($attributes): Site {
+        $vendorType = VendorPresets::normalize($attributes['vendor_type'] ?? null);
+        $onboarding = VendorPresets::onboarding($vendorType);
+
+        return DB::transaction(function () use ($attributes, $vendorType, $onboarding): Site {
             $site = Site::create([
                 'name' => $attributes['name'],
+                'vendor_type' => $vendorType,
                 'subdomain' => strtolower(trim($attributes['subdomain'])),
                 'is_default' => false,
                 'status' => 'active',
@@ -42,16 +46,17 @@ class SiteProvisioner
                 ]);
 
                 Page::create([
-                    'title' => 'About',
+                    'title' => $onboarding['about']['title'] ?? 'About',
                     'slug' => 'about',
                     'template' => 'about',
                     'status' => 'published',
-                    'excerpt' => 'Tell visitors who you are and what you photograph.',
-                    'body' => '<p>Welcome to '.e($attributes['name']).'. Edit this page in the admin to introduce yourself.</p>',
+                    'excerpt' => 'A short introduction.',
+                    'body' => $onboarding['about']['body']
+                        ?? '<p>Welcome to '.e($attributes['name']).'. Edit this page in the admin to introduce yourself.</p>',
                     'published_at' => now(),
                 ]);
 
-                HomepageBlocksSeeder::seed();
+                HomepageBlocksSeeder::seed($onboarding['home'] ?? []);
             } finally {
                 $this->currentSite->set($previous);
             }
