@@ -15,6 +15,7 @@ use App\Models\Invoice;
 use App\Models\Venue;
 use App\Services\Contracts\ContractPdfRenderer;
 use App\Services\Contracts\ContractVariableResolver;
+use App\Services\Portal\PortalInviteSender;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -249,7 +250,7 @@ class ContractController extends Controller
             ->with('status', 'Contract emailed to '.$recipientEmail.'.');
     }
 
-    public function sendProposal(Contract $contract): RedirectResponse
+    public function sendProposal(Contract $contract, PortalInviteSender $inviteSender): RedirectResponse
     {
         $contract->loadMissing(['billable', 'invoice']);
 
@@ -285,9 +286,28 @@ class ContractController extends Controller
             proposalUrl: route('portal.proposals.show', ['contract' => $contract->uuid]),
         ));
 
+        // A proposal can only be reviewed, signed, and paid from inside the
+        // portal, so a client without access yet needs an invite alongside it.
+        $invited = false;
+        $billable = $contract->billable;
+
+        if ($billable instanceof Client) {
+            try {
+                $invited = $inviteSender->send($billable);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        $message = 'Proposal emailed to '.$recipientEmail.'.';
+
+        if ($invited) {
+            $message .= ' A portal invite was included so they can review, sign, and pay.';
+        }
+
         return redirect()
             ->route('admin.contracts.show', $contract)
-            ->with('status', 'Proposal emailed to '.$recipientEmail.'.');
+            ->with('status', $message);
     }
 
     public function void(Contract $contract): RedirectResponse

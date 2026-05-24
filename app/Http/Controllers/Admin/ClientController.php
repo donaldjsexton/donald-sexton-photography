@@ -5,16 +5,14 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreClientRequest;
 use App\Http\Requests\Admin\UpdateClientRequest;
-use App\Mail\PortalInvite;
 use App\Models\Client;
 use App\Models\Inquiry;
 use App\Models\Payment;
 use App\Services\ClientFromInquirySync;
+use App\Services\Portal\PortalInviteSender;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Mail;
-use Illuminate\Support\Facades\URL;
 use Illuminate\View\View;
 
 class ClientController extends Controller
@@ -208,7 +206,7 @@ class ClientController extends Controller
             ->with('status', 'Client created from inquiry.');
     }
 
-    public function sendPortalInvite(Client $client): RedirectResponse
+    public function sendPortalInvite(Client $client, PortalInviteSender $inviteSender): RedirectResponse
     {
         if ($client->password !== null) {
             return redirect()
@@ -216,15 +214,8 @@ class ClientController extends Controller
                 ->with('error', 'This client already has portal access. Use the password reset flow instead.');
         }
 
-        $setupUrl = URL::temporarySignedRoute(
-            'portal.invite.show',
-            now()->addDays(7),
-            ['client' => $client->uuid],
-        );
-
         try {
-            Mail::to($client->email, $client->displayName())
-                ->send(new PortalInvite($client, $setupUrl));
+            $inviteSender->send($client);
         } catch (\Throwable $exception) {
             report($exception);
 

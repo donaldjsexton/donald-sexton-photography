@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\PortalInvite;
 use App\Mail\ProposalSent;
 use App\Models\Client;
 use App\Models\Contract;
@@ -57,6 +58,44 @@ class BookingProposalTest extends TestCase
         $this->assertSame(Invoice::STATUS_SENT, $invoice->fresh()->status);
         $this->assertNotNull($invoice->fresh()->sent_at);
         Mail::assertSent(ProposalSent::class, fn (ProposalSent $m) => $m->hasTo('sarah@example.com'));
+    }
+
+    public function test_send_proposal_includes_portal_invite_for_client_without_access(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create();
+        [$client, $contract] = $this->makeProposal();
+
+        $this->actingAs($admin)
+            ->post(route('admin.contracts.send-proposal', $contract))
+            ->assertRedirect(route('admin.contracts.show', $contract));
+
+        Mail::assertSent(ProposalSent::class);
+        Mail::assertSent(PortalInvite::class, fn (PortalInvite $m) => $m->hasTo('sarah@example.com') && $m->client->is($client));
+    }
+
+    public function test_send_proposal_skips_portal_invite_when_client_already_has_access(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->create();
+        $client = Client::factory()->withPortalAccess()->create(['email' => 'sarah@example.com']);
+        $invoice = Invoice::factory()->create([
+            'billable_type' => Client::class,
+            'billable_id' => $client->id,
+            'status' => Invoice::STATUS_DRAFT,
+        ]);
+        $contract = Contract::factory()->create([
+            'billable_type' => Client::class,
+            'billable_id' => $client->id,
+            'invoice_id' => $invoice->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->post(route('admin.contracts.send-proposal', $contract))
+            ->assertRedirect(route('admin.contracts.show', $contract));
+
+        Mail::assertSent(ProposalSent::class);
+        Mail::assertNotSent(PortalInvite::class);
     }
 
     public function test_send_proposal_rejected_without_linked_invoice(): void
