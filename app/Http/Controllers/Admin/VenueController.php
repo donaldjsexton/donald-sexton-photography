@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Venue;
+use App\Tenancy\CurrentSite;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -91,7 +92,7 @@ class VenueController extends Controller
     {
         return $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('venues', 'slug')->ignore($venue?->id)],
+            'slug' => ['nullable', 'string', 'max:255', Rule::unique('venues', 'slug')->where('site_id', app(CurrentSite::class)->id())->ignore($venue?->id)],
             'city' => ['nullable', 'string', 'max:255'],
             'state' => ['nullable', 'string', 'max:255'],
             'region' => ['nullable', 'string', 'max:255'],

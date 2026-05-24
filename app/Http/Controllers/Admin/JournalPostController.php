@@ -9,6 +9,7 @@ use App\Models\JournalPost;
 use App\Models\Media;
 use App\Models\Tag;
 use App\Models\Venue;
+use App\Tenancy\CurrentSite;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -89,7 +90,7 @@ class JournalPostController extends Controller
     {
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('journal_posts', 'slug')->ignore($post?->id)],
+            'slug' => ['nullable', 'string', 'max:255', Rule::unique('journal_posts', 'slug')->where('site_id', app(CurrentSite::class)->id())->ignore($post?->id)],
             'status' => ['required', Rule::in(['draft', 'published', 'archived'])],
             'post_type' => ['required', Rule::in(['advice', 'venue', 'real_wedding', 'engagement', 'brand', 'announcement'])],
             'excerpt' => ['nullable', 'string'],

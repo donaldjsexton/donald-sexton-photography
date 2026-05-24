@@ -8,6 +8,7 @@ use App\Models\Media;
 use App\Models\Tag;
 use App\Models\Venue;
 use App\Models\WeddingStory;
+use App\Tenancy\CurrentSite;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -88,7 +89,7 @@ class WeddingStoryController extends Controller
     {
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('wedding_stories', 'slug')->ignore($story?->id)],
+            'slug' => ['nullable', 'string', 'max:255', Rule::unique('wedding_stories', 'slug')->where('site_id', app(CurrentSite::class)->id())->ignore($story?->id)],
             'status' => ['required', Rule::in(['draft', 'published', 'archived'])],
             'story_type' => ['required', Rule::in(['wedding', 'elopement', 'engagement', 'editorial'])],
             'headline' => ['nullable', 'string', 'max:255'],
