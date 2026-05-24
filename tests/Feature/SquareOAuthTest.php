@@ -26,6 +26,30 @@ class SquareOAuthTest extends TestCase
         ]);
     }
 
+    public function test_payments_tab_exposes_the_square_connect_button(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get(route('admin.settings.edit', ['tab' => 'payments']))
+            ->assertOk()
+            ->assertSee('Connect Square')
+            ->assertSee(route('admin.settings.square.connect'), false);
+    }
+
+    public function test_payments_tab_shows_disconnect_when_connected(): void
+    {
+        SiteSetting::query()->create([
+            'square_merchant_id' => 'M1',
+            'square_access_token' => 'tok',
+            'square_location_id' => 'LOC1',
+        ]);
+
+        $this->actingAs(User::factory()->create())
+            ->get(route('admin.settings.edit', ['tab' => 'payments']))
+            ->assertOk()
+            ->assertSee('Square is connected')
+            ->assertSee(route('admin.settings.square.disconnect'), false);
+    }
+
     public function test_connect_redirects_to_square_with_state(): void
     {
         $response = $this->actingAs(User::factory()->create())
