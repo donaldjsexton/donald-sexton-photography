@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreClientRequest;
 use App\Http\Requests\Admin\UpdateClientRequest;
 use App\Models\Client;
+use App\Models\Contract;
 use App\Models\Inquiry;
+use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\PortalActivity;
 use App\Services\ClientFromInquirySync;
 use App\Services\Portal\PortalInviteSender;
 use Illuminate\Http\RedirectResponse;
@@ -66,11 +69,16 @@ class ClientController extends Controller
             'invoices.payments',
             'contracts' => fn ($q) => $q->latest('issue_date'),
             'contracts.bookedJob',
+            'portalActivities' => fn ($q) => $q->latest(),
+            'portalActivities.subject',
         ]);
 
         return view('admin.clients.show', [
             'client' => $client,
             'timeline' => $this->buildTimeline($client),
+            'loginCount' => $client->portalActivities
+                ->where('type', PortalActivity::TYPE_LOGIN)
+                ->count(),
         ]);
     }
 
@@ -161,9 +169,50 @@ class ClientController extends Controller
             }
         }
 
+        foreach ($client->portalActivities as $activity) {
+            $events[] = $this->portalActivityEvent($activity);
+        }
+
         usort($events, fn ($a, $b) => $b['at'] <=> $a['at']);
 
         return $events;
+    }
+
+    /**
+     * @return array{at: Carbon, kind: string, icon: string, title: string, meta: string, url: ?string}
+     */
+    private function portalActivityEvent(PortalActivity $activity): array
+    {
+        $subject = $activity->subject;
+
+        return match ($activity->type) {
+            PortalActivity::TYPE_CONTRACT_VIEWED => [
+                'at' => $activity->created_at,
+                'kind' => 'view',
+                'icon' => '👁',
+                'title' => ($subject instanceof Contract && $subject->isProposal() ? 'Proposal' : 'Contract').' viewed',
+                'meta' => $subject instanceof Contract ? $subject->number : '',
+                'url' => $subject instanceof Contract ? route('admin.contracts.show', $subject) : null,
+            ],
+            PortalActivity::TYPE_INVOICE_VIEWED => [
+                'at' => $activity->created_at,
+                'kind' => 'view',
+                'icon' => '👁',
+                'title' => 'Invoice viewed',
+                'meta' => $subject instanceof Invoice
+                    ? $subject->number.' · $'.number_format($subject->total_cents / 100, 2)
+                    : '',
+                'url' => $subject instanceof Invoice ? route('admin.invoices.show', $subject) : null,
+            ],
+            default => [
+                'at' => $activity->created_at,
+                'kind' => 'login',
+                'icon' => '🔑',
+                'title' => 'Signed in to portal',
+                'meta' => (string) $activity->ip_address,
+                'url' => null,
+            ],
+        };
     }
 
     public function edit(Client $client): View

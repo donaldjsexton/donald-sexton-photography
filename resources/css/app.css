@@ -5141,6 +5141,16 @@ a.client-feed__link:hover {
     border-color: rgba(73, 98, 76, 0.3);
 }
 
+.client-feed__item--login .client-feed__icon {
+    background: rgba(90, 110, 140, 0.14);
+    border-color: rgba(90, 110, 140, 0.3);
+}
+
+.client-feed__item--view .client-feed__icon {
+    background: rgba(150, 120, 60, 0.12);
+    border-color: rgba(150, 120, 60, 0.28);
+}
+
 .client-feed__body {
     display: grid;
     gap: 0.1rem;

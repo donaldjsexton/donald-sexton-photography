@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Contract;
+use App\Models\PortalActivity;
 use App\Support\Portal;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -18,6 +19,8 @@ class ProposalController extends Controller
         if ($model->viewed_at === null) {
             $model->forceFill(['viewed_at' => now()])->save();
         }
+
+        PortalActivity::record(Portal::user(), PortalActivity::TYPE_CONTRACT_VIEWED, $request, $model);
 
         $invoice = $model->invoice;
         $invoice?->load(['lineItems', 'installments', 'payments']);

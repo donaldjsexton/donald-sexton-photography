@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
+use App\Models\PortalActivity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -42,7 +43,11 @@ class AuthController extends Controller
         $request->session()->regenerate();
 
         $user = Auth::guard('client')->user() ?? Auth::guard('venue')->user();
-        $user?->forceFill(['last_login_at' => now()])->save();
+
+        if ($user !== null) {
+            $user->forceFill(['last_login_at' => now()])->save();
+            PortalActivity::record($user, PortalActivity::TYPE_LOGIN, $request);
+        }
 
         $intended = $request->session()->pull('url.intended');
 

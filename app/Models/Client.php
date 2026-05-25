@@ -89,6 +89,11 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
         return $this->morphMany(Contract::class, 'billable');
     }
 
+    public function portalActivities(): MorphMany
+    {
+        return $this->morphMany(PortalActivity::class, 'actor');
+    }
+
     public function bookedJobs(): HasManyThrough
     {
         return $this->hasManyThrough(BookedJob::class, Inquiry::class);

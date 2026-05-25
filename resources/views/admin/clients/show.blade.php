@@ -107,7 +107,8 @@
                 <ol class="client-feed">
                     @foreach ($timeline as $event)
                         <li class="client-feed__item client-feed__item--{{ $event['kind'] }}">
-                            <a class="client-feed__link" href="{{ $event['url'] }}">
+                            @php($tag = $event['url'] ? 'a' : 'div')
+                            <{{ $tag }} class="client-feed__link" @if ($event['url']) href="{{ $event['url'] }}" @endif>
                                 <span class="client-feed__icon" aria-hidden="true">{{ $event['icon'] }}</span>
                                 <span class="client-feed__body">
                                     <span class="client-feed__title">{{ $event['title'] }}</span>
@@ -118,7 +119,7 @@
                                 <time class="client-feed__time" datetime="{{ optional($event['at'])->toIso8601String() }}">
                                     {{ optional($event['at'])->diffForHumans(null, true) }} ago
                                 </time>
-                            </a>
+                            </{{ $tag }}>
                         </li>
                     @endforeach
                 </ol>
@@ -132,6 +133,9 @@
                     @if ($client->password !== null)
                         <p class="client-muted">
                             Active · {{ $client->last_login_at ? 'last sign-in '.$client->last_login_at->diffForHumans() : 'not signed in yet' }}
+                            @if ($loginCount > 0)
+                                · {{ $loginCount }} {{ Str::plural('sign-in', $loginCount) }}
+                            @endif
                         </p>
                     @else
                         <p class="client-muted">No portal access yet.</p>

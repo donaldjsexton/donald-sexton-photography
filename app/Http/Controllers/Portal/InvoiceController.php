@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
+use App\Models\PortalActivity;
 use App\Services\Invoicing\InvoicePdfRenderer;
 use App\Services\Payments\PayPalGateway;
 use App\Services\Payments\SquareGateway;
@@ -34,6 +35,8 @@ class InvoiceController extends Controller
         if ($model->viewed_at === null) {
             $model->forceFill(['viewed_at' => now()])->save();
         }
+
+        PortalActivity::record(Portal::user(), PortalActivity::TYPE_INVOICE_VIEWED, $request, $model);
 
         $payable = $model->canPayOnline();
 
