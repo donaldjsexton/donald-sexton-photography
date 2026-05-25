@@ -152,6 +152,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::delete('/contracts/{contract}', [AdminContractController::class, 'destroy'])->name('contracts.destroy');
         Route::post('/contracts/{contract}/send', [AdminContractController::class, 'send'])->name('contracts.send');
         Route::post('/contracts/{contract}/send-proposal', [AdminContractController::class, 'sendProposal'])->name('contracts.send-proposal');
+        Route::post('/contracts/{contract}/countersign', [AdminContractController::class, 'countersign'])->name('contracts.countersign');
         Route::post('/contracts/{contract}/void', [AdminContractController::class, 'void'])->name('contracts.void');
         Route::get('/contracts/{contract}/pdf', [AdminContractController::class, 'downloadPdf'])->name('contracts.pdf');
 

@@ -29,7 +29,10 @@
                 <h2 style="margin:0;">{{ $contract->title }}</h2>
             </div>
             <div style="text-align:right;">
-                @if ($contract->isSigned())
+                @if ($contract->isCountersigned())
+                    <span class="pill">Fully executed</span>
+                    <p class="meta" style="margin:6px 0 0;">{{ $contract->countersigned_at?->format('M j, Y') }}</p>
+                @elseif ($contract->isSigned())
                     <span class="pill">Signed</span>
                     <p class="meta" style="margin:6px 0 0;">{{ $contract->signed_at?->format('M j, Y') }}</p>
                 @elseif ($contract->isAwaitingSignature())

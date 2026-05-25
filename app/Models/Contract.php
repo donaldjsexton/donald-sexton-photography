@@ -28,6 +28,8 @@ class Contract extends Model
 
     public const STATUS_SIGNED = 'signed';
 
+    public const STATUS_COUNTERSIGNED = 'countersigned';
+
     public const STATUS_DECLINED = 'declined';
 
     public const STATUS_VOID = 'void';
@@ -49,10 +51,16 @@ class Contract extends Model
         'signer_email',
         'signer_ip',
         'signer_user_agent',
+        'countersigner_name',
+        'countersigner_email',
+        'countersigner_ip',
+        'countersigner_user_agent',
+        'countersigned_by',
         'internal_notes',
         'sent_at',
         'viewed_at',
         'signed_at',
+        'countersigned_at',
         'declined_at',
         'voided_at',
     ];
@@ -65,6 +73,7 @@ class Contract extends Model
             'sent_at' => 'datetime',
             'viewed_at' => 'datetime',
             'signed_at' => 'datetime',
+            'countersigned_at' => 'datetime',
             'declined_at' => 'datetime',
             'voided_at' => 'datetime',
         ];
@@ -79,6 +88,7 @@ class Contract extends Model
             self::STATUS_DRAFT => 'Draft',
             self::STATUS_SENT => 'Sent',
             self::STATUS_SIGNED => 'Signed',
+            self::STATUS_COUNTERSIGNED => 'Counter-signed',
             self::STATUS_DECLINED => 'Declined',
             self::STATUS_VOID => 'Void',
         ];
@@ -138,6 +148,11 @@ class Contract extends Model
         return $this->belongsTo(ContractTemplate::class, 'contract_template_id');
     }
 
+    public function countersignedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'countersigned_by');
+    }
+
     public function billableEmail(): ?string
     {
         $billable = $this->billable;
@@ -175,6 +190,16 @@ class Contract extends Model
     }
 
     public function isSigned(): bool
+    {
+        return in_array($this->status, [self::STATUS_SIGNED, self::STATUS_COUNTERSIGNED], true);
+    }
+
+    public function isCountersigned(): bool
+    {
+        return $this->status === self::STATUS_COUNTERSIGNED;
+    }
+
+    public function awaitsCounterSignature(): bool
     {
         return $this->status === self::STATUS_SIGNED;
     }

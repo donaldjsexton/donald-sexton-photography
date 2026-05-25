@@ -61,6 +61,11 @@ class ContractPolicy
         return $invoice->amount_paid_cents < $invoice->total_cents || $invoice->total_cents === 0;
     }
 
+    public function countersign(User $user, Contract $contract): bool
+    {
+        return $contract->awaitsCounterSignature();
+    }
+
     public function void(User $user, Contract $contract): bool
     {
         return $contract->status !== Contract::STATUS_VOID;

@@ -11,6 +11,14 @@
     @endif
 @endsection
 @section('content')
+    @if ($errors->any())
+        <ul class="errors">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    @endif
+
     <section class="admin-card">
         <div class="field-grid">
             <div>
@@ -39,6 +47,13 @@
                     <strong>{{ $contract->signed_at->format('M j, Y g:i a') }}</strong>
                     @if ($contract->signer_name)
                         <br><span class="meta">By {{ $contract->signer_name }}</span>
+                    @endif
+                @endif
+                @if ($contract->countersigned_at)
+                    <p class="eyebrow" style="margin-top:0.75rem;">Counter-signed</p>
+                    <strong>{{ $contract->countersigned_at->format('M j, Y g:i a') }}</strong>
+                    @if ($contract->countersigner_name)
+                        <br><span class="meta">By {{ $contract->countersigner_name }}</span>
                     @endif
                 @endif
             </div>
@@ -94,6 +109,49 @@
             @if ($contract->signer_user_agent)
                 <p class="meta" style="margin-top:4px; word-break:break-all;">{{ $contract->signer_user_agent }}</p>
             @endif
+        </section>
+    @endif
+
+    @if ($contract->isCountersigned())
+        <section class="admin-card">
+            <h3>Counter-signature</h3>
+            <p style="margin:0;">
+                <strong>{{ $contract->countersigner_name }}</strong>
+                @if ($contract->countersigner_email)
+                    <span class="meta"> · {{ $contract->countersigner_email }}</span>
+                @endif
+            </p>
+            <p class="meta" style="margin-top:6px;">
+                Counter-signed {{ $contract->countersigned_at?->format('M j, Y g:i a') }}
+                @if ($contract->countersigner_ip)
+                    from IP {{ $contract->countersigner_ip }}
+                @endif
+            </p>
+            @if ($contract->countersigner_user_agent)
+                <p class="meta" style="margin-top:4px; word-break:break-all;">{{ $contract->countersigner_user_agent }}</p>
+            @endif
+        </section>
+    @elseif ($contract->awaitsCounterSignature())
+        <section class="admin-card">
+            <h3>Counter-sign &amp; execute</h3>
+            <p style="margin:0 0 1rem;">
+                {{ $contract->billableName() }} has signed. Counter-sign to fully execute this contract.
+                @if ($contract->billableEmail())
+                    The executed copy will be emailed to {{ $contract->billableEmail() }}.
+                @endif
+            </p>
+            <form method="POST" action="{{ route('admin.contracts.countersign', $contract) }}">
+                @csrf
+                <label class="field">
+                    <span>Counter-signer full name</span>
+                    <input type="text" name="countersigner_name" maxlength="255" required value="{{ old('countersigner_name', config('payments.business.name')) }}">
+                </label>
+                <label class="field" style="display:flex; gap:10px; align-items:flex-start;">
+                    <input type="checkbox" name="agreement" value="1" required style="margin-top:6px;">
+                    <span>I am authorized to execute this contract on behalf of {{ config('payments.business.name') }}. My typed name is the studio&rsquo;s electronic signature.</span>
+                </label>
+                <button type="submit" class="cta">Counter-sign &amp; Execute</button>
+            </form>
         </section>
     @endif
 

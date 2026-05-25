@@ -72,6 +72,12 @@
                     <p class="meta" style="margin:6px 0 0;">
                         Signed {{ $contract->signed_at?->format('M j, Y g:i a') }}
                     </p>
+                    @if ($contract->isCountersigned())
+                        <p style="margin:12px 0 0;"><strong>{{ $contract->countersigner_name }}</strong></p>
+                        <p class="meta" style="margin:6px 0 0;">
+                            Counter-signed {{ $contract->countersigned_at?->format('M j, Y g:i a') }}
+                        </p>
+                    @endif
                 </div>
             @endif
 

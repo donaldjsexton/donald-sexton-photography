@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\CountersignContractRequest;
 use App\Http\Requests\Admin\StoreContractRequest;
 use App\Http\Requests\Admin\UpdateContractRequest;
+use App\Mail\ContractCountersigned;
 use App\Mail\ContractSent;
 use App\Mail\ProposalSent;
 use App\Models\BookedJob;
@@ -303,6 +305,36 @@ class ContractController extends Controller
 
         if ($invited) {
             $message .= ' A portal invite was included so they can review, sign, and pay.';
+        }
+
+        return redirect()
+            ->route('admin.contracts.show', $contract)
+            ->with('status', $message);
+    }
+
+    public function countersign(CountersignContractRequest $request, Contract $contract): RedirectResponse
+    {
+        $this->authorize('countersign', $contract);
+
+        $contract->loadMissing('billable');
+        $user = $request->user();
+
+        $contract->forceFill([
+            'status' => Contract::STATUS_COUNTERSIGNED,
+            'countersigner_name' => $request->validated('countersigner_name'),
+            'countersigner_email' => $user->email,
+            'countersigned_by' => $user->id,
+            'countersigner_ip' => $request->ip(),
+            'countersigner_user_agent' => substr((string) $request->userAgent(), 0, 512),
+            'countersigned_at' => now(),
+        ])->save();
+
+        $recipientEmail = $contract->billableEmail();
+        $message = 'Contract counter-signed and fully executed.';
+
+        if ($recipientEmail) {
+            Mail::to($recipientEmail)->send(new ContractCountersigned(contract: $contract));
+            $message .= ' The executed copy was emailed to '.$recipientEmail.'.';
         }
 
         return redirect()

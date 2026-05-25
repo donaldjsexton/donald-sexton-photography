@@ -138,6 +138,16 @@ class ClientController extends Controller
                     'url' => $url,
                 ];
             }
+            if ($contract->countersigned_at) {
+                $events[] = [
+                    'at' => $contract->countersigned_at,
+                    'kind' => 'signed',
+                    'icon' => '🖋️',
+                    'title' => $label.' counter-signed',
+                    'meta' => trim($contract->number.' · '.(string) $contract->countersigner_name, ' ·'),
+                    'url' => $url,
+                ];
+            }
         }
 
         foreach ($client->invoices as $invoice) {

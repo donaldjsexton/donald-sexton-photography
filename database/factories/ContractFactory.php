@@ -55,6 +55,18 @@ class ContractFactory extends Factory
         ]);
     }
 
+    public function countersigned(): static
+    {
+        return $this->signed()->state(fn () => [
+            'status' => Contract::STATUS_COUNTERSIGNED,
+            'countersigned_at' => now(),
+            'countersigner_name' => $this->faker->company(),
+            'countersigner_email' => $this->faker->safeEmail(),
+            'countersigner_ip' => $this->faker->ipv4(),
+            'countersigner_user_agent' => 'Mozilla/5.0',
+        ]);
+    }
+
     public function declined(): static
     {
         return $this->state(fn () => [

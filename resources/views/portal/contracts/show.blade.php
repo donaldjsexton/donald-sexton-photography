@@ -17,12 +17,20 @@
                 <span class="pill" style="margin-top:8px;">{{ \App\Models\Contract::statusOptions()[$contract->status] ?? $contract->status }}</span>
             </div>
             <div style="text-align:right;">
-                @if ($contract->isSigned())
+                @if ($contract->isCountersigned())
+                    <h3>Fully executed</h3>
+                    <p style="margin:0; font-weight:600;">{{ $contract->countersigned_at?->format('M j, Y') }}</p>
+                    <p class="meta" style="margin:4px 0 0;">
+                        Signed by {{ $contract->signer_name }}<br>
+                        Counter-signed by {{ $contract->countersigner_name }}
+                    </p>
+                @elseif ($contract->isSigned())
                     <h3>Signed</h3>
                     <p style="margin:0; font-weight:600;">{{ $contract->signed_at?->format('M j, Y') }}</p>
                     @if ($contract->signer_name)
                         <p class="meta" style="margin:4px 0 0;">by {{ $contract->signer_name }}</p>
                     @endif
+                    <p class="meta" style="margin:4px 0 0;">Awaiting studio counter-signature</p>
                 @elseif ($contract->isAwaitingSignature())
                     <h3>Action needed</h3>
                     <p style="margin:0; font-weight:600;">Awaiting your signature</p>

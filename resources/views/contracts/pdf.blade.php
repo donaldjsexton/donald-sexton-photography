@@ -138,6 +138,21 @@
                 @endif
             </p>
         </div>
+        @if ($contract->isCountersigned())
+            <div class="signature-block">
+                <h3>Counter-signed by</h3>
+                <p class="name">{{ $contract->countersigner_name }}</p>
+                <p class="meta">
+                    {{ $contract->countersigned_at?->format('F j, Y \a\t g:i a') }}
+                    @if ($contract->countersigner_email)
+                        · {{ $contract->countersigner_email }}
+                    @endif
+                    @if ($contract->countersigner_ip)
+                        · IP {{ $contract->countersigner_ip }}
+                    @endif
+                </p>
+            </div>
+        @endif
     @elseif (! empty($signUrl) && ! $contract->isVoided())
         <div class="sign-link">
             <div class="label">View and sign online</div>
