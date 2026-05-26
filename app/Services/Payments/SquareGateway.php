@@ -73,7 +73,7 @@ class SquareGateway
         try {
             $response = $this->squareClient()->payments->create(new CreatePaymentRequest([
                 'sourceId' => $sourceId,
-                'idempotencyKey' => 'invoice-'.$invoice->id.'-'.Str::uuid(),
+                'idempotencyKey' => (string) Str::uuid(),
                 'amountMoney' => new Money([
                     'amount' => $amountCents,
                     'currency' => $invoice->currency ?: 'USD',
