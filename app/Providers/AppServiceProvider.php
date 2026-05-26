@@ -16,8 +16,10 @@ use App\Support\HomeContent;
 use App\Tenancy\CurrentSite;
 use App\Tenancy\DnsTxtDomainVerifier;
 use App\Tenancy\DomainVerifier;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Mail\MailManager;
 use Illuminate\Pagination\Paginator;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
@@ -65,5 +67,12 @@ class AppServiceProvider extends ServiceProvider
         JournalPost::observe(IndexNowObserver::class);
         WeddingStory::observe(IndexNowObserver::class);
         Page::observe(IndexNowObserver::class);
+
+        ResetPassword::createUrlUsing(function ($notifiable, string $token): string {
+            return URL::route('portal.password.reset', [
+                'token' => $token,
+                'email' => $notifiable->getEmailForPasswordReset(),
+            ]);
+        });
     }
 }
