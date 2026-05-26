@@ -106,6 +106,21 @@ class ClientPortalAuthTest extends TestCase
         Notification::assertSentTo($client, ResetPassword::class);
     }
 
+    public function test_reset_password_notification_links_to_portal_route(): void
+    {
+        $client = Client::factory()->create(['email' => 'sarah@example.com']);
+        $notification = new ResetPassword('test-token');
+
+        $mail = $notification->toMail($client);
+
+        $expectedUrl = route('portal.password.reset', [
+            'token' => 'test-token',
+            'email' => 'sarah@example.com',
+        ]);
+
+        $this->assertSame($expectedUrl, $mail->actionUrl);
+    }
+
     public function test_reset_password_updates_credentials(): void
     {
         Notification::fake();
