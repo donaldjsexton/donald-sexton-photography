@@ -95,6 +95,38 @@ class SquareGatewayTest extends TestCase
         $this->assertSame('sq-order-1', $result->gatewayOrderId);
     }
 
+    public function test_charge_sends_idempotency_key_within_square_length_limit(): void
+    {
+        $this->primeSandboxConfig();
+        $invoice = $this->makeInvoice(50000);
+
+        $payment = (new Payment)
+            ->setId('sq-pay-789')
+            ->setStatus('COMPLETED')
+            ->setAmountMoney(new Money(['amount' => 50000, 'currency' => 'USD']));
+
+        $payments = Mockery::mock(PaymentsClient::class);
+        $capturedRequest = null;
+        $payments->shouldReceive('create')
+            ->once()
+            ->with(Mockery::on(function ($request) use (&$capturedRequest) {
+                $capturedRequest = $request;
+
+                return true;
+            }))
+            ->andReturn(new CreatePaymentResponse(['payment' => $payment]));
+
+        $client = Mockery::mock(SquareClient::class);
+        $client->payments = $payments;
+
+        (new SquareGateway($client))->charge($invoice, 'cnon:abc');
+
+        $this->assertNotNull($capturedRequest);
+        $key = $capturedRequest->getIdempotencyKey();
+        $this->assertNotEmpty($key);
+        $this->assertLessThanOrEqual(45, strlen($key));
+    }
+
     public function test_charge_returns_failed_when_payment_status_is_not_completed(): void
     {
         $this->primeSandboxConfig();
