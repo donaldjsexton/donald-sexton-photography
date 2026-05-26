@@ -4,11 +4,13 @@ namespace App\Providers;
 
 use App\Mail\GmailApiTransport;
 use App\Models\HomepageSetting;
+use App\Models\Invoice;
 use App\Models\JournalPost;
 use App\Models\Page;
 use App\Models\SiteSetting;
 use App\Models\WeddingStory;
 use App\Observers\IndexNowObserver;
+use App\Observers\InvoicePaymentObserver;
 use App\Services\Gmail\GmailApiReader;
 use App\Services\Gmail\GmailReader;
 use App\Services\GoogleClient;
@@ -67,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
         JournalPost::observe(IndexNowObserver::class);
         WeddingStory::observe(IndexNowObserver::class);
         Page::observe(IndexNowObserver::class);
+        Invoice::observe(InvoicePaymentObserver::class);
 
         ResetPassword::createUrlUsing(function ($notifiable, string $token): string {
             return URL::route('portal.password.reset', [
