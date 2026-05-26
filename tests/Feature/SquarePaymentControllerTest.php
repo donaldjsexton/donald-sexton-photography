@@ -184,13 +184,19 @@ class SquarePaymentControllerTest extends TestCase
             $mock->shouldReceive('mode')->andReturn('sandbox');
         });
 
-        $this->actingAs($client, 'client')
+        $response = $this->actingAs($client, 'client')
             ->get(route('portal.invoices.show', ['invoice' => $invoice->uuid]))
             ->assertOk()
             ->assertSee('Pay with card')
             ->assertSee('app-id-from-test', false)
             ->assertSee('loc-id-from-test', false)
             ->assertSee('sandbox.web.squarecdn.com', false);
+
+        // The Square SDK is loaded with `defer`, so the inline initializer must
+        // wait for DOMContentLoaded — otherwise it runs first, finds no
+        // window.Square, and incorrectly shows "Square SDK failed to load".
+        $response->assertSee("document.readyState === 'loading'", false);
+        $response->assertSee("addEventListener('DOMContentLoaded', init)", false);
     }
 
     public function test_portal_show_hides_card_form_when_not_configured(): void

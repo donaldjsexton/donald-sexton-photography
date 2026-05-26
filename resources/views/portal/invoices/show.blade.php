@@ -170,37 +170,45 @@
             var sourceField = document.getElementById('square-source-id');
             var verificationField = document.getElementById('square-verification-token');
 
-            if (!window.Square) {
-                errEl.textContent = 'Card payment unavailable: Square SDK failed to load.';
-                return;
-            }
+            function init() {
+                if (!window.Square) {
+                    errEl.textContent = 'Card payment unavailable: Square SDK failed to load.';
+                    return;
+                }
 
-            var payments = window.Square.payments(formEl.dataset.appId, formEl.dataset.locationId);
+                var payments = window.Square.payments(formEl.dataset.appId, formEl.dataset.locationId);
 
-            payments.card().then(function (card) {
-                return card.attach('#square-card-container').then(function () {
-                    btn.disabled = false;
-                    btn.addEventListener('click', function () {
-                        btn.disabled = true;
-                        errEl.textContent = '';
-                        card.tokenize().then(function (result) {
-                            if (result.status !== 'OK') {
-                                errEl.textContent = (result.errors || []).map(function (e) { return e.message; }).join(' ') || 'Card could not be processed.';
+                payments.card().then(function (card) {
+                    return card.attach('#square-card-container').then(function () {
+                        btn.disabled = false;
+                        btn.addEventListener('click', function () {
+                            btn.disabled = true;
+                            errEl.textContent = '';
+                            card.tokenize().then(function (result) {
+                                if (result.status !== 'OK') {
+                                    errEl.textContent = (result.errors || []).map(function (e) { return e.message; }).join(' ') || 'Card could not be processed.';
+                                    btn.disabled = false;
+                                    return;
+                                }
+                                sourceField.value = result.token;
+                                verificationField.value = result.verificationToken || '';
+                                postForm.submit();
+                            }).catch(function (err) {
+                                errEl.textContent = err && err.message ? err.message : 'Card processing failed.';
                                 btn.disabled = false;
-                                return;
-                            }
-                            sourceField.value = result.token;
-                            verificationField.value = result.verificationToken || '';
-                            postForm.submit();
-                        }).catch(function (err) {
-                            errEl.textContent = err && err.message ? err.message : 'Card processing failed.';
-                            btn.disabled = false;
+                            });
                         });
                     });
+                }).catch(function (err) {
+                    errEl.textContent = 'Could not initialise the card form: ' + (err && err.message ? err.message : 'unknown error');
                 });
-            }).catch(function (err) {
-                errEl.textContent = 'Could not initialise the card form: ' + (err && err.message ? err.message : 'unknown error');
-            });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
         })();
         </script>
     @endif
