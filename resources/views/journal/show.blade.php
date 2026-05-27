@@ -25,7 +25,7 @@
 @section('meta_description', $post->seo_description ?: $post->excerpt ?: ($showExternalFallback ? $post->externalGallerySummary() : ''))
 @section('canonical_url', $post->seoCanonicalUrl() ?: url()->current())
 @section('og_type', 'article')
-@section('og_image', $featuredImageForSchema ?: '')
+@section('og_image', route('og.journal', $post->slug))
 @section('og_image_alt', $post->title)
 @section('og_article_published_time', $post->published_at?->toIso8601String() ?: '')
 @section('og_article_modified_time', $post->updated_at?->toIso8601String() ?: '')
