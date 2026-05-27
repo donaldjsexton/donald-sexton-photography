@@ -37,10 +37,10 @@
                 <tbody>
                     @foreach ($invoice->lineItems as $item)
                         <tr>
-                            <td>{{ $item->description }}</td>
-                            <td class="num">{{ rtrim(rtrim(number_format($item->quantity, 2), '0'), '.') }}</td>
-                            <td class="num">${{ number_format($item->unit_price_cents / 100, 2) }}</td>
-                            <td class="num">${{ number_format($item->total_cents / 100, 2) }}</td>
+                            <td data-label="Description">{{ $item->description }}</td>
+                            <td class="num" data-label="Qty">{{ rtrim(rtrim(number_format($item->quantity, 2), '0'), '.') }}</td>
+                            <td class="num" data-label="Unit">${{ number_format($item->unit_price_cents / 100, 2) }}</td>
+                            <td class="num" data-label="Total">${{ number_format($item->total_cents / 100, 2) }}</td>
                         </tr>
                     @endforeach
                 </tbody>
@@ -74,11 +74,11 @@
                     <tbody>
                         @foreach ($invoice->installments as $inst)
                             <tr>
-                                <td>{{ $inst->label ?: 'Installment '.$inst->sequence }}</td>
-                                <td>{{ $inst->due_date?->format('M j, Y') ?: '—' }}</td>
-                                <td class="num">${{ number_format($inst->amount_cents / 100, 2) }}</td>
-                                <td class="num">${{ number_format($inst->amount_paid_cents / 100, 2) }}</td>
-                                <td><span class="pill">{{ ucfirst(str_replace('_', ' ', $inst->status)) }}</span></td>
+                                <td data-label="Label">{{ $inst->label ?: 'Installment '.$inst->sequence }}</td>
+                                <td data-label="Due">{{ $inst->due_date?->format('M j, Y') ?: '—' }}</td>
+                                <td class="num" data-label="Amount">${{ number_format($inst->amount_cents / 100, 2) }}</td>
+                                <td class="num" data-label="Paid">${{ number_format($inst->amount_paid_cents / 100, 2) }}</td>
+                                <td data-label="Status"><span class="pill">{{ ucfirst(str_replace('_', ' ', $inst->status)) }}</span></td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -101,10 +101,10 @@
                     <tbody>
                         @foreach ($invoice->payments->where('status', \App\Models\Payment::STATUS_COMPLETED) as $payment)
                             <tr>
-                                <td>{{ $payment->received_at?->format('M j, Y') ?: $payment->created_at?->format('M j, Y') }}</td>
-                                <td>{{ \App\Models\Payment::gatewayOptions()[$payment->gateway] ?? $payment->gateway }}</td>
-                                <td class="num">${{ number_format($payment->amount_cents / 100, 2) }}</td>
-                                <td><span class="pill">{{ ucfirst($payment->status) }}</span></td>
+                                <td data-label="Received">{{ $payment->received_at?->format('M j, Y') ?: $payment->created_at?->format('M j, Y') }}</td>
+                                <td data-label="Method">{{ \App\Models\Payment::gatewayOptions()[$payment->gateway] ?? $payment->gateway }}</td>
+                                <td class="num" data-label="Amount">${{ number_format($payment->amount_cents / 100, 2) }}</td>
+                                <td data-label="Status"><span class="pill">{{ ucfirst($payment->status) }}</span></td>
                             </tr>
                         @endforeach
                     </tbody>

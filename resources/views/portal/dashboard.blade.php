@@ -66,11 +66,11 @@
                 <tbody>
                     @foreach ($invoices->take(8) as $invoice)
                         <tr>
-                            <td><strong>{{ $invoice->number }}</strong></td>
-                            <td>{{ $invoice->issue_date?->format('M j, Y') }}</td>
-                            <td><span class="pill">{{ \App\Models\Invoice::statusOptions()[$invoice->status] ?? $invoice->status }}</span></td>
-                            <td class="num">${{ number_format($invoice->total_cents / 100, 2) }}</td>
-                            <td class="num">${{ number_format($invoice->amountDueCents() / 100, 2) }}</td>
+                            <td data-label="Number"><strong>{{ $invoice->number }}</strong></td>
+                            <td data-label="Issued">{{ $invoice->issue_date?->format('M j, Y') }}</td>
+                            <td data-label="Status"><span class="pill">{{ \App\Models\Invoice::statusOptions()[$invoice->status] ?? $invoice->status }}</span></td>
+                            <td class="num" data-label="Total">${{ number_format($invoice->total_cents / 100, 2) }}</td>
+                            <td class="num" data-label="Balance">${{ number_format($invoice->amountDueCents() / 100, 2) }}</td>
                             <td><a href="{{ route('portal.invoices.show', ['invoice' => $invoice->uuid]) }}">View</a></td>
                         </tr>
                     @endforeach

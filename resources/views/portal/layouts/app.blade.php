@@ -50,6 +50,21 @@
         @media (max-width: 600px) {
             .grid-3 { grid-template-columns: 1fr; }
             .card { padding: 18px; }
+            .card table thead tr { position: absolute; clip: rect(0 0 0 0); width: 1px; height: 1px; overflow: hidden; white-space: nowrap; }
+            .card table, .card table tbody, .card table tr, .card table td { display: block; width: 100%; }
+            .card table tr { padding: 14px 0; border-bottom: 1px solid #e7d8c5; }
+            .card table tbody tr:last-child { border-bottom: 0; padding-bottom: 0; }
+            .card table tbody tr:first-child { padding-top: 4px; }
+            .card table td { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 0; border: 0; text-align: right; }
+            .card table td::before { content: attr(data-label); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #6b5446; font-weight: 600; text-align: left; flex: 0 0 auto; }
+            .card table td.num { text-align: right; }
+            .card table td:last-child:not([data-label]) { justify-content: flex-end; margin-top: 8px; }
+            .card table td:last-child:not([data-label])::before { content: none; }
+            .card table td:last-child:not([data-label]) a { display: inline-block; padding: 10px 18px; min-height: 44px; line-height: 24px; box-sizing: border-box; background: #2d1d15; color: #fff; border-radius: 8px; text-decoration: none; font-size: 14px; font-weight: 600; }
+            .card table tfoot tr { display: flex; justify-content: space-between; align-items: baseline; padding: 4px 0; border: 0; }
+            .card table tfoot td { display: inline; padding: 0; border: 0; text-align: left; flex: 0 1 auto; margin: 0; }
+            .card table tfoot td:last-child { text-align: right; margin-top: 0; }
+            .card table tfoot td::before { content: none; }
         }
     </style>
 </head>

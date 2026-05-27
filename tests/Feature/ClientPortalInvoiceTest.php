@@ -41,6 +41,26 @@ class ClientPortalInvoiceTest extends TestCase
             ->assertSee($sentInvoice->number);
     }
 
+    public function test_dashboard_recent_invoices_table_includes_mobile_data_labels(): void
+    {
+        $client = Client::factory()->create();
+        $invoice = Invoice::factory()->sent()->create([
+            'billable_type' => Client::class, 'billable_id' => $client->id,
+            'total_cents' => 25000,
+            'amount_paid_cents' => 25000,
+        ]);
+
+        $response = $this->actingAs($client, 'client')->get(route('portal.dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('data-label="Number"', false);
+        $response->assertSee('data-label="Issued"', false);
+        $response->assertSee('data-label="Status"', false);
+        $response->assertSee('data-label="Total"', false);
+        $response->assertSee('data-label="Balance"', false);
+        $response->assertSee($invoice->number);
+    }
+
     public function test_dashboard_hides_draft_invoices(): void
     {
         $client = Client::factory()->create();
