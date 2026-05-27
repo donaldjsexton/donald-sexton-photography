@@ -44,6 +44,12 @@
         ])->filter()->implode(' · ');
     @endphp
 
+    <x-editorial.breadcrumbs :items="[
+        ['name' => 'Home', 'url' => route('home')],
+        ['name' => 'Weddings', 'url' => route('weddings.index')],
+        ['name' => $story->title, 'url' => ''],
+    ]" />
+
     <x-editorial.page-hero
         :eyebrow="$story->story_type_label"
         :title="$story->title"

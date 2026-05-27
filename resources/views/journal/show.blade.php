@@ -46,6 +46,12 @@
         $nativeGallery = $pictime->nativeGallery();
     @endphp
 
+    <x-editorial.breadcrumbs :items="[
+        ['name' => 'Home', 'url' => route('home')],
+        ['name' => 'Journal', 'url' => route('journal.index')],
+        ['name' => $post->title, 'url' => ''],
+    ]" />
+
     <x-editorial.page-hero
         :eyebrow="$post->post_type_label"
         :title="$post->title"

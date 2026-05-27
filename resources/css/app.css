@@ -2134,6 +2134,71 @@ img {
     margin-bottom: 2.2rem;
 }
 
+.breadcrumbs {
+    padding: 1.4rem 0 0;
+}
+
+.breadcrumbs__list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem 0.55rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+}
+
+.breadcrumbs__item:not(:last-child)::after {
+    content: '/';
+    margin-left: 0.55rem;
+    color: rgba(42, 27, 18, 0.35);
+}
+
+.breadcrumbs__link {
+    color: var(--muted);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 160ms ease, color 160ms ease;
+}
+
+.breadcrumbs__link:hover,
+.breadcrumbs__link:focus-visible {
+    color: var(--ink);
+    border-bottom-color: currentColor;
+}
+
+.breadcrumbs__current {
+    color: var(--ink);
+}
+
+.venue-faqs {
+    margin: 0;
+    display: grid;
+    gap: 1.6rem;
+}
+
+.venue-faqs__item {
+    display: grid;
+    gap: 0.45rem;
+}
+
+.venue-faqs__question {
+    margin: 0;
+    font-family: inherit;
+    font-size: 1.1rem;
+    font-weight: 500;
+    color: var(--ink);
+}
+
+.venue-faqs__answer {
+    margin: 0;
+    color: var(--muted);
+    line-height: 1.65;
+}
+
 .section-header--centered {
     justify-items: center;
     text-align: center;
