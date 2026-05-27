@@ -9,7 +9,8 @@ class ArtisanCommandRegistry
 {
     /**
      * Commands that must never be runnable from the web admin. Either destructive,
-     * interactive, daemon, or scaffolding-only.
+     * interactive, daemon, scaffolding-only, or write to deploy-owned paths that
+     * the PHP-FPM user cannot touch (e.g. bootstrap/cache/*).
      *
      * @var list<string>
      */
@@ -39,6 +40,16 @@ class ArtisanCommandRegistry
         'schedule:work',
         'model:prune',
         'clear-compiled',
+        'optimize',
+        'optimize:clear',
+        'config:cache',
+        'config:clear',
+        'route:cache',
+        'route:clear',
+        'view:cache',
+        'view:clear',
+        'event:cache',
+        'event:clear',
     ];
 
     /**

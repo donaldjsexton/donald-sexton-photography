@@ -20,6 +20,27 @@ class ArtisanCommandRegistryTest extends TestCase
         $this->assertNotContains('queue:work', $names);
     }
 
+    public function test_grouped_excludes_bootstrap_cache_writing_commands(): void
+    {
+        $registry = new ArtisanCommandRegistry;
+
+        $names = $this->flatten($registry->grouped());
+
+        $this->assertNotContains('optimize', $names);
+        $this->assertNotContains('optimize:clear', $names);
+        $this->assertNotContains('config:cache', $names);
+        $this->assertNotContains('config:clear', $names);
+        $this->assertNotContains('route:cache', $names);
+        $this->assertNotContains('route:clear', $names);
+        $this->assertNotContains('view:cache', $names);
+        $this->assertNotContains('view:clear', $names);
+        $this->assertNotContains('event:cache', $names);
+        $this->assertNotContains('event:clear', $names);
+
+        $this->assertFalse($registry->isAllowed('optimize'));
+        $this->assertFalse($registry->isAllowed('config:cache'));
+    }
+
     public function test_grouped_excludes_denied_namespaces(): void
     {
         $registry = new ArtisanCommandRegistry;
