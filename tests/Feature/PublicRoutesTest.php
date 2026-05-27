@@ -1301,14 +1301,14 @@ HTML,
             'published_at' => now()->subDay(),
         ]);
 
-        $absoluteImage = url($hero->publicUrl());
+        $ogImage = route('og.journal', $post->slug);
 
         $this->get('/journal/'.$post->slug)
             ->assertOk()
             ->assertSee('<meta property="og:type" content="article">', false)
-            ->assertSee('<meta property="og:image" content="'.$absoluteImage.'">', false)
+            ->assertSee('<meta property="og:image" content="'.$ogImage.'">', false)
             ->assertSee('<meta property="og:image:alt" content="OG Image Journal Post">', false)
-            ->assertSee('<meta name="twitter:image" content="'.$absoluteImage.'">', false)
+            ->assertSee('<meta name="twitter:image" content="'.$ogImage.'">', false)
             ->assertSee('<meta property="article:published_time" content="'.$post->published_at->toIso8601String().'">', false)
             ->assertSee('<meta property="article:author" content="Donald Sexton">', false);
     }
@@ -1332,13 +1332,13 @@ HTML,
             'published_at' => now()->subDay(),
         ]);
 
-        $absoluteImage = url($hero->publicUrl());
+        $ogImage = route('og.story', $story->slug);
 
         $this->get('/weddings/'.$story->slug)
             ->assertOk()
             ->assertSee('<meta property="og:type" content="article">', false)
-            ->assertSee('<meta property="og:image" content="'.$absoluteImage.'">', false)
-            ->assertSee('<meta name="twitter:image" content="'.$absoluteImage.'">', false);
+            ->assertSee('<meta property="og:image" content="'.$ogImage.'">', false)
+            ->assertSee('<meta name="twitter:image" content="'.$ogImage.'">', false);
     }
 
     public function test_pages_without_a_featured_image_omit_og_image_when_no_default_configured(): void

@@ -43,6 +43,23 @@ class StructuredData
         $logo = (string) config('seo.default_og_image', '');
         $logoUrl = $logo === '' ? null : (preg_match('#^https?://#i', $logo) ? $logo : url($logo));
 
+        $settings = SiteSetting::current();
+        $phone = trim((string) ($settings->business_phone ?? ''));
+        $email = trim((string) ($settings->business_email ?? ''));
+        $priceRange = trim((string) ($settings->business_price_range ?? '')) ?: '$$$';
+
+        $address = self::compact([
+            '@type' => 'PostalAddress',
+            'streetAddress' => trim((string) ($settings->business_street_address ?? '')) ?: null,
+            'addressLocality' => trim((string) ($settings->business_locality ?? '')) ?: 'Clearwater',
+            'addressRegion' => trim((string) ($settings->business_region ?? '')) ?: 'FL',
+            'postalCode' => trim((string) ($settings->business_postal_code ?? '')) ?: null,
+            'addressCountry' => trim((string) ($settings->business_country ?? '')) ?: 'US',
+        ]);
+
+        $geo = self::geoCoordinates($settings);
+        $hoursSpec = self::openingHoursSpecification($settings);
+
         return self::compact([
             '@context' => 'https://schema.org',
             '@type' => 'WeddingPhotographer',
@@ -52,13 +69,12 @@ class StructuredData
             'description' => 'Calm wedding photography for Clearwater, Tampa, and beyond.',
             'image' => $logoUrl,
             'logo' => $logoUrl,
-            'priceRange' => '$$$',
-            'address' => [
-                '@type' => 'PostalAddress',
-                'addressLocality' => 'Clearwater',
-                'addressRegion' => 'FL',
-                'addressCountry' => 'US',
-            ],
+            'priceRange' => $priceRange,
+            'telephone' => $phone !== '' ? $phone : null,
+            'email' => $email !== '' ? $email : null,
+            'address' => $address,
+            'geo' => $geo,
+            'openingHoursSpecification' => $hoursSpec,
             'areaServed' => [
                 ['@type' => 'City', 'name' => 'Clearwater'],
                 ['@type' => 'City', 'name' => 'Tampa'],
@@ -108,6 +124,55 @@ class StructuredData
             'aggregateRating' => self::aggregateRating(),
             'review' => self::reviews(),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function geoCoordinates(SiteSetting $settings): ?array
+    {
+        $lat = $settings->business_latitude;
+        $lng = $settings->business_longitude;
+
+        if ($lat === null || $lng === null) {
+            return null;
+        }
+
+        $lat = (float) $lat;
+        $lng = (float) $lng;
+
+        if ($lat === 0.0 && $lng === 0.0) {
+            return null;
+        }
+
+        return [
+            '@type' => 'GeoCoordinates',
+            'latitude' => $lat,
+            'longitude' => $lng,
+        ];
+    }
+
+    /**
+     * Wedding photography is by-appointment, so we model availability as a
+     * `Mon-Sun 09:00-18:00` window unless the admin overrides the note.
+     *
+     * @return array<int, array<string, mixed>>|null
+     */
+    private static function openingHoursSpecification(SiteSetting $settings): ?array
+    {
+        $note = trim((string) ($settings->business_hours_note ?? ''));
+
+        if ($note === '') {
+            return null;
+        }
+
+        return [[
+            '@type' => 'OpeningHoursSpecification',
+            'dayOfWeek' => ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+            'opens' => '09:00',
+            'closes' => '18:00',
+            'description' => $note,
+        ]];
     }
 
     /**

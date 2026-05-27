@@ -41,6 +41,17 @@ class SiteSetting extends Model
         'bing_site_verification',
         'pinterest_site_verification',
         'indexnow_key',
+        'business_phone',
+        'business_email',
+        'business_street_address',
+        'business_locality',
+        'business_region',
+        'business_postal_code',
+        'business_country',
+        'business_latitude',
+        'business_longitude',
+        'business_hours_note',
+        'business_price_range',
     ];
 
     protected $casts = [
@@ -51,6 +62,8 @@ class SiteSetting extends Model
         'square_access_token' => 'encrypted',
         'square_refresh_token' => 'encrypted',
         'square_token_expires_at' => 'datetime',
+        'business_latitude' => 'decimal:7',
+        'business_longitude' => 'decimal:7',
     ];
 
     protected $hidden = [

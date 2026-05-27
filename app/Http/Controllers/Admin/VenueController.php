@@ -107,6 +107,7 @@ class VenueController extends Controller
             'is_featured' => ['nullable', 'boolean'],
             'seo_title' => ['nullable', 'string', 'max:255'],
             'seo_description' => ['nullable', 'string'],
+            'faqs_text' => ['nullable', 'string', 'max:8000'],
 
             'business_name' => ['nullable', 'string', 'max:255'],
             'billing_email' => ['nullable', 'email', 'max:255'],
@@ -128,18 +129,54 @@ class VenueController extends Controller
     private function fillVenue(Venue $venue, array $validated): void
     {
         $portalPassword = $validated['portal_password'] ?? null;
-        unset($validated['portal_password']);
+        $faqsText = $validated['faqs_text'] ?? null;
+        unset($validated['portal_password'], $validated['faqs_text']);
 
         $venue->fill($validated);
         $venue->slug = ! empty($validated['slug']) ? $validated['slug'] : Str::slug($validated['name']);
         $venue->is_featured = (bool) ($validated['is_featured'] ?? false);
         $venue->referral_emails = $this->parseReferralEmails($validated['referral_emails'] ?? null);
+        $venue->faqs = $this->parseFaqs($faqsText);
 
         if (filled($portalPassword)) {
             $venue->password = $portalPassword;
         }
 
         $venue->save();
+    }
+
+    /**
+     * Parse the admin textarea into `[{question, answer}, ...]`. Each FAQ is
+     * a line in the form `Question | Answer` — blank lines are ignored,
+     * everything else is dropped to avoid bad schema output.
+     *
+     * @return array<int, array{question: string, answer: string}>|null
+     */
+    private function parseFaqs(?string $raw): ?array
+    {
+        if ($raw === null || trim($raw) === '') {
+            return null;
+        }
+
+        $faqs = collect(preg_split('/\r\n|\r|\n/', $raw))
+            ->map(fn ($line) => trim((string) $line))
+            ->filter(fn (string $line) => $line !== '' && str_contains($line, '|'))
+            ->map(function (string $line): ?array {
+                [$question, $answer] = array_pad(explode('|', $line, 2), 2, '');
+                $question = trim($question);
+                $answer = trim($answer);
+
+                if ($question === '' || $answer === '') {
+                    return null;
+                }
+
+                return ['question' => $question, 'answer' => $answer];
+            })
+            ->filter()
+            ->values()
+            ->all();
+
+        return $faqs === [] ? null : $faqs;
     }
 
     /**

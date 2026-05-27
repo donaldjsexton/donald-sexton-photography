@@ -17,6 +17,9 @@
             'referral_emails',
             is_array($venue->referral_emails) ? implode(', ', $venue->referral_emails) : ''
         );
+        $faqsText = old('faqs_text', collect($venue->structuredFaqs())
+            ->map(fn (array $item) => $item['question'].' | '.$item['answer'])
+            ->implode("\n"));
     @endphp
 
     <form
@@ -132,6 +135,13 @@
                 <textarea name="seo_description" rows="3">{{ old('seo_description', $venue->seo_description) }}</textarea>
             </label>
         </div>
+
+        <label>
+            FAQs
+            <textarea name="faqs_text" rows="6" placeholder="Has anyone gotten married here? | Yes — we've covered several weddings here, and the courtyard light around sunset is especially good.
+What time of day looks best at this venue? | Late afternoon through golden hour, with sunset around the west lawn.">{{ $faqsText }}</textarea>
+            <span class="meta">One FAQ per line, formatted <code>Question | Answer</code>. These render on the venue page and emit FAQPage schema so Google can surface them in search.</span>
+        </label>
 
         <h3 style="margin-top:2rem;">Billing &amp; portal</h3>
         <p class="meta" style="margin-top:0;">Fill these in if you invoice this venue. The billing email + portal password let them log in at /portal to view their invoices.</p>

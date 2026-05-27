@@ -12,7 +12,7 @@
 @section('meta_description', $story->seo_description ?: $presentation['hero_copy'] ?: ($showExternalFallback ? $story->externalGallerySummary() : ''))
 @section('canonical_url', $story->seoCanonicalUrl() ?: url()->current())
 @section('og_type', 'article')
-@section('og_image', $storyFeaturedImage ?: '')
+@section('og_image', route('og.story', $story->slug))
 @section('og_image_alt', $story->title)
 @section('og_article_published_time', $story->published_at?->toIso8601String() ?: '')
 @section('og_article_modified_time', $story->updated_at?->toIso8601String() ?: '')
@@ -43,6 +43,12 @@
             $story->event_date?->format('F j, Y'),
         ])->filter()->implode(' · ');
     @endphp
+
+    <x-editorial.breadcrumbs :items="[
+        ['name' => 'Home', 'url' => route('home')],
+        ['name' => 'Weddings', 'url' => route('weddings.index')],
+        ['name' => $story->title, 'url' => ''],
+    ]" />
 
     <x-editorial.page-hero
         :eyebrow="$story->story_type_label"
