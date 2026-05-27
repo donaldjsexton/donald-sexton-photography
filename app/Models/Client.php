@@ -46,9 +46,17 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
         'postal_code',
         'country',
         'notes',
+        'communication_preferences',
+        'social_media_consent',
         'password',
         'email_verified_at',
         'last_login_at',
+    ];
+
+    public const COMMUNICATION_CHANNELS = [
+        'email' => 'Email',
+        'sms' => 'Text message (SMS)',
+        'phone' => 'Phone call',
     ];
 
     protected $hidden = [
@@ -62,6 +70,8 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
+            'communication_preferences' => 'array',
+            'social_media_consent' => 'boolean',
         ];
     }
 

@@ -38,7 +38,21 @@
         .btn-secondary { background: transparent; color: #2d1d15; border: 1px solid #2d1d15; }
         .field { display: block; margin-bottom: 16px; font-size: 14px; }
         .field span { display: block; margin-bottom: 6px; color: #6b5446; }
-        .field input { width: 100%; padding: 12px 14px; border: 1px solid #d9c8b8; border-radius: 8px; font-size: 16px; min-height: 44px; box-sizing: border-box; background: #fff; color: #2d1d15; }
+        .field input, .field select, .field textarea { width: 100%; padding: 12px 14px; border: 1px solid #d9c8b8; border-radius: 8px; font-size: 16px; min-height: 44px; box-sizing: border-box; background: #fff; color: #2d1d15; font-family: inherit; }
+        .field textarea { min-height: 96px; resize: vertical; }
+        .field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+        .field-grid > .field { margin-bottom: 0; }
+        .field-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .check-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+        .check { display: flex; align-items: flex-start; gap: 12px; font-size: 14px; cursor: pointer; }
+        .check input { margin: 4px 0 0; width: 18px; height: 18px; flex: 0 0 18px; }
+        .check .label { color: #2d1d15; }
+        .check .help { display: block; color: #6b5446; font-size: 13px; margin-top: 2px; }
+        .form-section { margin-top: 8px; padding-top: 24px; border-top: 1px solid #e7d8c5; }
+        .form-section:first-of-type { margin-top: 0; padding-top: 0; border-top: 0; }
+        @media (max-width: 600px) {
+            .field-grid, .field-grid--3 { grid-template-columns: 1fr; }
+        }
         .errors { margin: 0 0 16px; padding: 12px 16px; background: #fbe9e0; border: 1px solid #e2a48c; border-radius: 8px; font-size: 14px; color: #6e2d18; }
         .flash { margin: 0 0 16px; padding: 12px 16px; background: #e8f1e2; border: 1px solid #aac49a; border-radius: 8px; font-size: 14px; color: #355a26; }
         .auth-shell { display: flex; justify-content: center; padding: 48px 16px; min-height: 100vh; box-sizing: border-box; }
@@ -82,6 +96,9 @@
                     <a href="{{ route('portal.dashboard') }}" class="{{ request()->routeIs('portal.dashboard') ? 'is-active' : '' }}">Overview</a>
                     <a href="{{ route('portal.invoices.index') }}" class="{{ request()->routeIs('portal.invoices.*') ? 'is-active' : '' }}">Invoices</a>
                     <a href="{{ route('portal.contracts.index') }}" class="{{ request()->routeIs('portal.contracts.*') ? 'is-active' : '' }}">Contracts</a>
+                    @if (\App\Support\Portal::user() instanceof \App\Models\Client)
+                        <a href="{{ route('portal.settings.edit') }}" class="{{ request()->routeIs('portal.settings.*') ? 'is-active' : '' }}">Settings</a>
+                    @endif
                     <span class="meta">{{ \App\Support\Portal::user()?->portalGreeting() }}</span>
                     <form method="POST" action="{{ route('portal.logout') }}">
                         @csrf
