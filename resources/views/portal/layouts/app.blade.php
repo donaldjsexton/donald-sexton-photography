@@ -13,14 +13,16 @@
         body { margin: 0; font-family: 'Helvetica Neue', Arial, sans-serif; color: #2d1d15; background: #f6efe6; }
         a { color: #2d1d15; }
         .portal-shell { max-width: 880px; margin: 0 auto; padding: 24px 20px 64px; }
-        .portal-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+        .portal-header { display: flex; flex-direction: column; gap: 16px; margin-bottom: 24px; }
+        .portal-header__top { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px; }
         .portal-header__brand p { margin: 0; font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: #7a6555; }
         .portal-header__brand h1 { margin: 4px 0 0; font-size: 18px; letter-spacing: 0.04em; }
+        .portal-header__account { display: flex; align-items: center; gap: 14px; font-size: 14px; flex-shrink: 0; }
+        .portal-header__account form { display: inline; }
+        .portal-header__account button { background: none; border: 0; cursor: pointer; font: inherit; color: #6b5446; padding: 8px 4px; min-height: 44px; }
         .portal-header__nav { display: flex; gap: 18px; flex-wrap: wrap; align-items: center; font-size: 14px; }
         .portal-header__nav a { text-decoration: none; padding: 8px 4px; min-height: 44px; line-height: 28px; }
         .portal-header__nav a.is-active { font-weight: 600; border-bottom: 2px solid #2d1d15; }
-        .portal-header__nav form { display: inline; }
-        .portal-header__nav button { background: none; border: 0; cursor: pointer; font: inherit; color: #6b5446; padding: 8px 4px; min-height: 44px; }
         .card { background: #fff; border: 1px solid #e7d8c5; border-radius: 12px; padding: 24px; }
         .stack > * + * { margin-top: 24px; }
         .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
@@ -88,9 +90,18 @@
     @hasSection('content')
         <div class="portal-shell">
             <header class="portal-header">
-                <div class="portal-header__brand">
-                    <p>{{ config('payments.business.name') }}</p>
-                    <h1>Client Portal</h1>
+                <div class="portal-header__top">
+                    <div class="portal-header__brand">
+                        <p>{{ config('payments.business.name') }}</p>
+                        <h1>Client Portal</h1>
+                    </div>
+                    <div class="portal-header__account">
+                        <span class="meta">{{ \App\Support\Portal::user()?->portalGreeting() }}</span>
+                        <form method="POST" action="{{ route('portal.logout') }}">
+                            @csrf
+                            <button type="submit">Sign out</button>
+                        </form>
+                    </div>
                 </div>
                 <nav class="portal-header__nav">
                     <a href="{{ route('portal.dashboard') }}" class="{{ request()->routeIs('portal.dashboard') ? 'is-active' : '' }}">Overview</a>
@@ -99,11 +110,6 @@
                     @if (\App\Support\Portal::user() instanceof \App\Models\Client)
                         <a href="{{ route('portal.settings.edit') }}" class="{{ request()->routeIs('portal.settings.*') ? 'is-active' : '' }}">Settings</a>
                     @endif
-                    <span class="meta">{{ \App\Support\Portal::user()?->portalGreeting() }}</span>
-                    <form method="POST" action="{{ route('portal.logout') }}">
-                        @csrf
-                        <button type="submit">Sign out</button>
-                    </form>
                 </nav>
             </header>
 
