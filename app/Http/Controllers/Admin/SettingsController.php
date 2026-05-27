@@ -125,6 +125,17 @@ class SettingsController extends Controller
             'bing_site_verification' => ['nullable', 'string', 'max:255'],
             'pinterest_site_verification' => ['nullable', 'string', 'max:255'],
             'indexnow_key' => ['nullable', 'string', 'regex:/^[a-f0-9]{8,128}$/i'],
+            'business_phone' => ['nullable', 'string', 'max:32'],
+            'business_email' => ['nullable', 'email', 'max:255'],
+            'business_street_address' => ['nullable', 'string', 'max:255'],
+            'business_locality' => ['nullable', 'string', 'max:128'],
+            'business_region' => ['nullable', 'string', 'max:64'],
+            'business_postal_code' => ['nullable', 'string', 'max:32'],
+            'business_country' => ['nullable', 'string', 'size:2'],
+            'business_latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'business_longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'business_hours_note' => ['nullable', 'string', 'max:255'],
+            'business_price_range' => ['nullable', 'string', 'max:16'],
         ], [
             'google_analytics_measurement_id.regex' => 'Use a valid GA4 measurement ID like G-ABC123XYZ.',
             'indexnow_key.regex' => 'IndexNow key must be 8–128 lowercase hex characters.',
@@ -154,6 +165,36 @@ class SettingsController extends Controller
             $siteSettings->indexnow_key = filled($validated['indexnow_key'] ?? null)
                 ? strtolower(trim((string) $validated['indexnow_key']))
                 : null;
+        }
+
+        $businessStringFields = [
+            'business_phone',
+            'business_email',
+            'business_street_address',
+            'business_locality',
+            'business_region',
+            'business_postal_code',
+            'business_hours_note',
+            'business_price_range',
+        ];
+
+        foreach ($businessStringFields as $field) {
+            if ($request->has($field)) {
+                $siteSettings->{$field} = filled($validated[$field] ?? null) ? trim((string) $validated[$field]) : null;
+            }
+        }
+
+        if ($request->has('business_country')) {
+            $siteSettings->business_country = filled($validated['business_country'] ?? null)
+                ? strtoupper(trim((string) $validated['business_country']))
+                : null;
+        }
+
+        foreach (['business_latitude', 'business_longitude'] as $field) {
+            if ($request->has($field)) {
+                $value = $validated[$field] ?? null;
+                $siteSettings->{$field} = ($value === null || $value === '') ? null : (float) $value;
+            }
         }
 
         $siteSettings->save();

@@ -263,6 +263,46 @@ class StructuredDataTest extends TestCase
             ->assertDontSee('google-reviews', false);
     }
 
+    public function test_organization_schema_includes_business_contact_fields_when_set(): void
+    {
+        SiteSetting::create([
+            'business_phone' => '+17275551234',
+            'business_email' => 'hello@donaldsextonphotography.com',
+            'business_street_address' => '123 Beach Drive',
+            'business_locality' => 'Clearwater',
+            'business_region' => 'FL',
+            'business_postal_code' => '33755',
+            'business_country' => 'US',
+            'business_latitude' => 27.9659,
+            'business_longitude' => -82.8001,
+            'business_hours_note' => 'By appointment, Monday through Saturday',
+            'business_price_range' => '$$',
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('"telephone":"+17275551234"', false)
+            ->assertSee('"email":"hello@donaldsextonphotography.com"', false)
+            ->assertSee('"streetAddress":"123 Beach Drive"', false)
+            ->assertSee('"postalCode":"33755"', false)
+            ->assertSee('"@type":"GeoCoordinates"', false)
+            ->assertSee('"latitude":27.9659', false)
+            ->assertSee('"longitude":-82.8001', false)
+            ->assertSee('"@type":"OpeningHoursSpecification"', false)
+            ->assertSee('"priceRange":"$$"', false);
+    }
+
+    public function test_organization_schema_falls_back_to_defaults_when_business_fields_unset(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('"addressLocality":"Clearwater"', false)
+            ->assertSee('"addressRegion":"FL"', false)
+            ->assertSee('"priceRange":"$$$"', false)
+            ->assertDontSee('"@type":"GeoCoordinates"', false)
+            ->assertDontSee('"@type":"OpeningHoursSpecification"', false);
+    }
+
     public function test_layout_renders_verification_meta_tags_when_codes_are_set(): void
     {
         SiteSetting::create([

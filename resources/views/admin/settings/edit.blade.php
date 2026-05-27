@@ -27,6 +27,7 @@
             <a class="{{ $currentTab === 'analytics' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'analytics']) }}#analytics-settings">Analytics</a>
             <a class="{{ $currentTab === 'integrations' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'integrations']) }}#integrations-settings">Google</a>
             <a class="{{ $currentTab === 'payments' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'payments']) }}#payments-settings">Payments</a>
+            <a class="{{ $currentTab === 'business' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'business']) }}#business-settings">Business</a>
             <a class="{{ $currentTab === 'discovery' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'discovery']) }}#discovery-settings">Discovery</a>
             <a class="{{ $currentTab === 'imports' ? 'is-active' : '' }}" href="{{ route('admin.settings.edit', ['tab' => 'imports']) }}#import-settings">Imports</a>
         </nav>
@@ -210,6 +211,96 @@
                     <p class="eyebrow">PayPal</p>
                     <h3 class="feature-title">PayPal is coming soon</h3>
                     <p class="section-copy">Per-account PayPal connection is on the way. In the meantime, Square covers card payments.</p>
+                </article>
+            </section>
+        @endif
+
+        @if ($currentTab === 'business')
+            <section class="admin-dashboard-row" id="business-settings">
+                <x-admin.section-header
+                    eyebrow="Business"
+                    title="Contact, address, and price range"
+                    description="These fields populate LocalBusiness schema so Google can show your phone, address, and price range in search and the local pack."
+                />
+
+                <article class="admin-card admin-card--feature admin-settings-focus">
+                    <form method="POST" action="{{ route('admin.settings.update') }}" class="admin-form">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" name="return_tab" value="business">
+
+                        <p class="eyebrow">Contact</p>
+
+                        <div class="field-grid">
+                            <label>
+                                Phone (E.164 preferred)
+                                <input type="tel" name="business_phone" value="{{ old('business_phone', $siteSettings->business_phone) }}" placeholder="+17275551234" spellcheck="false">
+                            </label>
+                            <label>
+                                Public email
+                                <input type="email" name="business_email" value="{{ old('business_email', $siteSettings->business_email) }}" placeholder="hello@donaldsextonphotography.com" spellcheck="false">
+                            </label>
+                        </div>
+
+                        <p class="eyebrow">Address</p>
+                        <p class="section-copy">Even though you do not host clients at a storefront, a real mailing address strengthens local rankings.</p>
+
+                        <label>
+                            Street address
+                            <input type="text" name="business_street_address" value="{{ old('business_street_address', $siteSettings->business_street_address) }}">
+                        </label>
+
+                        <div class="field-grid">
+                            <label>
+                                City
+                                <input type="text" name="business_locality" value="{{ old('business_locality', $siteSettings->business_locality) }}" placeholder="Clearwater">
+                            </label>
+                            <label>
+                                State / region
+                                <input type="text" name="business_region" value="{{ old('business_region', $siteSettings->business_region) }}" placeholder="FL">
+                            </label>
+                        </div>
+
+                        <div class="field-grid">
+                            <label>
+                                Postal code
+                                <input type="text" name="business_postal_code" value="{{ old('business_postal_code', $siteSettings->business_postal_code) }}" placeholder="33755">
+                            </label>
+                            <label>
+                                Country (2-letter)
+                                <input type="text" name="business_country" maxlength="2" value="{{ old('business_country', $siteSettings->business_country) }}" placeholder="US">
+                            </label>
+                        </div>
+
+                        <p class="eyebrow">Geo</p>
+                        <p class="section-copy">Latitude and longitude help schema.org surface the right service area. Find these on Google Maps by right-clicking your pin.</p>
+
+                        <div class="field-grid">
+                            <label>
+                                Latitude
+                                <input type="text" name="business_latitude" value="{{ old('business_latitude', $siteSettings->business_latitude) }}" placeholder="27.9659" inputmode="decimal" spellcheck="false">
+                            </label>
+                            <label>
+                                Longitude
+                                <input type="text" name="business_longitude" value="{{ old('business_longitude', $siteSettings->business_longitude) }}" placeholder="-82.8001" inputmode="decimal" spellcheck="false">
+                            </label>
+                        </div>
+
+                        <p class="eyebrow">Positioning</p>
+
+                        <div class="field-grid">
+                            <label>
+                                Hours note
+                                <input type="text" name="business_hours_note" value="{{ old('business_hours_note', $siteSettings->business_hours_note) }}" placeholder="By appointment, Monday through Saturday">
+                            </label>
+                            <label>
+                                Price range
+                                <input type="text" name="business_price_range" value="{{ old('business_price_range', $siteSettings->business_price_range) }}" maxlength="16" placeholder="$$$">
+                            </label>
+                        </div>
+
+                        <button class="cta" type="submit" style="border: 0; cursor: pointer;">Save Business</button>
+                    </form>
                 </article>
             </section>
         @endif
