@@ -38,6 +38,7 @@ use App\Http\Controllers\JournalFeedController;
 use App\Http\Controllers\LegacyRedirectController;
 use App\Http\Controllers\LlmsTxtController;
 use App\Http\Controllers\OnboardingController;
+use App\Http\Controllers\OpenGraphImageController;
 use App\Http\Controllers\PageController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\ContractController as PortalContractController;
@@ -169,6 +170,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/pages', [AdminPageController::class, 'index'])->name('pages.index');
         Route::get('/pages/create', [AdminPageController::class, 'create'])->name('pages.create');
         Route::post('/pages', [AdminPageController::class, 'store'])->name('pages.store');
+        Route::post('/pages/generate-location', [AdminPageController::class, 'generateLocation'])->name('pages.generate-location');
         Route::get('/pages/{page}/edit', [AdminPageController::class, 'edit'])->name('pages.edit');
         Route::put('/pages/{page}', [AdminPageController::class, 'update'])->name('pages.update');
         Route::post('/pages/{page}/blocks', [AdminPageBlockController::class, 'store'])->name('pages.blocks.store');
@@ -246,6 +248,10 @@ Route::get('/venues/search', [VenueController::class, 'search'])->name('venues.s
 Route::get('/venues', [VenueController::class, 'index'])->name('venues.index');
 Route::get('/venues/{slug}', [VenueController::class, 'show'])->name('venues.show');
 Route::get('/locations/{slug}', [PageController::class, 'location'])->name('pages.location');
+
+Route::get('/og/wedding-stories/{slug}.png', [OpenGraphImageController::class, 'story'])->name('og.story');
+Route::get('/og/journal/{slug}.png', [OpenGraphImageController::class, 'journalPost'])->name('og.journal');
+Route::get('/og/venues/{slug}.png', [OpenGraphImageController::class, 'venue'])->name('og.venue');
 
 Route::get('/privacy-policy', [PageController::class, 'privacy'])->name('legal.privacy');
 Route::get('/terms-of-service', [PageController::class, 'terms'])->name('legal.terms');
