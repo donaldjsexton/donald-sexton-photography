@@ -42,6 +42,7 @@ class Venue extends Model implements AuthenticatableContract, CanResetPasswordCo
         'is_featured',
         'seo_title',
         'seo_description',
+        'faqs',
         'billing_email',
         'billing_contact_name',
         'billing_address_line_1',
@@ -66,10 +67,26 @@ class Venue extends Model implements AuthenticatableContract, CanResetPasswordCo
         return [
             'is_featured' => 'boolean',
             'referral_emails' => 'array',
+            'faqs' => 'array',
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    /**
+     * @return array<int, array{question: string, answer: string}>
+     */
+    public function structuredFaqs(): array
+    {
+        return collect($this->faqs ?? [])
+            ->map(fn ($item) => is_array($item) ? [
+                'question' => trim((string) ($item['question'] ?? '')),
+                'answer' => trim((string) ($item['answer'] ?? '')),
+            ] : null)
+            ->filter(fn (?array $item) => $item !== null && $item['question'] !== '' && $item['answer'] !== '')
+            ->values()
+            ->all();
     }
 
     public function heroMedia(): BelongsTo

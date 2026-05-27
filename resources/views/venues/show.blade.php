@@ -8,6 +8,15 @@
 
 @push('json_ld')
     <script type="application/ld+json">{!! json_encode(\App\Support\StructuredData::place($venue), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    <script type="application/ld+json">{!! json_encode(\App\Support\StructuredData::breadcrumbList([
+        ['name' => 'Home', 'url' => route('home')],
+        ['name' => 'Venues', 'url' => route('venues.index')],
+        ['name' => $venue->name, 'url' => route('venues.show', $venue->slug)],
+    ]), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    @php $venueFaqs = $venue->structuredFaqs(); @endphp
+    @if (! empty($venueFaqs))
+        <script type="application/ld+json">{!! json_encode(\App\Support\StructuredData::faqPage($venueFaqs), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    @endif
 @endpush
 
 @section('content')
@@ -15,6 +24,12 @@
         $hasStories = $stories->isNotEmpty();
         $hasPosts = $posts->isNotEmpty();
     @endphp
+
+    <x-editorial.breadcrumbs :items="[
+        ['name' => 'Home', 'url' => route('home')],
+        ['name' => 'Venues', 'url' => route('venues.index')],
+        ['name' => $venue->name, 'url' => ''],
+    ]" />
 
     <x-editorial.page-hero
         eyebrow="Venue"
@@ -28,6 +43,27 @@
         <x-editorial.reading-section>
             {!! $venue->body !!}
         </x-editorial.reading-section>
+    @endif
+
+    @php $venueFaqs = $venue->structuredFaqs(); @endphp
+    @if (! empty($venueFaqs))
+        <section class="section" aria-labelledby="venue-faqs-heading">
+            <div class="page-shell--tight page-stack">
+                <x-editorial.section-heading
+                    eyebrow="FAQ"
+                    title="Questions couples ask about this venue."
+                />
+
+                <dl class="venue-faqs">
+                    @foreach ($venueFaqs as $faq)
+                        <div class="venue-faqs__item">
+                            <dt class="venue-faqs__question">{{ $faq['question'] }}</dt>
+                            <dd class="venue-faqs__answer">{{ $faq['answer'] }}</dd>
+                        </div>
+                    @endforeach
+                </dl>
+            </div>
+        </section>
     @endif
 
     @if ($hasStories)
@@ -71,6 +107,33 @@
                             :media="$post->heroMedia"
                             :media-src="method_exists($post, 'featuredImageUrl') ? $post->featuredImageUrl() : null"
                             :media-alt="$post->title"
+                        />
+                    @endforeach
+                </div>
+            </div>
+        </section>
+    @endif
+
+    @if (! empty($nearbyVenues ?? null) && $nearbyVenues->isNotEmpty())
+        <section class="section" aria-labelledby="nearby-venues-heading">
+            <div class="page-shell--wide page-stack">
+                <x-editorial.section-heading
+                    eyebrow="Nearby Venues"
+                    title="Other venues in the area."
+                />
+
+                <div class="archive-grid">
+                    @foreach ($nearbyVenues as $nearby)
+                        @php
+                            $nearbyMeta = collect([$nearby->city, $nearby->state])->filter()->implode(', ');
+                        @endphp
+                        <x-editorial.archive-card
+                            :title="$nearby->name"
+                            :href="route('venues.show', $nearby->slug)"
+                            :meta="$nearbyMeta ?: null"
+                            :copy="$nearby->summary"
+                            :media="$nearby->heroMedia"
+                            :media-alt="$nearby->name"
                         />
                     @endforeach
                 </div>
