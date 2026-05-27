@@ -2,12 +2,14 @@
 
 namespace App\Providers;
 
+use App\Http\Controllers\SitemapController;
 use App\Mail\GmailApiTransport;
 use App\Models\HomepageSetting;
 use App\Models\Invoice;
 use App\Models\JournalPost;
 use App\Models\Page;
 use App\Models\SiteSetting;
+use App\Models\Venue;
 use App\Models\WeddingStory;
 use App\Observers\IndexNowObserver;
 use App\Observers\InvoicePaymentObserver;
@@ -19,6 +21,7 @@ use App\Tenancy\CurrentSite;
 use App\Tenancy\DnsTxtDomainVerifier;
 use App\Tenancy\DomainVerifier;
 use Illuminate\Auth\Notifications\ResetPassword;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Mail\MailManager;
 use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Facades\URL;
@@ -70,6 +73,15 @@ class AppServiceProvider extends ServiceProvider
         WeddingStory::observe(IndexNowObserver::class);
         Page::observe(IndexNowObserver::class);
         Invoice::observe(InvoicePaymentObserver::class);
+
+        $forgetSitemapCache = function (Model $model): void {
+            SitemapController::forgetCache();
+        };
+
+        foreach ([JournalPost::class, WeddingStory::class, Page::class, Venue::class] as $sitemapModel) {
+            $sitemapModel::saved($forgetSitemapCache);
+            $sitemapModel::deleted($forgetSitemapCache);
+        }
 
         ResetPassword::createUrlUsing(function ($notifiable, string $token): string {
             return URL::route('portal.password.reset', [
