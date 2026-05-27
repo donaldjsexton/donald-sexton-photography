@@ -47,6 +47,7 @@ use App\Http\Controllers\Portal\PasswordResetController as PortalPasswordResetCo
 use App\Http\Controllers\Portal\PayPalPaymentController as PortalPayPalPaymentController;
 use App\Http\Controllers\Portal\PortalInviteController;
 use App\Http\Controllers\Portal\ProposalController as PortalProposalController;
+use App\Http\Controllers\Portal\SettingsController as PortalSettingsController;
 use App\Http\Controllers\Portal\SquarePaymentController as PortalSquarePaymentController;
 use App\Http\Controllers\QuestionnaireController;
 use App\Http\Controllers\SitemapController;
@@ -296,6 +297,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::get('/contracts/{contract}/pdf', [PortalContractController::class, 'downloadPdf'])->name('contracts.pdf');
         Route::post('/contracts/{contract}/sign', [PortalContractController::class, 'sign'])->name('contracts.sign');
         Route::post('/contracts/{contract}/decline', [PortalContractController::class, 'decline'])->name('contracts.decline');
+
+        Route::middleware('auth:client')->group(function () {
+            Route::get('/settings', [PortalSettingsController::class, 'edit'])->name('settings.edit');
+            Route::patch('/settings', [PortalSettingsController::class, 'update'])->name('settings.update');
+        });
     });
 });
 
