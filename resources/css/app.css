@@ -4418,7 +4418,15 @@ body.media-picker-modal-open {
     border-radius: 10px;
     background: #fff;
     padding: 0;
-    display: block;
+    /*
+     * Flex column (not block) so the image span becomes a stretched flex item
+     * with a definite width. iOS Safari does not reliably resolve aspect-ratio
+     * (or percentage padding) against a <button>'s content box for an in-flow
+     * block child, which collapsed each tile to a thin sliver. As a flex item
+     * the square space is reserved deterministically before the image loads.
+     */
+    display: flex;
+    flex-direction: column;
     min-width: 0;
     overflow: hidden;
     cursor: pointer;
@@ -4438,6 +4446,7 @@ body.media-picker-modal-open {
     position: relative;
     width: 100%;
     aspect-ratio: 1 / 1;
+    flex: 0 0 auto;
     background: rgba(0, 0, 0, 0.05);
     display: block;
     overflow: hidden;
