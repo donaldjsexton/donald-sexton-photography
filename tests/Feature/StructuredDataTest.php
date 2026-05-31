@@ -173,8 +173,12 @@ class StructuredDataTest extends TestCase
             ->assertSee('https://pinterest.com/donaldsextonphoto', false);
     }
 
-    public function test_organization_schema_includes_aggregate_rating_when_gbp_snapshot_available(): void
+    public function test_organization_schema_omits_self_serving_aggregate_rating_and_reviews(): void
     {
+        // Google disallows self-serving Review/AggregateRating markup on
+        // LocalBusiness/Organization types. Embedding it triggers the Search
+        // Console "Invalid object type for field '<parent_node>'" error, so the
+        // organization JSON-LD must never carry rating or review markup.
         $this->mock(GoogleBusinessProfile::class, function ($mock): void {
             $mock->shouldReceive('snapshot')->andReturn([
                 'rating' => 4.9,
@@ -193,11 +197,9 @@ class StructuredDataTest extends TestCase
 
         $this->get('/')
             ->assertOk()
-            ->assertSee('"@type":"AggregateRating"', false)
-            ->assertSee('"ratingValue":4.9', false)
-            ->assertSee('"reviewCount":42', false)
-            ->assertSee('"@type":"Review"', false)
-            ->assertSee('Calm, kind, and the photos are unreal.', false);
+            ->assertDontSee('"@type":"AggregateRating"', false)
+            ->assertDontSee('"@type":"Review"', false)
+            ->assertDontSee('"reviewRating"', false);
     }
 
     public function test_homepage_renders_google_reviews_block_when_snapshot_available(): void
