@@ -2,6 +2,7 @@
 
 namespace App\Support;
 
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -17,6 +18,15 @@ class OpenGraphImageRenderer
     private const HEIGHT = 630;
 
     private const DISK = 'public';
+
+    /**
+     * Longest-edge ceiling for a source photo we will decode into a GD bitmap.
+     * The card itself is only 1200px wide and resized variants top out at
+     * 1600px, so anything larger is a full-size original — decoding a 25MP
+     * file allocates ~100MB of raw bitmap, which under concurrent crawler hits
+     * starves PHP-FPM. Oversized sources fall back to a text-only card.
+     */
+    private const MAX_SOURCE_EDGE = 3000;
 
     private const BG_R = 22;
 
@@ -73,8 +83,7 @@ class OpenGraphImageRenderer
         $background = imagecolorallocate($canvas, self::BG_R, self::BG_G, self::BG_B);
         imagefilledrectangle($canvas, 0, 0, self::WIDTH, self::HEIGHT, (int) $background);
 
-        if ($sourceImagePath !== null) {
-            $this->placeSourceImage($canvas, $sourceImagePath);
+        if ($sourceImagePath !== null && $this->placeSourceImage($canvas, $sourceImagePath)) {
             $this->applyDarkenGradient($canvas);
         }
 
@@ -83,12 +92,18 @@ class OpenGraphImageRenderer
         return $canvas;
     }
 
-    private function placeSourceImage(\GdImage $canvas, string $sourcePath): void
+    /**
+     * Cover-crop the source photo onto the canvas. Returns false when the
+     * source could not be used (missing, unreadable, or skipped by the
+     * dimension guard), so the caller can omit the darken gradient that only
+     * makes sense over an actual photograph.
+     */
+    private function placeSourceImage(\GdImage $canvas, string $sourcePath): bool
     {
         $source = $this->loadImage($sourcePath);
 
         if ($source === null) {
-            return;
+            return false;
         }
 
         $sw = imagesx($source);
@@ -97,7 +112,7 @@ class OpenGraphImageRenderer
         if ($sw <= 0 || $sh <= 0) {
             imagedestroy($source);
 
-            return;
+            return false;
         }
 
         $targetRatio = self::WIDTH / self::HEIGHT;
@@ -129,6 +144,8 @@ class OpenGraphImageRenderer
         );
 
         imagedestroy($source);
+
+        return true;
     }
 
     /**
@@ -302,6 +319,23 @@ class OpenGraphImageRenderer
         $info = @getimagesize($path);
 
         if ($info === false) {
+            return null;
+        }
+
+        $width = (int) ($info[0] ?? 0);
+        $height = (int) ($info[1] ?? 0);
+
+        if ($width <= 0 || $height <= 0) {
+            return null;
+        }
+
+        if (max($width, $height) > self::MAX_SOURCE_EDGE) {
+            Log::warning('OpenGraphImageRenderer: source image exceeds the safe decode size; rendering a text-only card. Run media:generate-variants so a resized WebP can be used instead.', [
+                'path' => $path,
+                'width' => $width,
+                'height' => $height,
+            ]);
+
             return null;
         }
 

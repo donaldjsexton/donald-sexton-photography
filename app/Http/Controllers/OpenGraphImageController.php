@@ -104,6 +104,13 @@ class OpenGraphImageController extends Controller
         ]);
     }
 
+    /**
+     * Resolve a local, memory-safe source path for the card photo. Prefers an
+     * already-resized WebP derivative (capped at 1600px) over the full-size
+     * original so a single render never decodes a 25MP file into a raw GD
+     * bitmap — the kind of allocation that, under concurrent social-crawler
+     * bursts, exhausts PHP-FPM workers and surfaces as Cloudflare 520s.
+     */
     private function resolveSourcePath(?Media $media): ?string
     {
         if ($media === null || ! $media->path) {
@@ -113,12 +120,35 @@ class OpenGraphImageController extends Controller
         $disk = $media->disk ?? 'public';
         $storage = Storage::disk($disk);
 
-        if (! $storage->exists($media->path)) {
-            return null;
+        foreach ($this->preferredSourceCandidates($media) as $candidate) {
+            if ($candidate === null || ! $storage->exists($candidate)) {
+                continue;
+            }
+
+            $localPath = $storage->path($candidate);
+
+            if (is_file($localPath)) {
+                return $localPath;
+            }
         }
 
-        $localPath = $storage->path($media->path);
+        return null;
+    }
 
-        return is_file($localPath) ? $localPath : null;
+    /**
+     * Candidate disk paths in descending preference: bounded WebP derivatives
+     * first, the full-size original only as a last resort (where the renderer's
+     * dimension guard still protects against an oversized decode).
+     *
+     * @return array<int, string|null>
+     */
+    private function preferredSourceCandidates(Media $media): array
+    {
+        return [
+            $media->webpVariantPath(1600),
+            $media->webpVariantPath(1080),
+            $media->webpVariantPath(640),
+            $media->path,
+        ];
     }
 }
