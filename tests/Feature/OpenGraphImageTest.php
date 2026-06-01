@@ -8,6 +8,8 @@ use App\Models\Venue;
 use App\Models\WeddingStory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
+use Symfony\Component\HttpFoundation\Cookie;
 use Tests\TestCase;
 
 class OpenGraphImageTest extends TestCase
@@ -71,6 +73,39 @@ class OpenGraphImageTest extends TestCase
         $this->get(route('og.story', 'does-not-exist'))->assertNotFound();
         $this->get(route('og.journal', 'does-not-exist'))->assertNotFound();
         $this->get(route('og.venue', 'does-not-exist'))->assertNotFound();
+    }
+
+    public function test_og_route_does_not_start_a_session(): void
+    {
+        $story = WeddingStory::create([
+            'title' => 'No Session',
+            'slug' => 'no-session',
+            'status' => 'published',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $sessionCookie = (string) config('session.cookie');
+
+        // Control: a normal web route starts a session and sets its cookie.
+        $control = $this->get(route('weddings.show', $story->slug));
+        $this->assertContains($sessionCookie, $this->responseCookieNames($control));
+
+        // The OG route must not — otherwise every crawler hit (which never
+        // resends the cookie) spawns a throwaway session and floods the store.
+        $og = $this->get(route('og.story', $story->slug));
+        $og->assertOk();
+        $this->assertNotContains($sessionCookie, $this->responseCookieNames($og));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function responseCookieNames(TestResponse $response): array
+    {
+        return array_map(
+            fn (Cookie $cookie): string => $cookie->getName(),
+            $response->headers->getCookies(),
+        );
     }
 
     public function test_og_route_caches_image_on_disk_after_first_request(): void
