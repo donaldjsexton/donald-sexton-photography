@@ -130,6 +130,74 @@ class OpenGraphImageTest extends TestCase
             ->assertHeader('Content-Type', 'image/png');
     }
 
+    public function test_oversized_original_is_skipped_and_renders_text_only_card(): void
+    {
+        $textOnly = $this->renderStoryCard('plain', 'Same Title');
+
+        $hero = Media::create([
+            'disk' => 'public',
+            'path' => 'media/test/huge.jpg',
+            'filename' => 'huge.jpg',
+            'mime_type' => 'image/jpeg',
+        ]);
+
+        // Longest edge above the decode ceiling but cheap to allocate.
+        Storage::disk('public')->put($hero->path, $this->fakeJpeg(3200, 100));
+
+        $withOversized = $this->renderStoryCard('huge', 'Same Title', $hero);
+
+        $this->assertSame(
+            $textOnly,
+            $withOversized,
+            'An oversized original must be skipped, yielding the same text-only card.'
+        );
+    }
+
+    public function test_resized_webp_variant_is_used_when_original_is_oversized(): void
+    {
+        if (! function_exists('imagecreatefromwebp') || ! function_exists('imagewebp')) {
+            $this->markTestSkipped('WebP support is unavailable in this PHP build.');
+        }
+
+        $textOnly = $this->renderStoryCard('plain-variant', 'Same Title');
+
+        $hero = Media::create([
+            'disk' => 'public',
+            'path' => 'media/test/source.jpg',
+            'filename' => 'source.jpg',
+            'mime_type' => 'image/jpeg',
+        ]);
+
+        // The original on disk is oversized and would be skipped on its own...
+        Storage::disk('public')->put($hero->path, $this->fakeJpeg(3200, 100));
+        // ...but a bounded WebP derivative exists and must be preferred.
+        Storage::disk('public')->put('media/test/source-1600.webp', $this->fakeWebp(800, 600));
+
+        $withVariant = $this->renderStoryCard('with-variant', 'Same Title', $hero);
+
+        $this->assertNotSame(
+            $textOnly,
+            $withVariant,
+            'A bounded WebP variant must be decoded even when the original is oversized.'
+        );
+    }
+
+    private function renderStoryCard(string $slug, string $title, ?Media $heroMedia = null): string
+    {
+        $story = WeddingStory::create([
+            'title' => $title,
+            'slug' => $slug,
+            'status' => 'published',
+            'published_at' => now()->subDay(),
+            'hero_media_id' => $heroMedia?->id,
+        ]);
+
+        $response = $this->get(route('og.story', $story->slug));
+        $response->assertOk();
+
+        return $response->getContent();
+    }
+
     private function fakeJpeg(int $width, int $height): string
     {
         $image = imagecreatetruecolor($width, $height);
@@ -137,6 +205,19 @@ class OpenGraphImageTest extends TestCase
 
         ob_start();
         imagejpeg($image, null, 80);
+        $bytes = (string) ob_get_clean();
+        imagedestroy($image);
+
+        return $bytes;
+    }
+
+    private function fakeWebp(int $width, int $height): string
+    {
+        $image = imagecreatetruecolor($width, $height);
+        imagefilledrectangle($image, 0, 0, $width, $height, (int) imagecolorallocate($image, 120, 90, 200));
+
+        ob_start();
+        imagewebp($image);
         $bytes = (string) ob_get_clean();
         imagedestroy($image);
 
