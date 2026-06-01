@@ -4480,13 +4480,14 @@ body.media-picker-modal-open {
     position: relative;
     width: 100%;
     /*
-     * Percentage padding box reserves the square against the tile's definite
-     * width *before* the photo decodes. Unlike `aspect-ratio` on a flex/grid
-     * child, iOS Safari resolves this reliably, so tiles never collapse to
-     * slivers while images stream in.
+     * Square reserved with `aspect-ratio`, NOT percentage padding. WebKit /
+     * iOS Safari resolves a percentage `padding-bottom` on a child of a
+     * <button> against a zero basis, so the padding hack collapsed every tile
+     * to a sliver on iPhone while photos streamed in (desktop Chrome/Firefox
+     * looked fine). `aspect-ratio` derives the height from this element's own
+     * width, sidestepping the button containing-block quirk entirely.
      */
-    height: 0;
-    padding-bottom: 100%;
+    aspect-ratio: 1 / 1;
     display: block;
     overflow: hidden;
     background: var(--admin-accent-soft, rgba(0, 0, 0, 0.05));
