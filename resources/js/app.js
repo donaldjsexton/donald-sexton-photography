@@ -711,6 +711,76 @@ if (venueWidget) {
 }
 
 // ── Media picker ──
+
+/**
+ * Build a single library tile shared by the single- and multi-select pickers.
+ *
+ * The square is reserved with a percentage padding box (not `aspect-ratio`) so
+ * iOS Safari always allocates the height before the image decodes — otherwise
+ * the grid rows collapse to slivers. The photo fades in over a shimmer skeleton
+ * once it loads, and tiles stagger in for a livelier "feed" feel.
+ */
+const buildMediaTile = (media, { multi = false, selected = false, index = 0 } = {}) => {
+    const tile = document.createElement('button');
+    tile.type = 'button';
+    tile.className = 'media-picker-tile';
+    tile.style.setProperty('--enter-delay', `${Math.min(index, 16) * 28}ms`);
+
+    if (multi) {
+        tile.dataset.multiTile = '';
+
+        if (selected) {
+            tile.classList.add('is-selected');
+        }
+    } else {
+        tile.dataset.mediaTile = '';
+    }
+
+    tile.dataset.id = String(media.id);
+    tile.dataset.filename = media.filename || '';
+    tile.dataset.url = media.url || '';
+    tile.dataset.altText = media.alt_text || '';
+
+    const figure = document.createElement('span');
+    figure.className = 'media-picker-tile__image';
+
+    if (media.url) {
+        const img = document.createElement('img');
+        img.loading = 'lazy';
+        img.decoding = 'async';
+        img.alt = media.alt_text || media.filename || '';
+
+        const reveal = () => figure.classList.add('is-loaded');
+        img.addEventListener('load', reveal);
+        img.addEventListener('error', () => figure.classList.add('is-error'));
+        img.src = media.url;
+
+        if (img.complete && img.naturalWidth > 0) {
+            reveal();
+        }
+
+        figure.appendChild(img);
+    } else {
+        figure.classList.add('is-error');
+    }
+
+    const idBadge = document.createElement('span');
+    idBadge.className = 'media-picker-tile__id';
+    idBadge.textContent = `#${media.id}`;
+    figure.appendChild(idBadge);
+
+    if (multi) {
+        const check = document.createElement('span');
+        check.className = 'media-picker-tile__check';
+        check.textContent = '✓';
+        figure.appendChild(check);
+    }
+
+    tile.appendChild(figure);
+
+    return tile;
+};
+
 const mediaPickers = document.querySelectorAll('[data-media-picker]');
 
 if (mediaPickers.length > 0) {
@@ -823,44 +893,10 @@ if (mediaPickers.length > 0) {
             return;
         }
 
-        items.forEach((media) => {
-            const tile = document.createElement('button');
-            tile.type = 'button';
-            tile.className = 'media-picker-tile';
-            tile.dataset.mediaTile = '';
-            tile.dataset.id = media.id;
-            tile.dataset.filename = media.filename || '';
-            tile.dataset.url = media.url || '';
-            tile.dataset.altText = media.alt_text || '';
-
-            const figure = document.createElement('span');
-            figure.className = 'media-picker-tile__image';
-
-            if (media.url) {
-                const img = document.createElement('img');
-                img.loading = 'lazy';
-                img.decoding = 'async';
-                img.src = media.url;
-                img.alt = media.alt_text || media.filename || '';
-                figure.appendChild(img);
-            }
-
-            const idBadge = document.createElement('span');
-            idBadge.className = 'media-picker-tile__id';
-            idBadge.textContent = `#${media.id}`;
-            figure.appendChild(idBadge);
-
-            tile.appendChild(figure);
-            modalGrid.appendChild(tile);
+        items.forEach((media, index) => {
+            modalGrid.appendChild(buildMediaTile(media, { index }));
         });
     };
-
-    const escapeHtml = (value) => String(value)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#39;');
 
     const loadResults = (reset) => {
         if (!activePicker || isLoading) {
@@ -1192,45 +1228,12 @@ if (storyGalleries.length > 0) {
             return;
         }
 
-        items.forEach((media) => {
-            const tile = document.createElement('button');
-            tile.type = 'button';
-            tile.className = 'media-picker-tile';
-
-            if (multiSelected.has(media.id)) {
-                tile.classList.add('is-selected');
-            }
-
-            tile.dataset.multiTile = '';
-            tile.dataset.id = String(media.id);
-            tile.dataset.filename = media.filename || '';
-            tile.dataset.url = media.url || '';
-            tile.dataset.altText = media.alt_text || '';
-
-            const figure = document.createElement('span');
-            figure.className = 'media-picker-tile__image';
-
-            if (media.url) {
-                const img = document.createElement('img');
-                img.loading = 'lazy';
-                img.decoding = 'async';
-                img.src = media.url;
-                img.alt = media.alt_text || media.filename || '';
-                figure.appendChild(img);
-            }
-
-            const idBadge = document.createElement('span');
-            idBadge.className = 'media-picker-tile__id';
-            idBadge.textContent = `#${media.id}`;
-            figure.appendChild(idBadge);
-
-            const check = document.createElement('span');
-            check.className = 'media-picker-tile__check';
-            check.textContent = '✓';
-            figure.appendChild(check);
-
-            tile.appendChild(figure);
-            multiGrid.appendChild(tile);
+        items.forEach((media, index) => {
+            multiGrid.appendChild(buildMediaTile(media, {
+                multi: true,
+                selected: multiSelected.has(media.id),
+                index,
+            }));
         });
     };
 
