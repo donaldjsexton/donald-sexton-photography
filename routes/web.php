@@ -59,9 +59,32 @@ use App\Http\Controllers\WeddingStoryController;
 use App\Models\Site;
 use App\Models\SiteDomain;
 use App\Models\SiteSetting;
-use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
+use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
+use Illuminate\Cookie\Middleware\EncryptCookies;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
+use Illuminate\View\Middleware\ShareErrorsFromSession;
+
+/*
+ * Bot-facing GET endpoints — social-card images, sitemaps, feeds, robots, and
+ * verification files — are fetched by crawlers and link unfurlers that never
+ * carry a session cookie. Running them through StartSession spawns a throwaway
+ * session record on every hit (which floods the session store under crawler
+ * load and slows session reads/writes site-wide) and emits a Set-Cookie that
+ * stops the CDN from caching the response. These routes keep ResolveTenant from
+ * the web group; they only opt out of the session/cookie/CSRF layer.
+ *
+ * @var array<int, class-string>
+ */
+$statelessBotMiddleware = [
+    EncryptCookies::class,
+    AddQueuedCookiesToResponse::class,
+    StartSession::class,
+    ShareErrorsFromSession::class,
+    PreventRequestForgery::class,
+];
 
 Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware('guest')->group(function () {
@@ -239,7 +262,7 @@ Route::get('/weddings', [WeddingStoryController::class, 'index'])->name('wedding
 Route::get('/weddings/{slug}', [WeddingStoryController::class, 'show'])->name('weddings.show');
 
 Route::get('/journal', [JournalController::class, 'index'])->name('journal.index');
-Route::get('/journal/feed.atom', JournalFeedController::class)->name('journal.feed');
+Route::get('/journal/feed.atom', JournalFeedController::class)->name('journal.feed')->withoutMiddleware($statelessBotMiddleware);
 Route::get('/journal/category/{slug}', [JournalController::class, 'category'])->name('journal.category');
 Route::get('/journal/tag/{slug}', [JournalController::class, 'tag'])->name('journal.tag');
 Route::get('/journal/{slug}', [JournalController::class, 'show'])->name('journal.show');
@@ -249,9 +272,11 @@ Route::get('/venues', [VenueController::class, 'index'])->name('venues.index');
 Route::get('/venues/{slug}', [VenueController::class, 'show'])->name('venues.show');
 Route::get('/locations/{slug}', [PageController::class, 'location'])->name('pages.location');
 
-Route::get('/og/wedding-stories/{slug}.png', [OpenGraphImageController::class, 'story'])->name('og.story');
-Route::get('/og/journal/{slug}.png', [OpenGraphImageController::class, 'journalPost'])->name('og.journal');
-Route::get('/og/venues/{slug}.png', [OpenGraphImageController::class, 'venue'])->name('og.venue');
+Route::withoutMiddleware($statelessBotMiddleware)->group(function () {
+    Route::get('/og/wedding-stories/{slug}.png', [OpenGraphImageController::class, 'story'])->name('og.story');
+    Route::get('/og/journal/{slug}.png', [OpenGraphImageController::class, 'journalPost'])->name('og.journal');
+    Route::get('/og/venues/{slug}.png', [OpenGraphImageController::class, 'venue'])->name('og.venue');
+});
 
 Route::get('/privacy-policy', [PageController::class, 'privacy'])->name('legal.privacy');
 Route::get('/terms-of-service', [PageController::class, 'terms'])->name('legal.terms');
@@ -313,11 +338,11 @@ Route::prefix('portal')->name('portal.')->group(function () {
 
 Route::post('/webhooks/square', SquareWebhookController::class)
     ->name('webhooks.square')
-    ->withoutMiddleware([ValidateCsrfToken::class]);
+    ->withoutMiddleware([PreventRequestForgery::class]);
 
 Route::post('/webhooks/paypal', PayPalWebhookController::class)
     ->name('webhooks.paypal')
-    ->withoutMiddleware([ValidateCsrfToken::class]);
+    ->withoutMiddleware([PreventRequestForgery::class]);
 
 Route::get('/tenancy/tls-check', function (Request $request) {
     $domain = strtolower(trim((string) $request->query('domain')));
@@ -337,8 +362,10 @@ Route::get('/tenancy/tls-check', function (Request $request) {
     return response('', 200);
 })->name('tenancy.tls-check');
 
-Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
-Route::get('/llms.txt', LlmsTxtController::class)->name('llms');
+Route::withoutMiddleware($statelessBotMiddleware)->group(function () {
+    Route::get('/sitemap.xml', SitemapController::class)->name('sitemap');
+    Route::get('/llms.txt', LlmsTxtController::class)->name('llms');
+});
 
 Route::get('/{key}.txt', function (string $key) {
     $expected = trim((string) (SiteSetting::current()->indexnow_key ?? ''));
@@ -348,7 +375,7 @@ Route::get('/{key}.txt', function (string $key) {
     return response($expected."\n", 200, [
         'Content-Type' => 'text/plain; charset=UTF-8',
     ]);
-})->where('key', '[a-f0-9]{8,128}')->name('indexnow.key');
+})->where('key', '[a-f0-9]{8,128}')->name('indexnow.key')->withoutMiddleware($statelessBotMiddleware);
 
 Route::get('/robots.txt', function () {
     $aiCrawlers = [
@@ -388,6 +415,6 @@ Route::get('/robots.txt', function () {
     return response(implode("\n", $lines)."\n", 200, [
         'Content-Type' => 'text/plain; charset=UTF-8',
     ]);
-})->name('robots');
+})->name('robots')->withoutMiddleware($statelessBotMiddleware);
 
 Route::fallback(LegacyRedirectController::class);
