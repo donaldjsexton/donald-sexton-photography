@@ -122,6 +122,13 @@
                     >
                 </label>
             </div>
+
+            <label class="admin-form__checkbox" style="margin-top:1rem;">
+                <input type="hidden" name="referral_requires_approval" value="0">
+                <input type="checkbox" name="referral_requires_approval" value="1" @checked(old('referral_requires_approval', $venue->referral_requires_approval))>
+                Require my approval before contacting referred couples
+            </label>
+            <p class="meta">Turn this on for broadcast-style coordinators (e.g. "Are You Available?" blasts). Their leads are ingested but no message is sent until you approve — confirm availability with the venue first.</p>
         </fieldset>
 
         <div class="field-grid">

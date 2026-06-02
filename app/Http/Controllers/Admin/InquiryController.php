@@ -11,6 +11,8 @@ use App\Services\BookedJobSync;
 use App\Services\CalendarSyncOutcome;
 use App\Services\ClientFromInquirySync;
 use App\Services\GoogleCalendar;
+use App\Services\VenueReferral\ReferralIntroDraft;
+use App\Services\VenueReferral\VenueReferralIngestor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
@@ -94,9 +96,18 @@ class InquiryController extends Controller
 
     public function edit(Inquiry $inquiry): View
     {
+        $inquiry->loadMissing(['venue', 'messages', 'questionnaire']);
+
+        $awaitingApproval = in_array($inquiry->source, [
+            VenueReferralIngestor::SOURCE_GATED,
+            VenueReferralIngestor::SOURCE_PENDING,
+        ], true) && ! $inquiry->first_responded_at;
+
         return view('admin.inquiries.edit', [
-            'inquiry' => $inquiry->loadMissing(['venue', 'messages', 'questionnaire']),
+            'inquiry' => $inquiry,
             'statusOptions' => Inquiry::statusOptions(),
+            'awaitingApproval' => $awaitingApproval,
+            'isGatedReferral' => $inquiry->source === VenueReferralIngestor::SOURCE_GATED,
         ]);
     }
 
@@ -197,6 +208,14 @@ class InquiryController extends Controller
         return redirect()
             ->route('admin.inquiries.index')
             ->with('status', 'Inquiry deleted.');
+    }
+
+    public function draftReply(Inquiry $inquiry, ReferralIntroDraft $draft): RedirectResponse
+    {
+        return redirect()
+            ->route('admin.inquiries.edit', $inquiry)
+            ->with('draft_body', $draft->for($inquiry->loadMissing('venue')))
+            ->with('status', 'Draft generated. Review and edit before sending.');
     }
 
     public function reply(Request $request, Inquiry $inquiry): RedirectResponse

@@ -7,8 +7,10 @@ use App\Mail\InquiryReply;
 use App\Models\BookedJob;
 use App\Models\Inquiry;
 use App\Models\User;
+use App\Models\Venue;
 use App\Services\CalendarSyncOutcome;
 use App\Services\GoogleCalendar;
+use App\Services\VenueReferral\VenueReferralIngestor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
@@ -399,6 +401,65 @@ class InquiryCommunicationTest extends TestCase
         ]);
 
         $response->assertSessionHas('status', 'Inquiry updated.');
+    }
+
+    public function test_gated_referral_shows_approval_banner_and_draft_button(): void
+    {
+        $user = User::factory()->create();
+        $venue = Venue::factory()->create([
+            'name' => 'Gulf Beach Weddings',
+            'referral_requires_approval' => true,
+        ]);
+        $inquiry = Inquiry::factory()->create([
+            'source' => VenueReferralIngestor::SOURCE_GATED,
+            'venue_id' => $venue->id,
+            'first_responded_at' => null,
+        ]);
+
+        $response = $this->actingAs($user)->get(route('admin.inquiries.edit', $inquiry));
+
+        $response->assertStatus(200);
+        $response->assertSee('Awaiting your approval — nothing has been sent to the couple.');
+        $response->assertSee('Generate draft reply');
+        $response->assertSee('Gulf Beach Weddings');
+    }
+
+    public function test_approval_banner_hidden_once_first_response_sent(): void
+    {
+        $user = User::factory()->create();
+        $inquiry = Inquiry::factory()->create([
+            'source' => VenueReferralIngestor::SOURCE_GATED,
+            'first_responded_at' => now()->subDay(),
+        ]);
+
+        $response = $this->actingAs($user)->get(route('admin.inquiries.edit', $inquiry));
+
+        $response->assertStatus(200);
+        $response->assertDontSee('Awaiting your approval — nothing has been sent to the couple.');
+    }
+
+    public function test_draft_reply_prefills_editable_intro(): void
+    {
+        $user = User::factory()->create();
+        $venue = Venue::factory()->create([
+            'name' => 'Gulf Beach Weddings',
+            'referral_requires_approval' => true,
+        ]);
+        $inquiry = Inquiry::factory()->create([
+            'primary_name' => 'Eric Ellingsberg',
+            'venue_id' => $venue->id,
+            'source' => VenueReferralIngestor::SOURCE_GATED,
+            'event_date' => '2027-02-20',
+        ]);
+
+        $response = $this->actingAs($user)->post(route('admin.inquiries.draft-reply', $inquiry));
+
+        $response->assertRedirect(route('admin.inquiries.edit', $inquiry));
+        $response->assertSessionHas('draft_body', function (string $body): bool {
+            return str_contains($body, 'Hi Eric,')
+                && str_contains($body, 'Gulf Beach Weddings')
+                && str_contains($body, 'February 20, 2027');
+        });
     }
 
     public function test_edit_view_shows_message_timeline(): void

@@ -229,6 +229,92 @@ class VenueReferralIngestorTest extends TestCase
         $this->assertSame(['checked' => 0, 'created' => 0, 'auto_sent' => 0, 'queued_for_review' => 0], $stats);
     }
 
+    public function test_gated_venue_holds_high_confidence_availability_request(): void
+    {
+        $venue = $this->seedGulfBeachWeddings();
+
+        $reader = $this->fakeReader([
+            $this->referralMessage('g1', 'Are You Available? (3hrs)', 'info@gulfbeachweddings.com'),
+        ]);
+
+        $extractor = $this->stubExtractor(new ExtractedReferral(
+            coupleNames: ['Eric Ellingsberg', 'Tessa Achman'],
+            eventDate: Carbon::parse('2027-02-20'),
+            primaryEmail: 'ericellingsberg@gmail.com',
+            secondaryEmail: null,
+            phone: '5072761553',
+            confidence: 0.97,
+        ));
+
+        $stats = (new VenueReferralIngestor($reader, $extractor))->ingest();
+
+        $this->assertSame(1, $stats['created']);
+        $this->assertSame(0, $stats['auto_sent']);
+        $this->assertSame(1, $stats['queued_for_review']);
+
+        $inquiry = Inquiry::firstWhere('email', 'ericellingsberg@gmail.com');
+        $this->assertNotNull($inquiry);
+        $this->assertSame($venue->id, $inquiry->venue_id);
+        $this->assertSame(VenueReferralIngestor::SOURCE_GATED, $inquiry->source);
+        $this->assertNull($inquiry->first_responded_at);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_non_gated_venue_ignores_availability_subject(): void
+    {
+        $this->seedKnottedRoots();
+
+        $reader = $this->fakeReader([
+            $this->referralMessage('a1', 'Are You Available?'),
+        ]);
+
+        $extractor = $this->stubExtractor(new ExtractedReferral(
+            coupleNames: ['Someone Here'],
+            eventDate: Carbon::parse('2027-05-05'),
+            primaryEmail: 'someone@example.com',
+            secondaryEmail: null,
+            phone: '555-0000',
+            confidence: 0.95,
+        ));
+
+        $stats = (new VenueReferralIngestor($reader, $extractor))->ingest();
+
+        $this->assertSame(0, $stats['created']);
+        $this->assertDatabaseCount('inquiries', 0);
+        Mail::assertNothingSent();
+    }
+
+    public function test_gated_venue_still_ingests_new_client_subject(): void
+    {
+        $this->seedGulfBeachWeddings();
+
+        $reader = $this->fakeReader([
+            $this->referralMessage('g2', 'New Client-Davis Zacchero 8.21.26', 'info@gulfbeachweddings.com'),
+        ]);
+
+        $extractor = $this->stubExtractor(new ExtractedReferral(
+            coupleNames: ['Damon Davis', 'Sara Zacchero'],
+            eventDate: Carbon::parse('2026-08-21'),
+            primaryEmail: 'td6063@gmail.com',
+            secondaryEmail: null,
+            phone: '4126575212',
+            confidence: 0.97,
+        ));
+
+        $stats = (new VenueReferralIngestor($reader, $extractor))->ingest();
+
+        // Even a complete, high-confidence "New Client" email is gated for
+        // this venue — nothing goes out until Donald approves.
+        $this->assertSame(1, $stats['created']);
+        $this->assertSame(0, $stats['auto_sent']);
+        $this->assertSame(1, $stats['queued_for_review']);
+
+        $inquiry = Inquiry::firstWhere('email', 'td6063@gmail.com');
+        $this->assertSame(VenueReferralIngestor::SOURCE_GATED, $inquiry->source);
+        Mail::assertNothingSent();
+    }
+
     public function test_noop_when_no_venues_have_referral_emails(): void
     {
         $reader = $this->fakeReader([
@@ -248,6 +334,18 @@ class VenueReferralIngestorTest extends TestCase
             'website_url' => 'https://knottedrootsonthelake.com',
             'referral_emails' => ['krlakeevents@gmail.com'],
             'referral_contact_name' => 'Tara Hardin',
+        ]);
+    }
+
+    private function seedGulfBeachWeddings(): Venue
+    {
+        return Venue::factory()->create([
+            'name' => 'Gulf Beach Weddings',
+            'slug' => 'gulf-beach-weddings',
+            'website_url' => 'https://gulfbeachweddings.com',
+            'referral_emails' => ['info@gulfbeachweddings.com'],
+            'referral_contact_name' => null,
+            'referral_requires_approval' => true,
         ]);
     }
 
@@ -304,13 +402,13 @@ class VenueReferralIngestorTest extends TestCase
         };
     }
 
-    private function referralMessage(string $id, string $subject): ParsedGmailMessage
+    private function referralMessage(string $id, string $subject, string $fromEmail = 'krlakeevents@gmail.com'): ParsedGmailMessage
     {
         return new ParsedGmailMessage(
             id: $id,
             threadId: 'thr_'.$id,
-            fromEmail: 'krlakeevents@gmail.com',
-            fromName: 'Knotted Roots',
+            fromEmail: $fromEmail,
+            fromName: 'Referral Source',
             subject: $subject,
             bodyPlain: 'Body for '.$subject,
             sentAt: Carbon::now(),

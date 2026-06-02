@@ -104,6 +104,7 @@ class VenueController extends Controller
             'google_places_id' => ['nullable', 'string', 'max:255'],
             'referral_emails' => ['nullable', 'string'],
             'referral_contact_name' => ['nullable', 'string', 'max:255'],
+            'referral_requires_approval' => ['nullable', 'boolean'],
             'is_featured' => ['nullable', 'boolean'],
             'seo_title' => ['nullable', 'string', 'max:255'],
             'seo_description' => ['nullable', 'string'],
@@ -135,6 +136,7 @@ class VenueController extends Controller
         $venue->fill($validated);
         $venue->slug = ! empty($validated['slug']) ? $validated['slug'] : Str::slug($validated['name']);
         $venue->is_featured = (bool) ($validated['is_featured'] ?? false);
+        $venue->referral_requires_approval = (bool) ($validated['referral_requires_approval'] ?? false);
         $venue->referral_emails = $this->parseReferralEmails($validated['referral_emails'] ?? null);
         $venue->faqs = $this->parseFaqs($faqsText);
 

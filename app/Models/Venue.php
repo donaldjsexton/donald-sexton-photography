@@ -39,6 +39,7 @@ class Venue extends Model implements AuthenticatableContract, CanResetPasswordCo
         'google_places_id',
         'referral_emails',
         'referral_contact_name',
+        'referral_requires_approval',
         'is_featured',
         'seo_title',
         'seo_description',
@@ -66,6 +67,7 @@ class Venue extends Model implements AuthenticatableContract, CanResetPasswordCo
     {
         return [
             'is_featured' => 'boolean',
+            'referral_requires_approval' => 'boolean',
             'referral_emails' => 'array',
             'faqs' => 'array',
             'email_verified_at' => 'datetime',
@@ -150,5 +152,16 @@ class Venue extends Model implements AuthenticatableContract, CanResetPasswordCo
     public function isBillable(): bool
     {
         return filled($this->billing_email);
+    }
+
+    /**
+     * Whether referrals ingested from this venue must wait for manual
+     * approval before any couple-facing message goes out. Used for
+     * broadcast-style coordinators (e.g. availability blasts) where the
+     * booking is not confirmed until Donald replies to the venue first.
+     */
+    public function requiresReferralApproval(): bool
+    {
+        return (bool) $this->referral_requires_approval;
     }
 }

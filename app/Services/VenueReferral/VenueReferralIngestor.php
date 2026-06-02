@@ -21,7 +21,11 @@ class VenueReferralIngestor
 
     public const SOURCE_PENDING = 'venue_referral_pending';
 
-    private const SUBJECT_REGEX = '/^(?:Fwd:\s*)?New Clients?(?:\s+Info)?[\s\-:]/i';
+    public const SOURCE_GATED = 'venue_referral_gated';
+
+    private const NEW_CLIENT_SUBJECT_REGEX = '/^(?:Fwd:\s*)?New Clients?(?:\s+Info)?[\s\-:]/i';
+
+    private const AVAILABILITY_SUBJECT_REGEX = '/\bavailable\b/i';
 
     private const CONFIDENCE_THRESHOLD = 0.85;
 
@@ -47,7 +51,8 @@ class VenueReferralIngestor
             return $stats;
         }
 
-        $query = $this->buildQuery($venuesByEmail->keys()->all(), $withinDays);
+        $hasGatedVenue = $venuesByEmail->contains(fn (Venue $venue) => $venue->requiresReferralApproval());
+        $query = $this->buildQuery($venuesByEmail->keys()->all(), $withinDays, $hasGatedVenue);
         $messages = $this->reader->searchMessages($query, 50);
 
         foreach ($messages as $message) {
@@ -57,13 +62,13 @@ class VenueReferralIngestor
                 continue;
             }
 
-            if (! preg_match(self::SUBJECT_REGEX, $message->subject)) {
+            $venue = $venuesByEmail->get(strtolower($message->fromEmail));
+
+            if ($venue === null) {
                 continue;
             }
 
-            $venue = $venuesByEmail->get($message->fromEmail);
-
-            if ($venue === null) {
+            if (! $this->subjectMatchesVenue($message->subject, $venue)) {
                 continue;
             }
 
@@ -74,19 +79,44 @@ class VenueReferralIngestor
     }
 
     /**
+     * Non-gated venues only ingest "New Client" referrals (the existing,
+     * auto-send-eligible flow). Gated venues additionally ingest broadcast
+     * "Are You Available?" style subjects, which always wait for approval.
+     */
+    private function subjectMatchesVenue(string $subject, Venue $venue): bool
+    {
+        if (preg_match(self::NEW_CLIENT_SUBJECT_REGEX, $subject) === 1) {
+            return true;
+        }
+
+        return $venue->requiresReferralApproval()
+            && preg_match(self::AVAILABILITY_SUBJECT_REGEX, $subject) === 1;
+    }
+
+    /**
      * @param  array{checked: int, created: int, auto_sent: int, queued_for_review: int}  $stats
      */
     private function process(ParsedGmailMessage $message, Venue $venue, array &$stats): void
     {
         $referral = $this->extractor->extract($message->subject, $message->bodyPlain);
 
-        $shouldAutoSend = $referral !== null
+        $autoSendEligible = $referral !== null
             && $referral->isComplete()
             && $referral->confidence >= self::CONFIDENCE_THRESHOLD
             && $this->isFutureDate($referral->eventDate, $message->sentAt)
             && ! $this->emailAlreadyTrackedAsClient($referral->primaryEmail);
 
-        $inquiry = $this->createInquiry($message, $venue, $referral, $shouldAutoSend);
+        // A gated venue never auto-sends, no matter how confident the
+        // extraction is — the couple isn't confirmed until Donald replies.
+        $shouldAutoSend = $autoSendEligible && ! $venue->requiresReferralApproval();
+
+        $source = match (true) {
+            $shouldAutoSend => self::SOURCE_AUTO,
+            $venue->requiresReferralApproval() => self::SOURCE_GATED,
+            default => self::SOURCE_PENDING,
+        };
+
+        $inquiry = $this->createInquiry($message, $venue, $referral, $source);
         $stats['created']++;
 
         $this->attachInboundMessage($inquiry, $message);
@@ -95,7 +125,7 @@ class VenueReferralIngestor
             $this->sendIntro($inquiry, $venue);
             $stats['auto_sent']++;
         } else {
-            $this->notifyForReview($inquiry, $referral);
+            $this->notifyForReview($inquiry, $venue, $referral);
             $stats['queued_for_review']++;
         }
     }
@@ -104,7 +134,7 @@ class VenueReferralIngestor
         ParsedGmailMessage $message,
         Venue $venue,
         ?ExtractedReferral $referral,
-        bool $autoSent,
+        string $source,
     ): Inquiry {
         $primaryEmail = $referral?->primaryEmail
             ?? sprintf('unknown+%s@%s', Str::random(8), 'venue-referral.local');
@@ -121,7 +151,7 @@ class VenueReferralIngestor
             'venue_name' => $venue->name,
             'message' => $this->buildInquiryNote($message, $referral),
             'status' => 'new',
-            'source' => $autoSent ? self::SOURCE_AUTO : self::SOURCE_PENDING,
+            'source' => $source,
             'gmail_thread_id' => $message->threadId !== '' ? $message->threadId : null,
         ]);
     }
@@ -156,11 +186,15 @@ class VenueReferralIngestor
         }
     }
 
-    private function notifyForReview(Inquiry $inquiry, ?ExtractedReferral $referral): void
+    private function notifyForReview(Inquiry $inquiry, Venue $venue, ?ExtractedReferral $referral): void
     {
+        $title = $venue->requiresReferralApproval()
+            ? 'Availability request needs your approval'
+            : 'Venue referral needs review';
+
         try {
             app(WebPushService::class)->notify(
-                'Venue referral needs review',
+                $title,
                 $referral?->primaryName() ?: 'Could not auto-extract — check inbox.',
                 route('admin.inquiries.edit', $inquiry),
             );
@@ -223,13 +257,20 @@ class VenueReferralIngestor
     /**
      * @param  array<int, string>  $emails
      */
-    private function buildQuery(array $emails, int $withinDays): string
+    private function buildQuery(array $emails, int $withinDays, bool $includeAvailability): string
     {
         $froms = array_map(fn (string $e) => "from:{$e}", $emails);
 
+        $subjects = ['subject:"new client"'];
+
+        if ($includeAvailability) {
+            $subjects[] = 'subject:available';
+        }
+
         return sprintf(
-            '(%s) subject:"new client" newer_than:%dd -in:sent',
+            '(%s) (%s) newer_than:%dd -in:sent',
             implode(' OR ', $froms),
+            implode(' OR ', $subjects),
             max(1, $withinDays),
         );
     }
