@@ -127,6 +127,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/inquiries/{inquiry}/questionnaire', [AdminInquiryController::class, 'showQuestionnaire'])->name('inquiries.questionnaire.show');
         Route::get('/inquiries/{inquiry}/edit', [AdminInquiryController::class, 'edit'])->name('inquiries.edit');
         Route::put('/inquiries/{inquiry}', [AdminInquiryController::class, 'update'])->name('inquiries.update');
+        Route::post('/inquiries/{inquiry}/draft-reply', [AdminInquiryController::class, 'draftReply'])->name('inquiries.draft-reply');
         Route::post('/inquiries/{inquiry}/reply', [AdminInquiryController::class, 'reply'])->name('inquiries.reply');
         Route::delete('/inquiries/{inquiry}', [AdminInquiryController::class, 'destroy'])->name('inquiries.destroy');
 

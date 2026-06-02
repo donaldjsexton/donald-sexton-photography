@@ -12,6 +12,19 @@
         <div class="admin-flash admin-flash--error" style="margin-bottom:1.5rem;">{{ session('error') }}</div>
     @endif
 
+    @if ($awaitingApproval)
+        <div class="admin-flash" style="margin-bottom:1.5rem; border-left:4px solid #c89b3c; background:#fbf4e4; color:#5b4626;">
+            <strong>Awaiting your approval — nothing has been sent to the couple.</strong>
+            <p class="meta" style="margin:0.35rem 0 0;">
+                @if ($isGatedReferral)
+                    This arrived as an availability request from {{ $inquiry->venue?->name ?: 'a coordinator' }}. Confirm availability with the venue first — no message reaches the couple until you send one below. Use “Generate draft reply” to start an editable intro.
+                @else
+                    Review the auto-extracted details below before reaching out. Use “Generate draft reply” to start an editable intro.
+                @endif
+            </p>
+        </div>
+    @endif
+
     <section class="admin-grid admin-grid--two">
         <article class="admin-card">
             <p class="eyebrow">Lead Details</p>
@@ -252,6 +265,12 @@
             </article>
         </div>
 
+        <form method="POST" action="{{ route('admin.inquiries.draft-reply', $inquiry) }}" class="admin-form" style="margin-bottom:1rem;">
+            @csrf
+            <button class="cta-secondary" type="submit" style="border:0; cursor:pointer;">Generate draft reply</button>
+            <span class="meta">Pre-fills an editable couple intro you can revise before sending.</span>
+        </form>
+
         <form
             method="POST"
             action="{{ route('admin.inquiries.reply', $inquiry) }}"
@@ -261,7 +280,7 @@
             @csrf
             <label>
                 Reply to {{ $inquiry->primary_name }}
-                <textarea name="body" rows="4" required placeholder="Write your reply...">{{ old('body') }}</textarea>
+                <textarea name="body" rows="4" required placeholder="Write your reply...">{{ old('body', session('draft_body')) }}</textarea>
             </label>
             @error('body')
                 <p class="admin-form__error">{{ $message }}</p>

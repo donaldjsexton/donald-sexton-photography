@@ -28,6 +28,7 @@ class AdminVenueCrudTest extends TestCase
             'website_url' => 'https://example.com',
             'referral_emails' => 'planner@example.com, events@example.com',
             'referral_contact_name' => 'Jane Planner',
+            'referral_requires_approval' => '1',
             'is_featured' => '1',
         ]);
 
@@ -37,8 +38,23 @@ class AdminVenueCrudTest extends TestCase
 
         $this->assertSame('hudson-valley-estate', $venue->slug);
         $this->assertTrue($venue->is_featured);
+        $this->assertTrue($venue->requiresReferralApproval());
         $this->assertSame(['planner@example.com', 'events@example.com'], $venue->referral_emails);
         $this->assertSame('Jane Planner', $venue->referral_contact_name);
+    }
+
+    public function test_referral_approval_flag_defaults_off_when_unchecked(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)->post('/admin/venues', [
+            'name' => 'Open Garden',
+            'referral_requires_approval' => '0',
+        ]);
+
+        $venue = Venue::query()->where('name', 'Open Garden')->firstOrFail();
+
+        $this->assertFalse($venue->requiresReferralApproval());
     }
 
     public function test_admin_can_update_venue_and_strip_invalid_referral_emails(): void
