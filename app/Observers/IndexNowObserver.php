@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Models\JournalPost;
 use App\Models\Page;
+use App\Models\Venue;
 use App\Models\WeddingStory;
 use App\Services\IndexNow;
 use Illuminate\Database\Eloquent\Model;
@@ -29,6 +30,11 @@ class IndexNowObserver
 
     private function isPublished(Model $model): bool
     {
+        // Venues have no draft state — they are public as soon as they exist.
+        if ($model instanceof Venue) {
+            return true;
+        }
+
         if (($model->status ?? null) !== 'published') {
             return false;
         }
@@ -43,6 +49,7 @@ class IndexNowObserver
         return match (true) {
             $model instanceof JournalPost => route('journal.show', $model->slug),
             $model instanceof WeddingStory => route('weddings.show', $model->slug),
+            $model instanceof Venue => route('venues.show', $model->slug),
             $model instanceof Page => $this->pageUrl($model),
             default => null,
         };

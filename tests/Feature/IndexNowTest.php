@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\JournalPost;
 use App\Models\SiteSetting;
+use App\Models\Venue;
 use App\Models\WeddingStory;
 use App\Services\IndexNow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -106,6 +107,25 @@ class IndexNowTest extends TestCase
             'excerpt' => 'A short excerpt.',
             'body' => '<p>Hi.</p>',
             'published_at' => now()->subHour(),
+        ]);
+    }
+
+    public function test_saving_a_venue_pings_indexnow(): void
+    {
+        SiteSetting::create([
+            'indexnow_key' => str_repeat('a1b2c3d4', 4),
+        ]);
+
+        $this->mock(IndexNow::class, function (MockInterface $mock): void {
+            $mock->shouldReceive('submit')
+                ->once()
+                ->withArgs(fn (array $urls) => count($urls) === 1
+                    && str_ends_with($urls[0], '/venues/sandpearl-resort'));
+        });
+
+        Venue::factory()->create([
+            'name' => 'Sandpearl Resort',
+            'slug' => 'sandpearl-resort',
         ]);
     }
 

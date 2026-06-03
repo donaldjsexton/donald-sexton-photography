@@ -56,6 +56,9 @@ return [
         'key' => env('ANTHROPIC_API_KEY'),
         'model' => env('ANTHROPIC_MODEL', 'claude-haiku-4-5-20251001'),
         'version' => '2023-06-01',
+        // When true, saving published content with missing SEO metadata
+        // queues a job that backfills the title/description automatically.
+        'auto_seo' => env('ANTHROPIC_AUTO_SEO', false),
     ],
 
 ];

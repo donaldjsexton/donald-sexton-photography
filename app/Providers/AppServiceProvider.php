@@ -13,6 +13,7 @@ use App\Models\Venue;
 use App\Models\WeddingStory;
 use App\Observers\IndexNowObserver;
 use App\Observers\InvoicePaymentObserver;
+use App\Observers\SeoMetadataObserver;
 use App\Services\Gmail\GmailApiReader;
 use App\Services\Gmail\GmailReader;
 use App\Services\GoogleClient;
@@ -72,6 +73,13 @@ class AppServiceProvider extends ServiceProvider
         JournalPost::observe(IndexNowObserver::class);
         WeddingStory::observe(IndexNowObserver::class);
         Page::observe(IndexNowObserver::class);
+        Venue::observe(IndexNowObserver::class);
+
+        JournalPost::observe(SeoMetadataObserver::class);
+        WeddingStory::observe(SeoMetadataObserver::class);
+        Page::observe(SeoMetadataObserver::class);
+        Venue::observe(SeoMetadataObserver::class);
+
         Invoice::observe(InvoicePaymentObserver::class);
 
         $forgetSitemapCache = function (Model $model): void {
