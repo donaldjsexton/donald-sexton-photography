@@ -4,12 +4,14 @@ namespace Tests\Feature;
 
 use App\Mail\VenueReferralIntro;
 use App\Models\Inquiry;
+use App\Models\Site;
 use App\Models\Venue;
 use App\Services\Gmail\GmailReader;
 use App\Services\Gmail\ParsedGmailMessage;
 use App\Services\VenueReferral\ExtractedReferral;
 use App\Services\VenueReferral\VenueReferralExtractor;
 use App\Services\VenueReferral\VenueReferralIngestor;
+use App\Tenancy\CurrentSite;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
@@ -315,6 +317,38 @@ class VenueReferralIngestorTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    public function test_ingests_referral_for_a_venue_on_a_non_default_site(): void
+    {
+        // The scheduled command runs without a resolved tenant, so CurrentSite
+        // falls back to the default site. A venue configured under a different
+        // brand-site must still be scanned and filed under its own tenant.
+        $otherSite = Site::factory()->create();
+        $venue = $this->seedGulfBeachWeddings($otherSite);
+
+        $reader = $this->fakeReader([
+            $this->referralMessage('gn', 'Are You Available? (3hrs)', 'info@gulfbeachweddings.com'),
+        ]);
+
+        $extractor = $this->stubExtractor(new ExtractedReferral(
+            coupleNames: ['Eric Ellingsberg', 'Tessa Achman'],
+            eventDate: Carbon::parse('2027-02-20'),
+            primaryEmail: 'ericellingsberg@gmail.com',
+            secondaryEmail: null,
+            phone: '5072761553',
+            confidence: 0.97,
+        ));
+
+        $stats = (new VenueReferralIngestor($reader, $extractor))->ingest();
+
+        $this->assertSame(1, $stats['created']);
+
+        $inquiry = Inquiry::withoutSiteScope()->firstWhere('email', 'ericellingsberg@gmail.com');
+        $this->assertNotNull($inquiry);
+        $this->assertSame($otherSite->id, $inquiry->site_id);
+        $this->assertSame($venue->id, $inquiry->venue_id);
+        $this->assertSame(VenueReferralIngestor::SOURCE_GATED, $inquiry->source);
+    }
+
     public function test_noop_when_no_venues_have_referral_emails(): void
     {
         $reader = $this->fakeReader([
@@ -337,16 +371,32 @@ class VenueReferralIngestorTest extends TestCase
         ]);
     }
 
-    private function seedGulfBeachWeddings(): Venue
+    private function seedGulfBeachWeddings(?Site $site = null): Venue
     {
-        return Venue::factory()->create([
+        $attributes = [
             'name' => 'Gulf Beach Weddings',
             'slug' => 'gulf-beach-weddings',
             'website_url' => 'https://gulfbeachweddings.com',
             'referral_emails' => ['info@gulfbeachweddings.com'],
             'referral_contact_name' => null,
             'referral_requires_approval' => true,
-        ]);
+        ];
+
+        if ($site === null) {
+            return Venue::factory()->create($attributes);
+        }
+
+        // site_id is managed by BelongsToSite (not mass-assignable), so stamp it
+        // by resolving the tenant to the target site while the venue is created.
+        $currentSite = app(CurrentSite::class);
+        $previous = $currentSite->get();
+        $currentSite->set($site);
+
+        try {
+            return Venue::factory()->create($attributes);
+        } finally {
+            $currentSite->set($previous);
+        }
     }
 
     /**
