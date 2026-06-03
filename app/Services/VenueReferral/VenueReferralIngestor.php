@@ -104,7 +104,7 @@ class VenueReferralIngestor
             && $referral->isComplete()
             && $referral->confidence >= self::CONFIDENCE_THRESHOLD
             && $this->isFutureDate($referral->eventDate, $message->sentAt)
-            && ! $this->emailAlreadyTrackedAsClient($referral->primaryEmail);
+            && ! $this->emailAlreadyTrackedAsClient($referral->primaryEmail, $venue);
 
         // A gated venue never auto-sends, no matter how confident the
         // extraction is — the couple isn't confirmed until Donald replies.
@@ -139,7 +139,7 @@ class VenueReferralIngestor
         $primaryEmail = $referral?->primaryEmail
             ?? sprintf('unknown+%s@%s', Str::random(8), 'venue-referral.local');
 
-        return Inquiry::create([
+        $inquiry = new Inquiry([
             'primary_name' => $referral?->primaryName() ?: 'Unknown — see venue email',
             'partner_name' => $referral?->partnerName(),
             'email' => $primaryEmail,
@@ -154,6 +154,15 @@ class VenueReferralIngestor
             'source' => $source,
             'gmail_thread_id' => $message->threadId !== '' ? $message->threadId : null,
         ]);
+
+        // File the lead under the venue's own tenant rather than whatever site
+        // the command happened to resolve to, so it surfaces in that brand's
+        // admin. `site_id` is managed by BelongsToSite (not mass-assignable),
+        // so set it directly; the creating hook leaves a non-null value alone.
+        $inquiry->site_id = $venue->site_id;
+        $inquiry->save();
+
+        return $inquiry;
     }
 
     private function attachInboundMessage(Inquiry $inquiry, ParsedGmailMessage $message): void
@@ -210,13 +219,17 @@ class VenueReferralIngestor
             ->exists();
     }
 
-    private function emailAlreadyTrackedAsClient(?string $email): bool
+    private function emailAlreadyTrackedAsClient(?string $email, Venue $venue): bool
     {
         if ($email === null) {
             return false;
         }
 
-        return Inquiry::query()
+        // Scope the dedupe check to the venue's tenant explicitly — the command
+        // runs without a resolved site, so the default `site` scope can't be
+        // relied on to look in the right brand's inquiries.
+        return Inquiry::withoutSiteScope()
+            ->where('site_id', $venue->site_id)
             ->where('email', $email)
             ->where('status', '!=', 'archived')
             ->exists();
@@ -232,13 +245,18 @@ class VenueReferralIngestor
     }
 
     /**
+     * Index every referral-enabled venue across all tenants. This runs from a
+     * scheduled command, where there is no web request to resolve a tenant, so
+     * the global `site` scope would otherwise pin the lookup to the default
+     * site and silently hide venues configured under any other brand-site.
+     *
      * @return Collection<string, Venue>
      */
     private function venuesIndexedByReferralEmail(): Collection
     {
         $index = collect();
 
-        Venue::query()
+        Venue::withoutSiteScope()
             ->whereNotNull('referral_emails')
             ->get()
             ->each(function (Venue $venue) use ($index): void {
