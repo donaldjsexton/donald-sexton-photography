@@ -1726,3 +1726,34 @@ Schedule::command('invoices:send-overdue-reminders')
     ->dailyAt('09:00')
     ->withoutOverlapping()
     ->runInBackground();
+
+// Keep SEO metadata filled in automatically. Each command only touches
+// records with a blank title or description and no-ops once caught up, so
+// these are safe to run daily and require no manual involvement.
+Schedule::command('seo:generate-pages --limit=25 --sleep=1')
+    ->dailyAt('02:10')
+    ->withoutOverlapping(30)
+    ->runInBackground();
+
+Schedule::command('seo:generate-wedding-stories --limit=25 --sleep=1')
+    ->dailyAt('02:20')
+    ->withoutOverlapping(30)
+    ->runInBackground();
+
+Schedule::command('seo:generate-journal-posts --limit=25 --sleep=1')
+    ->dailyAt('02:30')
+    ->withoutOverlapping(30)
+    ->runInBackground();
+
+Schedule::command('seo:generate-venues --limit=25 --sleep=1')
+    ->dailyAt('02:40')
+    ->withoutOverlapping(30)
+    ->runInBackground();
+
+// Link newly published weddings to their venue landing page so the venue
+// graph stays current. Linking only — creating brand-new venues stays a
+// manual, reviewed action via `venue:backfill-links --create`.
+Schedule::command('venue:backfill-links')
+    ->dailyAt('02:50')
+    ->withoutOverlapping()
+    ->runInBackground();
