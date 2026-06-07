@@ -317,6 +317,82 @@ class VenueReferralIngestorTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    public function test_gated_venue_ingests_confirmed_booking_with_non_matching_subject(): void
+    {
+        $venue = $this->seedGulfBeachWeddings();
+
+        // The confirmed-booking notification carries the couple's real contact
+        // details but its subject is neither "New Client" nor "available".
+        $body = "6/24/26 @ 7:30pm / Sunset Beach (77th Ave) / Simply Beautiful w/ Photo\n"
+            ."Name: Shannon MacLeod & Alexander McKenna\n"
+            ."Email: mckennawedding2025@gmail.com\n"
+            .'Phone #: 5134070779';
+
+        $reader = $this->fakeReader([
+            $this->referralMessage('b1', '6/24/26 @ 7:30pm / Sunset Beach', 'info@gulfbeachweddings.com', $body),
+        ]);
+
+        $extractor = $this->stubExtractor(new ExtractedReferral(
+            coupleNames: ['Shannon MacLeod', 'Alexander McKenna'],
+            eventDate: Carbon::parse('2026-06-24'),
+            primaryEmail: 'mckennawedding2025@gmail.com',
+            secondaryEmail: null,
+            phone: '5134070779',
+            confidence: 0.96,
+        ));
+
+        $stats = (new VenueReferralIngestor($reader, $extractor))->ingest();
+
+        $this->assertSame(1, $stats['created']);
+        $this->assertSame(0, $stats['auto_sent']);
+        $this->assertSame(1, $stats['queued_for_review']);
+
+        $inquiry = Inquiry::firstWhere('email', 'mckennawedding2025@gmail.com');
+        $this->assertNotNull($inquiry);
+        $this->assertSame($venue->id, $inquiry->venue_id);
+        $this->assertSame('Shannon MacLeod', $inquiry->primary_name);
+        $this->assertSame(VenueReferralIngestor::SOURCE_GATED, $inquiry->source);
+        $this->assertNull($inquiry->first_responded_at);
+
+        Mail::assertNothingSent();
+    }
+
+    public function test_gated_venue_ignores_non_referral_mail_with_unmatched_subject(): void
+    {
+        $this->seedGulfBeachWeddings();
+
+        // A newsletter from the venue: contact details present, but nothing the
+        // extractor can turn into a couple referral.
+        $reader = $this->fakeReader([
+            $this->referralMessage('n1', 'June Newsletter', 'info@gulfbeachweddings.com', 'Reply to info@gulfbeachweddings.com to unsubscribe.'),
+        ]);
+
+        $stats = (new VenueReferralIngestor($reader, $this->stubExtractor(null)))->ingest();
+
+        $this->assertSame(0, $stats['created']);
+        $this->assertDatabaseCount('inquiries', 0);
+        Mail::assertNothingSent();
+    }
+
+    public function test_query_catches_all_gated_mail_but_restricts_other_venues(): void
+    {
+        $this->seedKnottedRoots();
+        $this->seedGulfBeachWeddings();
+
+        $reader = $this->recordingReader();
+
+        (new VenueReferralIngestor($reader, $this->stubExtractor(null)))->ingest();
+
+        $query = $reader->lastQuery;
+
+        // Non-gated venue stays scoped to New-Client referrals.
+        $this->assertStringContainsString('(from:krlakeevents@gmail.com) subject:"new client"', $query);
+        // Gated venue is fetched with no subject restriction.
+        $this->assertStringContainsString('(from:info@gulfbeachweddings.com)', $query);
+        $this->assertStringNotContainsString('subject:available', $query);
+        $this->assertStringContainsString('-in:sent', $query);
+    }
+
     public function test_ingests_referral_for_a_venue_on_a_non_default_site(): void
     {
         // The scheduled command runs without a resolved tenant, so CurrentSite
@@ -436,6 +512,41 @@ class VenueReferralIngestorTest extends TestCase
         };
     }
 
+    private function recordingReader(): GmailReader
+    {
+        return new class implements GmailReader
+        {
+            public string $lastQuery = '';
+
+            public function isAvailable(): bool
+            {
+                return true;
+            }
+
+            public function connectedEmail(): ?string
+            {
+                return 'donald@donaldsextonphotography.com';
+            }
+
+            public function findThreadIdsForEmail(string $email, int $withinDays, int $maxThreads = 25): array
+            {
+                return [];
+            }
+
+            public function fetchThreadMessages(string $threadId): array
+            {
+                return [];
+            }
+
+            public function searchMessages(string $query, int $maxResults = 25): array
+            {
+                $this->lastQuery = $query;
+
+                return [];
+            }
+        };
+    }
+
     private function stubExtractor(?ExtractedReferral $referral): VenueReferralExtractor
     {
         return new class($referral) extends VenueReferralExtractor
@@ -452,7 +563,7 @@ class VenueReferralIngestorTest extends TestCase
         };
     }
 
-    private function referralMessage(string $id, string $subject, string $fromEmail = 'krlakeevents@gmail.com'): ParsedGmailMessage
+    private function referralMessage(string $id, string $subject, string $fromEmail = 'krlakeevents@gmail.com', ?string $body = null): ParsedGmailMessage
     {
         return new ParsedGmailMessage(
             id: $id,
@@ -460,7 +571,7 @@ class VenueReferralIngestorTest extends TestCase
             fromEmail: $fromEmail,
             fromName: 'Referral Source',
             subject: $subject,
-            bodyPlain: 'Body for '.$subject,
+            bodyPlain: $body ?? 'Body for '.$subject,
             sentAt: Carbon::now(),
             hasAttachments: false,
         );

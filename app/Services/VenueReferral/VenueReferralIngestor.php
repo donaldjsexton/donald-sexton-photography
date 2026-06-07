@@ -51,8 +51,7 @@ class VenueReferralIngestor
             return $stats;
         }
 
-        $hasGatedVenue = $venuesByEmail->contains(fn (Venue $venue) => $venue->requiresReferralApproval());
-        $query = $this->buildQuery($venuesByEmail->keys()->all(), $withinDays, $hasGatedVenue);
+        $query = $this->buildQuery($venuesByEmail, $withinDays);
         $messages = $this->reader->searchMessages($query, 50);
 
         foreach ($messages as $message) {
@@ -68,11 +67,32 @@ class VenueReferralIngestor
                 continue;
             }
 
-            if (! $this->subjectMatchesVenue($message->subject, $venue)) {
+            $subjectMatches = $this->subjectMatchesVenue($message->subject, $venue);
+            $gated = $venue->requiresReferralApproval();
+
+            // Non-gated venues only ingest New-Client referrals.
+            if (! $gated && ! $subjectMatches) {
                 continue;
             }
 
-            $this->process($message, $venue, $stats);
+            // Gated venues (e.g. Gulf Beach Weddings) catch all of their referral
+            // mail, not just a subject keyword: a matching "Are You Available?"
+            // subject always qualifies, and any other email qualifies once its
+            // body carries contact details — so confirmed-booking notifications
+            // are picked up while newsletters and chatter are not.
+            if ($gated && ! $subjectMatches && ! $this->bodyHasContactDetails($message->bodyPlain)) {
+                continue;
+            }
+
+            $referral = $this->extractor->extract($message->subject, $message->bodyPlain);
+
+            // The broad gated catch only files a lead once the body actually
+            // parses into a usable couple referral.
+            if ($gated && ! $subjectMatches && ! $this->looksLikeReferral($referral)) {
+                continue;
+            }
+
+            $this->process($message, $venue, $referral, $stats);
         }
 
         return $stats;
@@ -96,10 +116,8 @@ class VenueReferralIngestor
     /**
      * @param  array{checked: int, created: int, auto_sent: int, queued_for_review: int}  $stats
      */
-    private function process(ParsedGmailMessage $message, Venue $venue, array &$stats): void
+    private function process(ParsedGmailMessage $message, Venue $venue, ?ExtractedReferral $referral, array &$stats): void
     {
-        $referral = $this->extractor->extract($message->subject, $message->bodyPlain);
-
         $autoSendEligible = $referral !== null
             && $referral->isComplete()
             && $referral->confidence >= self::CONFIDENCE_THRESHOLD
@@ -273,24 +291,61 @@ class VenueReferralIngestor
     }
 
     /**
-     * @param  array<int, string>  $emails
+     * Gated venues catch all of their recent mail (no subject restriction) so
+     * confirmed-booking notifications are ingested alongside "Are You
+     * Available?" broadcasts. Other venues stay scoped to New-Client referrals.
+     *
+     * @param  Collection<string, Venue>  $venuesByEmail
      */
-    private function buildQuery(array $emails, int $withinDays, bool $includeAvailability): string
+    private function buildQuery(Collection $venuesByEmail, int $withinDays): string
     {
-        $froms = array_map(fn (string $e) => "from:{$e}", $emails);
+        $newClientEmails = [];
+        $broadEmails = [];
 
-        $subjects = ['subject:"new client"'];
+        foreach ($venuesByEmail as $email => $venue) {
+            if ($venue->requiresReferralApproval()) {
+                $broadEmails[] = $email;
+            } else {
+                $newClientEmails[] = $email;
+            }
+        }
 
-        if ($includeAvailability) {
-            $subjects[] = 'subject:available';
+        $groups = [];
+
+        if ($newClientEmails !== []) {
+            $froms = implode(' OR ', array_map(fn (string $e) => "from:{$e}", $newClientEmails));
+            $groups[] = sprintf('((%s) subject:"new client")', $froms);
+        }
+
+        if ($broadEmails !== []) {
+            $froms = implode(' OR ', array_map(fn (string $e) => "from:{$e}", $broadEmails));
+            $groups[] = sprintf('(%s)', $froms);
         }
 
         return sprintf(
-            '(%s) (%s) newer_than:%dd -in:sent',
-            implode(' OR ', $froms),
-            implode(' OR ', $subjects),
+            '(%s) newer_than:%dd -in:sent',
+            implode(' OR ', $groups),
             max(1, $withinDays),
         );
+    }
+
+    /**
+     * Cheap pre-filter for the broad gated catch: only spend an extraction call
+     * on venue mail that actually carries a contact email address.
+     */
+    private function bodyHasContactDetails(string $body): bool
+    {
+        return preg_match('/[\w.+-]+@[\w-]+\.[\w.-]+/', $body) === 1;
+    }
+
+    /**
+     * A usable referral has at least a named couple and one way to reach them.
+     */
+    private function looksLikeReferral(?ExtractedReferral $referral): bool
+    {
+        return $referral !== null
+            && $referral->primaryName() !== ''
+            && ($referral->primaryEmail !== null || $referral->phone !== null);
     }
 
     private function buildInquiryNote(ParsedGmailMessage $message, ?ExtractedReferral $referral): string
