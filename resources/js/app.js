@@ -715,10 +715,11 @@ if (venueWidget) {
 /**
  * Build a single library tile shared by the single- and multi-select pickers.
  *
- * The square is reserved with `aspect-ratio` on the image wrapper (see the CSS)
- * so iOS Safari always allocates the height before the image decodes —
- * otherwise the grid rows collapse to slivers. The photo fades in over a
- * shimmer skeleton once it loads, and tiles stagger in for a livelier "feed".
+ * The square is reserved by the in-flow <img>'s own `aspect-ratio` (see the
+ * CSS), so each tile gets a real height from the bottom up rather than relying
+ * on a definite height handed down from the grid — the chain iOS Safari kept
+ * collapsing to slivers. The photo fades in over a shimmer skeleton once it
+ * loads, and tiles stagger in for a livelier "feed loading" feel.
  */
 const buildMediaTile = (media, { multi = false, selected = false, index = 0 } = {}) => {
     const tile = document.createElement('button');
