@@ -722,10 +722,24 @@ if (venueWidget) {
  * loads, and tiles stagger in for a livelier "feed loading" feel.
  */
 const buildMediaTile = (media, { multi = false, selected = false, index = 0 } = {}) => {
-    const tile = document.createElement('button');
-    tile.type = 'button';
+    // A <div role="button">, not a real <button>: a <button> does not take
+    // height from its in-flow content or feed an `aspect-ratio` height back
+    // into the grid row, so the rows collapsed and tiles shingled on top of
+    // each other. A plain block element sizes normally, so the grid rows get
+    // real height and the gap separates them into individual tiles.
+    const tile = document.createElement('div');
+    tile.setAttribute('role', 'button');
+    tile.tabIndex = 0;
     tile.className = 'media-picker-tile';
     tile.style.setProperty('--enter-delay', `${Math.min(index, 16) * 28}ms`);
+
+    // Restore the keyboard activation a native <button> gave us for free.
+    tile.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            tile.click();
+        }
+    });
 
     if (multi) {
         tile.dataset.multiTile = '';
