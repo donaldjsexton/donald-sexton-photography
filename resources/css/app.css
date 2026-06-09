@@ -4444,6 +4444,12 @@ body.media-picker-modal-open {
     opacity: 0.7;
 }
 
+/* Invisible last row watched by the infinite-scroll IntersectionObserver. */
+.media-picker-modal__sentinel {
+    grid-column: 1 / -1;
+    height: 1px;
+}
+
 .media-picker-tile {
     position: relative;
     border: 1px solid var(--admin-line, rgba(0, 0, 0, 0.1));
@@ -4457,13 +4463,16 @@ body.media-picker-modal-open {
     text-align: left;
     font: inherit;
     /*
-     * Fallback square for the no-image / error state only — those tiles have
-     * no <img> to give them height. When an image is present, the in-flow
-     * <img>'s own `aspect-ratio` drives the height (see
-     * `.media-picker-tile__image img`); both agree, so loaded and empty tiles
-     * stay the same square size.
+     * No aspect-ratio here. The square comes from the figure's percentage
+     * padding (see `.media-picker-tile__image`), which resolves against the
+     * tile's own width — track-sizing an aspect-ratio item is what iOS Safari
+     * kept getting wrong (zero-height rows, so tiles overlapped in a cascade).
      */
-    aspect-ratio: 1 / 1;
+    /* Far-offscreen tiles skip layout and paint, so a long session of
+       loaded pages stays cheap to scroll. `auto` keeps the real rendered
+       size once a tile has been on screen, so scroll position stays stable. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 165px;
     /* Stagger each tile in for a livelier "feed loading" feel. */
     animation: media-tile-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
     animation-delay: var(--enter-delay, 0ms);
@@ -4491,15 +4500,17 @@ body.media-picker-modal-open {
     position: relative;
     width: 100%;
     /*
-     * Do NOT give this wrapper a height. The square comes bottom-up from the
-     * in-flow <img> below (`aspect-ratio` on the image's own box), so the tile
-     * never depends on a definite height being handed DOWN from an ancestor.
-     * That top-down chain is what kept breaking on iOS Safari: a percentage
-     * height here resolves against the `minmax(0, 1fr)` grid track, which iOS
-     * treats as indefinite, so it computes to `auto` and collapses to a sliver.
-     * `aspect-ratio` on the button (see `.media-picker-tile`) is only the
-     * fallback for the no-image / error state, which has no <img> to size it.
+     * The square is made of percentage PADDING, which resolves against the
+     * tile's width (the column track — always definite). This is the one
+     * sizing chain that never touches the grid row track or `aspect-ratio`,
+     * the two mechanisms iOS Safari kept mis-resolving: percentage heights
+     * collapsed tiles to slivers, and aspect-ratio heights were left out of
+     * row sizing so rows collapsed and tiles overlapped like dealt cards.
+     * Padding gives the row plain content height, with or without an <img>,
+     * loaded or not — so empty/error tiles stay the same square too.
      */
+    height: 0;
+    padding-bottom: 100%;
     display: block;
     overflow: hidden;
     background: var(--admin-accent-soft, rgba(0, 0, 0, 0.05));
@@ -4523,14 +4534,15 @@ body.media-picker-modal-open {
 
 .media-picker-tile__image img {
     /*
-     * In-flow (not absolute): the image's own `aspect-ratio` box reserves the
-     * square height before the resource decodes, so the wrapper and tile get a
-     * real height from the bottom up. `opacity: 0` still reserves layout, so
-     * tiles keep their height while photos stream in — the iOS sliver fix.
+     * Absolute, filling the figure's padding box. The image takes no part in
+     * layout, so a photo that is still streaming in (or fails) can never
+     * change the tile's size — the padding square above is the only thing
+     * that ever sets it.
      */
+    position: absolute;
+    inset: 0;
     width: 100%;
-    height: auto;
-    aspect-ratio: 1 / 1;
+    height: 100%;
     object-fit: cover;
     display: block;
     opacity: 0;
