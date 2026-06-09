@@ -4432,6 +4432,9 @@ body.media-picker-modal-open {
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 0.85rem;
     align-content: start;
+    /* Size each row to its own content — never stretch a tile into an
+       ambiguous track height, which is what collapsed tiles to slivers. */
+    align-items: start;
 }
 
 .media-picker-modal__empty {
@@ -4454,13 +4457,13 @@ body.media-picker-modal-open {
     text-align: left;
     font: inherit;
     /*
-     * NO `aspect-ratio` on this <button>. A button with `aspect-ratio` sizes
-     * its own box from the ratio but does NOT feed that height back into the
-     * grid row, so the row collapses (~one badge tall) while the image paints
-     * full size and overflows — tiles shingle/stack on top of each other. Let
-     * the in-flow <img> size the tile instead; a plain block <button> grows to
-     * its in-flow content normally.
+     * Fallback square for the no-image / error state only — those tiles have
+     * no <img> to give them height. When an image is present, the in-flow
+     * <img>'s own `aspect-ratio` drives the height (see
+     * `.media-picker-tile__image img`); both agree, so loaded and empty tiles
+     * stay the same square size.
      */
+    aspect-ratio: 1 / 1;
     /* Stagger each tile in for a livelier "feed loading" feel. */
     animation: media-tile-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
     animation-delay: var(--enter-delay, 0ms);
@@ -4488,16 +4491,15 @@ body.media-picker-modal-open {
     position: relative;
     width: 100%;
     /*
-     * `aspect-ratio` here is ONLY the fallback for the no-image / error state,
-     * which has no <img> to give it height. When an image is present the
-     * in-flow <img> below drives the real height bottom-up (its own
-     * `aspect-ratio`), so the tile never depends on a definite height handed
-     * DOWN from an ancestor — the top-down chain iOS Safari refused to resolve
-     * through the `minmax(0, 1fr)` grid track. The in-flow image also means
-     * this wrapper always has real content height, so tiles can't collapse and
-     * stack even where the aspect-ratio fallback is ignored.
+     * Do NOT give this wrapper a height. The square comes bottom-up from the
+     * in-flow <img> below (`aspect-ratio` on the image's own box), so the tile
+     * never depends on a definite height being handed DOWN from an ancestor.
+     * That top-down chain is what kept breaking on iOS Safari: a percentage
+     * height here resolves against the `minmax(0, 1fr)` grid track, which iOS
+     * treats as indefinite, so it computes to `auto` and collapses to a sliver.
+     * `aspect-ratio` on the button (see `.media-picker-tile`) is only the
+     * fallback for the no-image / error state, which has no <img> to size it.
      */
-    aspect-ratio: 1 / 1;
     display: block;
     overflow: hidden;
     background: var(--admin-accent-soft, rgba(0, 0, 0, 0.05));
