@@ -715,18 +715,17 @@ if (venueWidget) {
 /**
  * Build a single library tile shared by the single- and multi-select pickers.
  *
- * The square is reserved by the in-flow <img>'s own `aspect-ratio` (see the
- * CSS), so each tile gets a real height from the bottom up rather than relying
- * on a definite height handed down from the grid — the chain iOS Safari kept
- * collapsing to slivers. The photo fades in over a shimmer skeleton once it
- * loads, and tiles stagger in for a livelier "feed loading" feel.
+ * The square is reserved by the figure's percentage padding (see
+ * `.media-picker-tile__image` in the CSS), which resolves against the column
+ * width — never by `aspect-ratio` or a height handed down from the grid row,
+ * the two chains iOS Safari kept resolving to slivers or zero-height rows.
+ * The photo fades in over a shimmer skeleton once it loads, and tiles stagger
+ * in for a livelier "feed loading" feel.
  */
 const buildMediaTile = (media, { multi = false, selected = false, index = 0 } = {}) => {
-    // A <div role="button">, not a real <button>: a <button> does not take
-    // height from its in-flow content or feed an `aspect-ratio` height back
-    // into the grid row, so the rows collapsed and tiles shingled on top of
-    // each other. A plain block element sizes normally, so the grid rows get
-    // real height and the gap separates them into individual tiles.
+    // A <div role="button"> rather than a real <button>, so the tile is an
+    // ordinary block box with no form-control sizing quirks. Keyboard
+    // activation is restored below.
     const tile = document.createElement('div');
     tile.setAttribute('role', 'button');
     tile.tabIndex = 0;
@@ -796,6 +795,40 @@ const buildMediaTile = (media, { multi = false, selected = false, index = 0 } = 
     return tile;
 };
 
+/**
+ * Auto-load the next page when the user scrolls near the end of a picker
+ * grid. The sentinel rides along as the grid's last child; re-observing it
+ * after each batch forces a fresh intersection check, so loading chains until
+ * the sentinel sits beyond the preload margin or `has_more` runs out. The
+ * "Load more" button remains as a manual fallback.
+ */
+const createPickerInfiniteScroll = (grid, requestNextPage) => {
+    const sentinel = document.createElement('div');
+    sentinel.className = 'media-picker-modal__sentinel';
+    sentinel.setAttribute('aria-hidden', 'true');
+
+    let enabled = false;
+
+    const observer = typeof IntersectionObserver === 'function'
+        ? new IntersectionObserver((entries) => {
+            if (enabled && entries.some((entry) => entry.isIntersecting)) {
+                requestNextPage();
+            }
+        }, { root: grid, rootMargin: '600px 0px' })
+        : null;
+
+    return {
+        place() {
+            observer?.unobserve(sentinel);
+            grid.appendChild(sentinel);
+            observer?.observe(sentinel);
+        },
+        setEnabled(value) {
+            enabled = Boolean(value) && observer !== null;
+        },
+    };
+};
+
 const mediaPickers = document.querySelectorAll('[data-media-picker]');
 
 if (mediaPickers.length > 0) {
@@ -804,12 +837,14 @@ if (mediaPickers.length > 0) {
     let modalGrid = null;
     let modalStatus = null;
     let modalLoadMore = null;
+    let modalInfinite = null;
     let activePicker = null;
     let currentPage = 1;
     let lastPage = 1;
     let isLoading = false;
     let searchDebounce = null;
     let lastFocusedTrigger = null;
+    let renderedIds = new Set();
 
     const ensureModal = () => {
         if (modal) {
@@ -849,6 +884,7 @@ if (mediaPickers.length > 0) {
         modalGrid = modal.querySelector('.media-picker-modal__grid');
         modalStatus = modal.querySelector('.media-picker-modal__status');
         modalLoadMore = modal.querySelector('.media-picker-modal__more');
+        modalInfinite = createPickerInfiniteScroll(modalGrid, () => loadResults(false));
 
         modal.querySelectorAll('[data-modal-close]').forEach((node) => {
             node.addEventListener('click', closeModal);
@@ -897,20 +933,26 @@ if (mediaPickers.length > 0) {
     const renderTiles = (items, append) => {
         if (!append) {
             modalGrid.innerHTML = '';
+            renderedIds = new Set();
         }
 
-        if (items.length === 0 && !append) {
+        // Offset pagination can repeat an item across page boundaries when
+        // new media lands mid-browse — skip anything already in the grid.
+        const fresh = items.filter((media) => !renderedIds.has(media.id));
+
+        if (fresh.length === 0 && !append) {
             const empty = document.createElement('p');
             empty.className = 'media-picker-modal__empty';
             empty.textContent = 'No media matched your search.';
             modalGrid.appendChild(empty);
-
-            return;
+        } else {
+            fresh.forEach((media, index) => {
+                renderedIds.add(media.id);
+                modalGrid.appendChild(buildMediaTile(media, { index }));
+            });
         }
 
-        items.forEach((media, index) => {
-            modalGrid.appendChild(buildMediaTile(media, { index }));
-        });
+        modalInfinite.place();
     };
 
     const loadResults = (reset) => {
@@ -924,13 +966,13 @@ if (mediaPickers.length > 0) {
             return;
         }
 
+        // Advance the page only once the response lands — bumping it up front
+        // meant a failed request skipped a page of results forever after.
+        const page = reset ? 1 : currentPage + 1;
+
         if (reset) {
-            currentPage = 1;
-            lastPage = 1;
             modalStatus.textContent = 'Searching…';
             modalGrid.scrollTop = 0;
-        } else {
-            currentPage += 1;
         }
 
         const params = new URLSearchParams();
@@ -940,7 +982,7 @@ if (mediaPickers.length > 0) {
             params.set('q', term);
         }
 
-        params.set('page', String(currentPage));
+        params.set('page', String(page));
 
         setLoading(true);
 
@@ -956,9 +998,11 @@ if (mediaPickers.length > 0) {
                 return response.json();
             })
             .then((payload) => {
+                currentPage = payload.current_page || page;
                 lastPage = payload.last_page || 1;
                 renderTiles(payload.data || [], !reset);
                 modalLoadMore.hidden = !payload.has_more;
+                modalInfinite.setEnabled(Boolean(payload.has_more));
                 modalStatus.textContent = `${payload.total} result${payload.total === 1 ? '' : 's'}`;
             })
             .catch(() => {
@@ -978,6 +1022,7 @@ if (mediaPickers.length > 0) {
         modalSearch.value = '';
         modalGrid.innerHTML = '';
         modalLoadMore.hidden = true;
+        modalInfinite.setEnabled(false);
         modalStatus.textContent = '';
         loadResults(true);
         setTimeout(() => modalSearch.focus(), 50);
@@ -990,6 +1035,7 @@ if (mediaPickers.length > 0) {
 
         modal.hidden = true;
         document.body.classList.remove('media-picker-modal-open');
+        modalInfinite?.setEnabled(false);
         activePicker = null;
         lastFocusedTrigger?.focus();
     }
@@ -1121,12 +1167,14 @@ if (storyGalleries.length > 0) {
     let multiStatus = null;
     let multiLoadMore = null;
     let multiConfirm = null;
+    let multiInfinite = null;
     let multiSelected = new Map(); // id -> media
     let multiPage = 1;
     let multiLoading = false;
     let multiResolver = null;
     let multiSearchDebounce = null;
     let multiEndpoint = null;
+    let multiRenderedIds = new Set();
 
     const ensureMultiModal = () => {
         if (multiModal) {
@@ -1168,6 +1216,7 @@ if (storyGalleries.length > 0) {
         multiStatus = multiModal.querySelector('.media-picker-modal__status');
         multiLoadMore = multiModal.querySelector('.media-picker-modal__more');
         multiConfirm = multiModal.querySelector('.media-picker-modal__confirm');
+        multiInfinite = createPickerInfiniteScroll(multiGrid, () => loadMulti(false));
 
         multiModal.querySelectorAll('[data-multi-close]').forEach((node) => {
             node.addEventListener('click', closeMulti);
@@ -1232,24 +1281,30 @@ if (storyGalleries.length > 0) {
     const renderMultiTiles = (items, append) => {
         if (!append) {
             multiGrid.innerHTML = '';
+            multiRenderedIds = new Set();
         }
 
-        if (items.length === 0 && !append) {
+        // Offset pagination can repeat an item across page boundaries when
+        // new media lands mid-browse — skip anything already in the grid.
+        const fresh = items.filter((media) => !multiRenderedIds.has(media.id));
+
+        if (fresh.length === 0 && !append) {
             const empty = document.createElement('p');
             empty.className = 'media-picker-modal__empty';
             empty.textContent = 'No media matched your search.';
             multiGrid.appendChild(empty);
-
-            return;
+        } else {
+            fresh.forEach((media, index) => {
+                multiRenderedIds.add(media.id);
+                multiGrid.appendChild(buildMediaTile(media, {
+                    multi: true,
+                    selected: multiSelected.has(media.id),
+                    index,
+                }));
+            });
         }
 
-        items.forEach((media, index) => {
-            multiGrid.appendChild(buildMediaTile(media, {
-                multi: true,
-                selected: multiSelected.has(media.id),
-                index,
-            }));
-        });
+        multiInfinite.place();
     };
 
     const loadMulti = (reset) => {
@@ -1257,12 +1312,13 @@ if (storyGalleries.length > 0) {
             return;
         }
 
+        // Advance the page only once the response lands — bumping it up front
+        // meant a failed request skipped a page of results forever after.
+        const page = reset ? 1 : multiPage + 1;
+
         if (reset) {
-            multiPage = 1;
             multiGrid.scrollTop = 0;
             multiStatus.textContent = 'Searching…';
-        } else {
-            multiPage += 1;
         }
 
         const params = new URLSearchParams();
@@ -1272,7 +1328,7 @@ if (storyGalleries.length > 0) {
             params.set('q', term);
         }
 
-        params.set('page', String(multiPage));
+        params.set('page', String(page));
 
         multiLoading = true;
         multiLoadMore.disabled = true;
@@ -1290,8 +1346,10 @@ if (storyGalleries.length > 0) {
                 return response.json();
             })
             .then((payload) => {
+                multiPage = payload.current_page || page;
                 renderMultiTiles(payload.data || [], !reset);
                 multiLoadMore.hidden = !payload.has_more;
+                multiInfinite.setEnabled(Boolean(payload.has_more));
                 multiStatus.textContent = `${payload.total} result${payload.total === 1 ? '' : 's'}`;
             })
             .catch(() => {
@@ -1313,6 +1371,7 @@ if (storyGalleries.length > 0) {
         multiGrid.innerHTML = '';
         multiStatus.textContent = '';
         multiLoadMore.hidden = true;
+        multiInfinite.setEnabled(false);
         updateMultiConfirm();
         multiModal.hidden = false;
         document.body.classList.add('media-picker-modal-open');
@@ -1327,6 +1386,7 @@ if (storyGalleries.length > 0) {
 
         multiModal.hidden = true;
         document.body.classList.remove('media-picker-modal-open');
+        multiInfinite?.setEnabled(false);
 
         if (multiResolver) {
             const resolver = multiResolver;
