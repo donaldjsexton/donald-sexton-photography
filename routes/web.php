@@ -30,6 +30,7 @@ use App\Http\Controllers\Admin\WeddingStoryController as AdminWeddingStoryContro
 use App\Http\Controllers\Admin\WordPressImportController as AdminWordPressImportController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\ContractPublicController;
+use App\Http\Controllers\GalleryShareController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\InvoicePublicController;
@@ -289,6 +290,14 @@ Route::get('/thank-you', [InquiryController::class, 'thankYou'])->name('inquiry.
 Route::get('/questionnaire/thank-you', [QuestionnaireController::class, 'thankYou'])->name('questionnaire.thank-you');
 Route::get('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'show'])->name('questionnaire.show');
 Route::put('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'update'])->name('questionnaire.update');
+
+Route::prefix('g')->name('galleries.share.')->group(function () {
+    Route::get('/{token}', [GalleryShareController::class, 'show'])->name('show');
+    Route::post('/{token}/unlock', [GalleryShareController::class, 'unlock'])->name('unlock');
+    Route::get('/{token}/download', [GalleryShareController::class, 'downloadAll'])->name('download');
+    Route::get('/{token}/p/{photo}', [GalleryShareController::class, 'photo'])->name('photo');
+    Route::get('/{token}/p/{photo}/download', [GalleryShareController::class, 'downloadPhoto'])->name('photo.download');
+});
 
 Route::middleware('signed')->group(function () {
     Route::get('/invoices/{invoice}', [InvoicePublicController::class, 'show'])->name('invoices.public.show');

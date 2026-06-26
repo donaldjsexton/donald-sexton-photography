@@ -302,9 +302,7 @@ class PhotoIngestionService
 
     public function variantPath(string $originalPath, PhotoVariant $variant): string
     {
-        $withoutExtension = preg_replace('/\.[^.]+$/', '', $originalPath);
-
-        return $withoutExtension.'_'.$variant->value.'.webp';
+        return $variant->pathFor($originalPath);
     }
 
     private function decode(string $sourcePath, string $mime): ?\GdImage

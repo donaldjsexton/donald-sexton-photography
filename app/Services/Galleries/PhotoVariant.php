@@ -18,4 +18,12 @@ enum PhotoVariant: string
             self::Web => 1600,
         };
     }
+
+    /**
+     * The rendition's storage path, derived from the original's path.
+     */
+    public function pathFor(string $originalPath): string
+    {
+        return preg_replace('/\.[^.]+$/', '', $originalPath).'_'.$this->value.'.webp';
+    }
 }

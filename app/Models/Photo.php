@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToSite;
+use App\Services\Galleries\PhotoVariant;
 use Database\Factories\PhotoFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -72,5 +73,30 @@ class Photo extends Model
         }
 
         return Storage::disk($this->disk ?? 's3')->url($this->path);
+    }
+
+    public function variantPath(PhotoVariant $variant): string
+    {
+        return $variant->pathFor((string) $this->path);
+    }
+
+    /**
+     * Resolve the best available path for a rendition, falling back to the
+     * original when the variant was not generated.
+     */
+    public function pathForVariant(PhotoVariant $variant): string
+    {
+        $variantPath = $this->variantPath($variant);
+
+        if (Storage::disk($this->disk ?? 's3')->exists($variantPath)) {
+            return $variantPath;
+        }
+
+        return (string) $this->path;
+    }
+
+    public function downloadName(): string
+    {
+        return $this->original_name ?: $this->uuid.'.'.pathinfo((string) $this->path, PATHINFO_EXTENSION);
     }
 }

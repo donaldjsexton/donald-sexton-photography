@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Concerns\BelongsToSite;
 use Database\Factories\GalleryFactory;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -84,5 +85,23 @@ class Gallery extends Model
     public function isPublic(): bool
     {
         return $this->visibility === self::VISIBILITY_PUBLIC;
+    }
+
+    /**
+     * Every photo across the gallery's albums, ordered by album then position.
+     *
+     * @return Collection<int, Photo>
+     */
+    public function orderedPhotos(): Collection
+    {
+        return Photo::query()
+            ->join('album_photo', 'album_photo.photo_id', '=', 'photos.id')
+            ->join('albums', 'albums.id', '=', 'album_photo.album_id')
+            ->where('albums.gallery_id', $this->id)
+            ->orderBy('albums.sort_order')
+            ->orderBy('album_photo.sort_order')
+            ->select('photos.*')
+            ->distinct()
+            ->get();
     }
 }
