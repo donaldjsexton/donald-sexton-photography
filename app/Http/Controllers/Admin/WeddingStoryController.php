@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Admin\Concerns\ManagesPolymorphicMedia;
 use App\Http\Controllers\Controller;
+use App\Models\Gallery;
 use App\Models\Media;
 use App\Models\Tag;
 use App\Models\Venue;
@@ -96,6 +97,7 @@ class WeddingStoryController extends Controller
             'excerpt' => ['nullable', 'string'],
             'body' => ['nullable', 'string'],
             'hero_media_id' => ['nullable', 'integer', 'exists:media,id'],
+            'gallery_id' => ['nullable', Rule::exists('galleries', 'id')->where('site_id', app(CurrentSite::class)->id())],
             'event_date' => ['nullable', 'date'],
             'location_name' => ['nullable', 'string', 'max:255'],
             'city' => ['nullable', 'string', 'max:255'],
@@ -139,6 +141,7 @@ class WeddingStoryController extends Controller
         return [
             'story' => $story,
             'venues' => Venue::query()->orderBy('name')->get(),
+            'galleries' => Gallery::query()->orderBy('title')->get(),
             'tags' => Tag::query()->orderBy('name')->get(),
             'storyTypes' => ['wedding', 'elopement', 'engagement', 'editorial'],
             'statuses' => ['draft', 'published', 'archived'],

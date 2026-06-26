@@ -9,6 +9,9 @@ use App\Http\Controllers\Admin\ContractController as AdminContractController;
 use App\Http\Controllers\Admin\ContractTemplateController as AdminContractTemplateController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DomainController as AdminDomainController;
+use App\Http\Controllers\Admin\GalleryAlbumController as AdminGalleryAlbumController;
+use App\Http\Controllers\Admin\GalleryController as AdminGalleryController;
+use App\Http\Controllers\Admin\GalleryShareLinkController as AdminGalleryShareLinkController;
 use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
 use App\Http\Controllers\Admin\HomepageBlockController as AdminHomepageBlockController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
@@ -30,6 +33,8 @@ use App\Http\Controllers\Admin\WeddingStoryController as AdminWeddingStoryContro
 use App\Http\Controllers\Admin\WordPressImportController as AdminWordPressImportController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\ContractPublicController;
+use App\Http\Controllers\GalleryEmbedController;
+use App\Http\Controllers\GalleryShareController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InquiryController;
 use App\Http\Controllers\InvoicePublicController;
@@ -43,6 +48,7 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\ContractController as PortalContractController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
+use App\Http\Controllers\Portal\GalleryController as PortalGalleryController;
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordResetController as PortalPasswordResetController;
 use App\Http\Controllers\Portal\PayPalPaymentController as PortalPayPalPaymentController;
@@ -238,6 +244,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/venues/{venue}', [AdminVenueController::class, 'update'])->name('venues.update');
         Route::delete('/venues/{venue}', [AdminVenueController::class, 'destroy'])->name('venues.destroy');
 
+        Route::get('/galleries', [AdminGalleryController::class, 'index'])->name('galleries.index');
+        Route::get('/galleries/create', [AdminGalleryController::class, 'create'])->name('galleries.create');
+        Route::post('/galleries', [AdminGalleryController::class, 'store'])->name('galleries.store');
+        Route::get('/galleries/{gallery}/edit', [AdminGalleryController::class, 'edit'])->name('galleries.edit');
+        Route::put('/galleries/{gallery}', [AdminGalleryController::class, 'update'])->name('galleries.update');
+        Route::delete('/galleries/{gallery}', [AdminGalleryController::class, 'destroy'])->name('galleries.destroy');
+        Route::post('/galleries/{gallery}/cover/{photo}', [AdminGalleryController::class, 'setCover'])->name('galleries.cover');
+
+        Route::post('/galleries/{gallery}/albums', [AdminGalleryAlbumController::class, 'store'])->name('galleries.albums.store');
+        Route::put('/galleries/{gallery}/albums/{album}', [AdminGalleryAlbumController::class, 'update'])->name('galleries.albums.update');
+        Route::delete('/galleries/{gallery}/albums/{album}', [AdminGalleryAlbumController::class, 'destroy'])->name('galleries.albums.destroy');
+        Route::post('/galleries/{gallery}/albums/{album}/photos', [AdminGalleryAlbumController::class, 'storePhotos'])->name('galleries.albums.photos.store');
+        Route::delete('/galleries/{gallery}/albums/{album}/photos/{photo}', [AdminGalleryAlbumController::class, 'destroyPhoto'])->name('galleries.albums.photos.destroy');
+
+        Route::post('/galleries/{gallery}/shares', [AdminGalleryShareLinkController::class, 'store'])->name('galleries.shares.store');
+        Route::delete('/galleries/{gallery}/shares/{shareToken}', [AdminGalleryShareLinkController::class, 'destroy'])->name('galleries.shares.destroy');
+
         Route::get('/console', [AdminConsoleCommandController::class, 'index'])->name('console.index');
         Route::post('/console/run', [AdminConsoleCommandController::class, 'run'])->name('console.run');
 
@@ -290,6 +313,16 @@ Route::get('/questionnaire/thank-you', [QuestionnaireController::class, 'thankYo
 Route::get('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'show'])->name('questionnaire.show');
 Route::put('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'update'])->name('questionnaire.update');
 
+Route::get('/galleries/{gallery:uuid}/embed/{photo}', [GalleryEmbedController::class, 'photo'])->name('galleries.embed.photo');
+
+Route::prefix('g')->name('galleries.share.')->group(function () {
+    Route::get('/{token}', [GalleryShareController::class, 'show'])->name('show');
+    Route::post('/{token}/unlock', [GalleryShareController::class, 'unlock'])->name('unlock');
+    Route::get('/{token}/download', [GalleryShareController::class, 'downloadAll'])->name('download');
+    Route::get('/{token}/p/{photo}', [GalleryShareController::class, 'photo'])->name('photo');
+    Route::get('/{token}/p/{photo}/download', [GalleryShareController::class, 'downloadPhoto'])->name('photo.download');
+});
+
 Route::middleware('signed')->group(function () {
     Route::get('/invoices/{invoice}', [InvoicePublicController::class, 'show'])->name('invoices.public.show');
     Route::get('/invoices/{invoice}/pdf', [InvoicePublicController::class, 'downloadPdf'])->name('invoices.public.pdf');
@@ -333,6 +366,12 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::middleware('auth:client')->group(function () {
             Route::get('/settings', [PortalSettingsController::class, 'edit'])->name('settings.edit');
             Route::patch('/settings', [PortalSettingsController::class, 'update'])->name('settings.update');
+
+            Route::get('/galleries', [PortalGalleryController::class, 'index'])->name('galleries.index');
+            Route::get('/galleries/{gallery}', [PortalGalleryController::class, 'show'])->name('galleries.show');
+            Route::get('/galleries/{gallery}/download', [PortalGalleryController::class, 'downloadAll'])->name('galleries.download');
+            Route::get('/galleries/{gallery}/p/{photo}', [PortalGalleryController::class, 'photo'])->name('galleries.photo');
+            Route::get('/galleries/{gallery}/p/{photo}/download', [PortalGalleryController::class, 'downloadPhoto'])->name('galleries.photo.download');
         });
     });
 });

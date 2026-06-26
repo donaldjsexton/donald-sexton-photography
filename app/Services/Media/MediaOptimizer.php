@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Storage;
 
 class MediaOptimizer
 {
+    public function __construct(private readonly GdImageProcessor $gd = new GdImageProcessor) {}
+
     /**
      * Standard upload pipeline: cap original dimensions, emit a full-size
      * WebP, and generate responsive WebP variants. Designed to be called
@@ -107,14 +109,14 @@ class MediaOptimizer
         $onlyMissingWebp = (bool) ($options['only_missing_webp'] ?? false);
 
         [$originalWidth, $originalHeight] = $imageInfo;
-        $source = $this->createImageResource($absolutePath, $mime);
+        $source = $this->gd->decode($absolutePath, $mime);
 
         if (! $source instanceof \GdImage) {
             return $this->skip('decoder_failed');
         }
 
         try {
-            $source = $this->applyExifOrientation($source, $absolutePath, $mime);
+            $source = $this->gd->applyExifOrientation($source, $absolutePath, $mime);
             $width = imagesx($source);
             $height = imagesy($source);
             $targetWidth = $width > $maxWidth ? $maxWidth : $width;
@@ -130,7 +132,7 @@ class MediaOptimizer
             $webpSatisfied = ! $generateWebp || ($onlyMissingWebp && $webpExists);
             $avifSatisfied = ! $generateAvif
                 || $avifPath === null
-                || ! $this->formatSupported('avif')
+                || ! $this->gd->supportsFormat('avif')
                 || ($onlyMissingWebp && $avifExists);
 
             if (
@@ -142,7 +144,7 @@ class MediaOptimizer
                 return $this->skip('below_min_bytes');
             }
 
-            $canvas = $this->makeCanvas($source, $mime, $targetWidth, $targetHeight);
+            $canvas = $this->gd->resample($source, $mime, $targetWidth, $targetHeight);
 
             if (! $canvas instanceof \GdImage) {
                 return $this->skip('canvas_failed');
@@ -315,7 +317,7 @@ class MediaOptimizer
         int $quality,
         bool $dryRun,
     ): array {
-        if (! $generate || $siblingPath === null || ! $this->formatSupported($format)) {
+        if (! $generate || $siblingPath === null || ! $this->gd->supportsFormat($format)) {
             return ['created' => false, 'updated' => false, 'bytes' => null];
         }
 
@@ -330,7 +332,7 @@ class MediaOptimizer
         }
 
         try {
-            if (! $this->encodeCanvas($canvas, $tempPath, $format, $quality)) {
+            if (! $this->gd->encode($canvas, $tempPath, $format, $quality)) {
                 return ['created' => false, 'updated' => false, 'bytes' => null];
             }
 
@@ -374,117 +376,6 @@ class MediaOptimizer
         }
     }
 
-    private function createImageResource(string $absolutePath, string $mime): ?\GdImage
-    {
-        return match ($mime) {
-            'image/jpeg' => @imagecreatefromjpeg($absolutePath) ?: null,
-            'image/png' => @imagecreatefrompng($absolutePath) ?: null,
-            'image/webp' => function_exists('imagecreatefromwebp')
-                ? (@imagecreatefromwebp($absolutePath) ?: null)
-                : null,
-            default => null,
-        };
-    }
-
-    private function applyExifOrientation(\GdImage $image, string $absolutePath, string $mime): \GdImage
-    {
-        if ($mime !== 'image/jpeg' || ! function_exists('exif_read_data')) {
-            return $image;
-        }
-
-        try {
-            $exif = @exif_read_data($absolutePath);
-            $orientation = (int) ($exif['Orientation'] ?? 1);
-        } catch (\Throwable) {
-            return $image;
-        }
-
-        return match ($orientation) {
-            2 => $this->flip($image, IMG_FLIP_HORIZONTAL),
-            3 => $this->rotate($image, 180),
-            4 => $this->flip($image, IMG_FLIP_VERTICAL),
-            5 => $this->flip($this->rotate($image, -90), IMG_FLIP_HORIZONTAL),
-            6 => $this->rotate($image, -90),
-            7 => $this->flip($this->rotate($image, 90), IMG_FLIP_HORIZONTAL),
-            8 => $this->rotate($image, 90),
-            default => $image,
-        };
-    }
-
-    private function flip(\GdImage $image, int $mode): \GdImage
-    {
-        if (function_exists('imageflip') && imageflip($image, $mode)) {
-            return $image;
-        }
-
-        return $image;
-    }
-
-    private function rotate(\GdImage $image, int $degrees): \GdImage
-    {
-        $rotated = imagerotate($image, $degrees, 0);
-
-        if ($rotated instanceof \GdImage) {
-            imagedestroy($image);
-
-            return $rotated;
-        }
-
-        return $image;
-    }
-
-    private function makeCanvas(\GdImage $source, string $mime, int $targetWidth, int $targetHeight): ?\GdImage
-    {
-        if (imagesx($source) === $targetWidth && imagesy($source) === $targetHeight) {
-            $canvas = imagecreatetruecolor($targetWidth, $targetHeight);
-
-            if (! $canvas instanceof \GdImage) {
-                return null;
-            }
-
-            $this->prepareCanvas($canvas, $mime);
-            imagecopy($canvas, $source, 0, 0, 0, 0, $targetWidth, $targetHeight);
-
-            return $canvas;
-        }
-
-        $canvas = imagecreatetruecolor($targetWidth, $targetHeight);
-
-        if (! $canvas instanceof \GdImage) {
-            return null;
-        }
-
-        $this->prepareCanvas($canvas, $mime);
-
-        imagecopyresampled(
-            $canvas,
-            $source,
-            0,
-            0,
-            0,
-            0,
-            $targetWidth,
-            $targetHeight,
-            imagesx($source),
-            imagesy($source)
-        );
-
-        return $canvas;
-    }
-
-    private function prepareCanvas(\GdImage $canvas, string $mime): void
-    {
-        if (in_array($mime, ['image/png', 'image/webp'], true)) {
-            imagealphablending($canvas, false);
-            imagesavealpha($canvas, true);
-            $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);
-            imagefilledrectangle($canvas, 0, 0, imagesx($canvas), imagesy($canvas), $transparent);
-        } else {
-            $white = imagecolorallocate($canvas, 255, 255, 255);
-            imagefilledrectangle($canvas, 0, 0, imagesx($canvas), imagesy($canvas), $white);
-        }
-    }
-
     private function writeJpeg(\GdImage $canvas, string $path, int $quality): bool
     {
         imageinterlace($canvas, true);
@@ -501,24 +392,6 @@ class MediaOptimizer
         }
 
         return preg_replace('/\.[^.]+$/', '.'.$format, $path);
-    }
-
-    private function formatSupported(string $format): bool
-    {
-        return match ($format) {
-            'webp' => function_exists('imagewebp'),
-            'avif' => function_exists('imageavif'),
-            default => false,
-        };
-    }
-
-    private function encodeCanvas(\GdImage $canvas, string $path, string $format, int $quality): bool
-    {
-        return match ($format) {
-            'webp' => function_exists('imagewebp') && imagewebp($canvas, $path, $quality),
-            'avif' => function_exists('imageavif') && imageavif($canvas, $path, $quality),
-            default => false,
-        };
     }
 
     /**
@@ -592,7 +465,7 @@ class MediaOptimizer
             return $this->skipVariants('unsupported_mime');
         }
 
-        if (! $this->formatSupported($format)) {
+        if (! $this->gd->supportsFormat($format)) {
             return $this->skipVariants($format.'_unsupported');
         }
 
@@ -612,7 +485,7 @@ class MediaOptimizer
         $force = (bool) ($options['force'] ?? false);
         $dryRun = (bool) ($options['dry_run'] ?? false);
 
-        $source = $this->createImageResource($absolutePath, $mime);
+        $source = $this->gd->decode($absolutePath, $mime);
 
         if (! $source instanceof \GdImage) {
             return $this->skipVariants('decoder_failed');
@@ -621,7 +494,7 @@ class MediaOptimizer
         $results = [];
 
         try {
-            $source = $this->applyExifOrientation($source, $absolutePath, $mime);
+            $source = $this->gd->applyExifOrientation($source, $absolutePath, $mime);
             $sourceWidth = imagesx($source);
             $sourceHeight = imagesy($source);
 
@@ -669,7 +542,7 @@ class MediaOptimizer
                 }
 
                 $targetHeight = max(1, (int) round($sourceHeight * ($width / $sourceWidth)));
-                $canvas = $this->makeCanvas($source, 'image/webp', $width, $targetHeight);
+                $canvas = $this->gd->resample($source, 'image/webp', $width, $targetHeight);
 
                 if (! $canvas instanceof \GdImage) {
                     $results[] = [
@@ -686,7 +559,7 @@ class MediaOptimizer
                 $tempPath = tempnam(sys_get_temp_dir(), 'media-variant-');
 
                 try {
-                    if ($tempPath === false || ! $this->encodeCanvas($canvas, $tempPath, $format, $quality)) {
+                    if ($tempPath === false || ! $this->gd->encode($canvas, $tempPath, $format, $quality)) {
                         $results[] = [
                             'width' => $width,
                             'created' => false,

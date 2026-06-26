@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Admin\Concerns\ManagesPolymorphicMedia;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use App\Models\Gallery;
 use App\Models\JournalPost;
 use App\Models\Media;
 use App\Models\Tag;
@@ -96,6 +97,7 @@ class JournalPostController extends Controller
             'excerpt' => ['nullable', 'string'],
             'body' => ['nullable', 'string'],
             'hero_media_id' => ['nullable', 'integer', 'exists:media,id'],
+            'gallery_id' => ['nullable', Rule::exists('galleries', 'id')->where('site_id', app(CurrentSite::class)->id())],
             'author_name' => ['nullable', 'string', 'max:255'],
             'published_at' => ['nullable', 'date'],
             'original_wp_post_id' => ['nullable', 'integer'],
@@ -131,6 +133,7 @@ class JournalPostController extends Controller
         return [
             'post' => $post,
             'categories' => Category::query()->orderBy('name')->get(),
+            'galleries' => Gallery::query()->orderBy('title')->get(),
             'tags' => Tag::query()->orderBy('name')->get(),
             'venues' => Venue::query()->orderBy('name')->get(),
             'postTypes' => ['advice', 'venue', 'real_wedding', 'engagement', 'brand', 'announcement'],

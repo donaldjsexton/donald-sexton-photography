@@ -58,7 +58,7 @@ class JournalController extends Controller
         }
 
         $post = JournalPost::published()
-            ->with(['heroMedia', 'categories', 'tags', 'venues', 'media', 'blocks.media'])
+            ->with(['heroMedia', 'categories', 'tags', 'venues', 'media', 'blocks.media', 'clientGallery'])
             ->where('slug', $slug)
             ->first();
 

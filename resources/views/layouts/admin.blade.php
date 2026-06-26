@@ -37,6 +37,7 @@
                     ['label' => 'Venues', 'href' => route('admin.venues.index'), 'patterns' => ['admin.venues.*']],
                     ['label' => 'Pages', 'href' => route('admin.pages.index'), 'patterns' => ['admin.pages.*']],
                     ['label' => 'Media', 'href' => route('admin.media.index'), 'patterns' => ['admin.media.*']],
+                    ['label' => 'Galleries', 'href' => route('admin.galleries.index'), 'patterns' => ['admin.galleries.*']],
                 ],
             ],
             [

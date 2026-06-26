@@ -89,6 +89,14 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
         return $this->hasMany(Inquiry::class);
     }
 
+    /**
+     * @return HasMany<Gallery, $this>
+     */
+    public function galleries(): HasMany
+    {
+        return $this->hasMany(Gallery::class);
+    }
+
     public function invoices(): MorphMany
     {
         return $this->morphMany(Invoice::class, 'billable');
