@@ -4,6 +4,7 @@ namespace App\Services\Galleries;
 
 use App\Models\Album;
 use App\Models\Photo;
+use App\Services\Media\GdImageProcessor;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
@@ -28,7 +29,10 @@ class PhotoIngestionService
 {
     private const SUPPORTED_MIMES = ['image/jpeg', 'image/png', 'image/webp'];
 
-    public function __construct(private readonly ?string $disk = null) {}
+    public function __construct(
+        private readonly ?string $disk = null,
+        private readonly GdImageProcessor $gd = new GdImageProcessor,
+    ) {}
 
     /**
      * Ingest a single image from a local path into an album.
@@ -236,23 +240,22 @@ class PhotoIngestionService
      */
     private function generateVariants(string $sourcePath, string $mime, string $originalPath): void
     {
-        if (! function_exists('imagewebp')) {
+        if (! $this->gd->supportsFormat('webp')) {
             return;
         }
 
-        $source = $this->decode($sourcePath, $mime);
+        $source = $this->gd->decode($sourcePath, $mime);
 
         if (! $source instanceof \GdImage) {
             return;
         }
 
         try {
-            $source = $this->applyOrientation($source, $sourcePath, $mime);
+            $source = $this->gd->applyExifOrientation($source, $sourcePath, $mime);
             $sourceWidth = imagesx($source);
-            $sourceHeight = imagesy($source);
 
             foreach (PhotoVariant::cases() as $variant) {
-                $this->writeVariant($source, $sourceWidth, $sourceHeight, $originalPath, $variant);
+                $this->writeVariant($source, $sourceWidth, imagesy($source), $originalPath, $variant);
             }
         } catch (\Throwable) {
             // Swallow: variants are best-effort.
@@ -266,18 +269,16 @@ class PhotoIngestionService
         $targetWidth = min($variant->maxWidth(), $sourceWidth);
         $targetHeight = max(1, (int) round($sourceHeight * ($targetWidth / $sourceWidth)));
 
-        $canvas = imagecreatetruecolor($targetWidth, $targetHeight);
+        $canvas = $this->gd->resample($source, 'image/webp', $targetWidth, $targetHeight);
 
         if (! $canvas instanceof \GdImage) {
             return;
         }
 
         try {
-            imagecopyresampled($canvas, $source, 0, 0, 0, 0, $targetWidth, $targetHeight, $sourceWidth, $sourceHeight);
-
             $tempPath = tempnam(sys_get_temp_dir(), 'gallery-variant-');
 
-            if ($tempPath === false || ! imagewebp($canvas, $tempPath, 82)) {
+            if ($tempPath === false || ! $this->gd->encode($canvas, $tempPath, 'webp', 82)) {
                 return;
             }
 
@@ -304,62 +305,5 @@ class PhotoIngestionService
     public function variantPath(string $originalPath, PhotoVariant $variant): string
     {
         return $variant->pathFor($originalPath);
-    }
-
-    private function decode(string $sourcePath, string $mime): ?\GdImage
-    {
-        return match ($mime) {
-            'image/jpeg' => @imagecreatefromjpeg($sourcePath) ?: null,
-            'image/png' => @imagecreatefrompng($sourcePath) ?: null,
-            'image/webp' => function_exists('imagecreatefromwebp')
-                ? (@imagecreatefromwebp($sourcePath) ?: null)
-                : null,
-            default => null,
-        };
-    }
-
-    private function applyOrientation(\GdImage $image, string $sourcePath, string $mime): \GdImage
-    {
-        if ($mime !== 'image/jpeg' || ! function_exists('exif_read_data')) {
-            return $image;
-        }
-
-        try {
-            $exif = @exif_read_data($sourcePath);
-            $orientation = (int) ($exif['Orientation'] ?? 1);
-        } catch (\Throwable) {
-            return $image;
-        }
-
-        $rotate = static function (\GdImage $img, int $degrees): \GdImage {
-            $rotated = imagerotate($img, $degrees, 0);
-
-            if ($rotated instanceof \GdImage) {
-                imagedestroy($img);
-
-                return $rotated;
-            }
-
-            return $img;
-        };
-
-        $flip = static function (\GdImage $img, int $mode): \GdImage {
-            if (function_exists('imageflip')) {
-                imageflip($img, $mode);
-            }
-
-            return $img;
-        };
-
-        return match ($orientation) {
-            2 => $flip($image, IMG_FLIP_HORIZONTAL),
-            3 => $rotate($image, 180),
-            4 => $flip($image, IMG_FLIP_VERTICAL),
-            5 => $flip($rotate($image, -90), IMG_FLIP_HORIZONTAL),
-            6 => $rotate($image, -90),
-            7 => $flip($rotate($image, 90), IMG_FLIP_HORIZONTAL),
-            8 => $rotate($image, 90),
-            default => $image,
-        };
     }
 }
