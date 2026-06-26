@@ -104,8 +104,10 @@ These are the reasons the Java app exists; carry them over verbatim in intent:
   CRM client / job.
 - Surface galleries in the client portal (`app/Http/Controllers/Portal/`):
   logged-in clients see their own galleries.
-- Tie delivery to billing where useful (e.g. gate full-res download / final
-  gallery on paid invoice).
+- **Optional billing gate** (default off): a per-gallery flag
+  (e.g. `requires_payment`) that, when set, gates full-resolution download /
+  final-gallery access on a paid invoice. Galleries are **ungated by default** —
+  the gate is opt-in per gallery, never the standing behavior.
 
 ### Phase 6 — Reduce Pic-Time dependence (gradual)
 - Let journal posts / wedding stories reference a native `Gallery` instead of
@@ -114,9 +116,9 @@ These are the reasons the Java app exists; carry them over verbatim in intent:
 
 ### Phase 7 — Decommission Java service
 - Archive `java-photo-gallery` as the spec-of-record.
-- **Optional** one-time data import only if the Java instance holds real
-  galleries (its dev setup uses H2 + `ddl-auto=update`; production galleries
-  currently live in Pic-Time, so there is likely nothing to migrate).
+- **No data import.** Treated as greenfield by owner decision — production
+  galleries currently live in Pic-Time, so there is nothing to migrate out of
+  the Java instance. No importer is built.
 
 ## Production safety notes
 
@@ -127,10 +129,12 @@ Per this repo's `CLAUDE.md` (live infrastructure at `/srv/dsp`):
 - New Caddy-served gallery directories must be ≥ `0755` dirs / `0644` files.
 - Adding Intervention Image is a dependency change requiring **approval**.
 
-## Open questions for the owner
+## Resolved decisions (owner)
 
-1. Is there real gallery data in the Java instance to migrate, or is it a
-   greenfield capability port? (Determines whether Phase 7 needs an importer.)
-2. R2 bucket: reuse the existing media bucket, or a dedicated client-gallery
-   bucket?
-3. Should final-resolution downloads be gated on invoice payment (Phase 5)?
+1. **Greenfield** — no migration from the Java instance. Phase 7 builds no
+   importer.
+2. **Reuse the existing R2 bucket** — client galleries share the configured
+   `s3` (R2) disk/bucket, segmented by key prefix
+   (`galleries/{site}/{gallery}/...`), not a separate bucket.
+3. **Gating available, default off** — per-gallery opt-in payment gate on
+   full-res download; galleries are ungated unless explicitly flagged.
