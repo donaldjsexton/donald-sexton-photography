@@ -25,11 +25,14 @@ class Gallery extends Model
 
     protected $fillable = [
         'site_id',
+        'client_id',
+        'booked_job_id',
         'uuid',
         'slug',
         'title',
         'description',
         'visibility',
+        'requires_payment',
         'password',
         'cover_photo_id',
     ];
@@ -41,6 +44,7 @@ class Gallery extends Model
     protected function casts(): array
     {
         return [
+            'requires_payment' => 'boolean',
             'password' => 'hashed',
         ];
     }
@@ -72,6 +76,41 @@ class Gallery extends Model
     public function coverPhoto(): BelongsTo
     {
         return $this->belongsTo(Photo::class, 'cover_photo_id');
+    }
+
+    /**
+     * @return BelongsTo<Client, $this>
+     */
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * @return BelongsTo<BookedJob, $this>
+     */
+    public function bookedJob(): BelongsTo
+    {
+        return $this->belongsTo(BookedJob::class);
+    }
+
+    /**
+     * Whether full-resolution downloads are withheld from the given client.
+     * Only gated when the gallery opts in and the client has an outstanding
+     * balance; proofing/viewing is never gated.
+     */
+    public function downloadsLockedFor(Client $client): bool
+    {
+        if (! $this->requires_payment) {
+            return false;
+        }
+
+        $outstanding = $client->invoices()
+            ->whereNotIn('status', [Invoice::STATUS_DRAFT])
+            ->get()
+            ->sum(fn (Invoice $invoice): int => $invoice->amountDueCents());
+
+        return $outstanding > 0;
     }
 
     /**

@@ -14,7 +14,7 @@ return new class extends Migration
     {
         Schema::create('album_photo', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('site_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('site_id')->nullable()->constrained()->cascadeOnDelete();
             $table->foreignId('album_id')->constrained()->cascadeOnDelete();
             $table->foreignId('photo_id')->constrained()->cascadeOnDelete();
             $table->unsignedInteger('sort_order')->default(0);

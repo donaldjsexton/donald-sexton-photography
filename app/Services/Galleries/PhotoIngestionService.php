@@ -122,6 +122,7 @@ class PhotoIngestionService
         }
 
         $album->photos()->attach($photo, [
+            'site_id' => $album->site_id,
             'sort_order' => $sortOrder ?? $this->nextSortOrder($album),
             'added_at' => now(),
         ]);

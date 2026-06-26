@@ -49,10 +49,23 @@
                     </select>
                 </label>
                 <label>
+                    Client <span class="meta">(optional)</span>
+                    <select name="client_id">
+                        <option value="">Unassigned</option>
+                        @foreach ($clients as $client)
+                            <option value="{{ $client->id }}" @selected($gallery->client_id === $client->id)>{{ $client->displayName() }}</option>
+                        @endforeach
+                    </select>
+                </label>
+                <label>
                     {{ $gallery->password ? 'Change password' : 'Set password' }} <span class="meta">(optional)</span>
                     <input type="text" name="password" value="" autocomplete="off" placeholder="Leave blank to keep current">
                 </label>
             </div>
+            <label class="checkbox">
+                <input type="checkbox" name="requires_payment" value="1" @checked($gallery->requires_payment)>
+                Require the balance to be paid before full-resolution downloads
+            </label>
             @if ($gallery->password)
                 <label class="checkbox">
                     <input type="checkbox" name="remove_password" value="1"> Remove password protection

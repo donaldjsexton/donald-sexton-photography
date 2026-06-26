@@ -47,6 +47,7 @@ use App\Http\Controllers\PageController;
 use App\Http\Controllers\Portal\AuthController as PortalAuthController;
 use App\Http\Controllers\Portal\ContractController as PortalContractController;
 use App\Http\Controllers\Portal\DashboardController as PortalDashboardController;
+use App\Http\Controllers\Portal\GalleryController as PortalGalleryController;
 use App\Http\Controllers\Portal\InvoiceController as PortalInvoiceController;
 use App\Http\Controllers\Portal\PasswordResetController as PortalPasswordResetController;
 use App\Http\Controllers\Portal\PayPalPaymentController as PortalPayPalPaymentController;
@@ -362,6 +363,12 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::middleware('auth:client')->group(function () {
             Route::get('/settings', [PortalSettingsController::class, 'edit'])->name('settings.edit');
             Route::patch('/settings', [PortalSettingsController::class, 'update'])->name('settings.update');
+
+            Route::get('/galleries', [PortalGalleryController::class, 'index'])->name('galleries.index');
+            Route::get('/galleries/{gallery}', [PortalGalleryController::class, 'show'])->name('galleries.show');
+            Route::get('/galleries/{gallery}/download', [PortalGalleryController::class, 'downloadAll'])->name('galleries.download');
+            Route::get('/galleries/{gallery}/p/{photo}', [PortalGalleryController::class, 'photo'])->name('galleries.photo');
+            Route::get('/galleries/{gallery}/p/{photo}/download', [PortalGalleryController::class, 'downloadPhoto'])->name('galleries.photo.download');
         });
     });
 });

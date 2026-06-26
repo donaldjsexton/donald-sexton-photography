@@ -6,6 +6,7 @@ use App\Models\Album;
 use App\Models\Gallery;
 use App\Models\Photo;
 use App\Models\ShareToken;
+use App\Services\Galleries\GalleryArchive;
 use App\Services\Galleries\PhotoVariant;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -84,34 +85,16 @@ class GalleryShareController extends Controller
         return Storage::disk($model->disk ?? 's3')->download($model->path, $model->downloadName());
     }
 
-    public function downloadAll(Request $request, string $token): BinaryFileResponse
+    public function downloadAll(Request $request, string $token, GalleryArchive $archive): BinaryFileResponse
     {
         $shareToken = $this->resolveUnlockedToken($request, $token);
         $photos = $this->photosFor($shareToken);
 
         abort_if($photos->isEmpty(), 404);
 
-        $archivePath = tempnam(sys_get_temp_dir(), 'gallery-zip').'.zip';
-        $zip = new \ZipArchive;
-        $zip->open($archivePath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
-
-        $usedNames = [];
-
-        foreach ($photos as $photo) {
-            $disk = Storage::disk($photo->disk ?? 's3');
-
-            if (! $disk->exists($photo->path)) {
-                continue;
-            }
-
-            $zip->addFromString($this->uniqueEntryName($photo, $usedNames), (string) $disk->get($photo->path));
-        }
-
-        $zip->close();
-
         $filename = str($this->titleFor($shareToken))->slug()->value().'.zip';
 
-        return response()->download($archivePath, $filename)->deleteFileAfterSend(true);
+        return $archive->download($photos, $filename);
     }
 
     private function resolveToken(string $token): ShareToken
@@ -177,25 +160,5 @@ class GalleryShareController extends Controller
             $shareable instanceof Gallery => $shareable->title,
             default => 'Gallery',
         };
-    }
-
-    /**
-     * @param  array<string, int>  $usedNames
-     */
-    private function uniqueEntryName(Photo $photo, array &$usedNames): string
-    {
-        $name = $photo->downloadName();
-
-        if (! isset($usedNames[$name])) {
-            $usedNames[$name] = 0;
-
-            return $name;
-        }
-
-        $usedNames[$name]++;
-        $extension = pathinfo($name, PATHINFO_EXTENSION);
-        $base = pathinfo($name, PATHINFO_FILENAME);
-
-        return $base.'-'.$usedNames[$name].($extension !== '' ? '.'.$extension : '');
     }
 }

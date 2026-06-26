@@ -3,10 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Client;
 use App\Models\Gallery;
 use App\Models\Photo;
+use App\Tenancy\CurrentSite;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -38,6 +41,7 @@ class GalleryController extends Controller
     {
         return view('admin.galleries.create', [
             'gallery' => new Gallery(['visibility' => Gallery::VISIBILITY_PRIVATE]),
+            'clients' => $this->clientOptions(),
         ]);
     }
 
@@ -48,6 +52,8 @@ class GalleryController extends Controller
         $gallery = new Gallery;
         $gallery->title = $validated['title'];
         $gallery->visibility = $validated['visibility'];
+        $gallery->client_id = $validated['client_id'] ?? null;
+        $gallery->requires_payment = $request->boolean('requires_payment');
 
         if (! empty($validated['password'])) {
             $gallery->password = $validated['password'];
@@ -70,7 +76,16 @@ class GalleryController extends Controller
 
         return view('admin.galleries.edit', [
             'gallery' => $gallery,
+            'clients' => $this->clientOptions(),
         ]);
+    }
+
+    /**
+     * @return Collection<int, Client>
+     */
+    private function clientOptions(): Collection
+    {
+        return Client::query()->orderBy('last_name')->orderBy('first_name')->get();
     }
 
     public function update(Request $request, Gallery $gallery): RedirectResponse
@@ -79,6 +94,8 @@ class GalleryController extends Controller
 
         $gallery->title = $validated['title'];
         $gallery->visibility = $validated['visibility'];
+        $gallery->client_id = $validated['client_id'] ?? null;
+        $gallery->requires_payment = $request->boolean('requires_payment');
 
         if (! empty($validated['password'])) {
             $gallery->password = $validated['password'];
@@ -130,6 +147,8 @@ class GalleryController extends Controller
         return $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'visibility' => ['required', Rule::in([Gallery::VISIBILITY_PRIVATE, Gallery::VISIBILITY_PUBLIC])],
+            'client_id' => ['nullable', Rule::exists('clients', 'id')->where('site_id', app(CurrentSite::class)->id())],
+            'requires_payment' => ['nullable', 'boolean'],
             'password' => ['nullable', 'string', 'max:255'],
             'remove_password' => ['nullable', 'boolean'],
         ]);

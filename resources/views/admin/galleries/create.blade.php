@@ -31,11 +31,26 @@
             </label>
 
             <label>
+                Client <span class="meta">(optional)</span>
+                <select name="client_id">
+                    <option value="">Unassigned</option>
+                    @foreach ($clients as $client)
+                        <option value="{{ $client->id }}" @selected(old('client_id') == $client->id)>{{ $client->displayName() }}</option>
+                    @endforeach
+                </select>
+            </label>
+
+            <label>
                 Password <span class="meta">(optional)</span>
                 <input type="text" name="password" value="{{ old('password') }}" autocomplete="off"
                        placeholder="Leave blank for no password">
             </label>
         </div>
+
+        <label class="checkbox">
+            <input type="checkbox" name="requires_payment" value="1" @checked(old('requires_payment'))>
+            Require the balance to be paid before full-resolution downloads
+        </label>
 
         <div class="form-actions">
             <button class="cta" type="submit">Create gallery</button>

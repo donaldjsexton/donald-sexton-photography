@@ -82,8 +82,7 @@ class Photo extends Model
     public function albums(): BelongsToMany
     {
         return $this->belongsToMany(Album::class)
-            ->withPivotValue('site_id', $this->site_id)
-            ->withPivot(['sort_order', 'added_at'])
+            ->withPivot(['site_id', 'sort_order', 'added_at'])
             ->withTimestamps();
     }
 

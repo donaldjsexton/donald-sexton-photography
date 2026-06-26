@@ -108,6 +108,7 @@
                     <a href="{{ route('portal.invoices.index') }}" class="{{ request()->routeIs('portal.invoices.*') ? 'is-active' : '' }}">Invoices</a>
                     <a href="{{ route('portal.contracts.index') }}" class="{{ request()->routeIs('portal.contracts.*') ? 'is-active' : '' }}">Contracts</a>
                     @if (\App\Support\Portal::user() instanceof \App\Models\Client)
+                        <a href="{{ route('portal.galleries.index') }}" class="{{ request()->routeIs('portal.galleries.*') ? 'is-active' : '' }}">Galleries</a>
                         <a href="{{ route('portal.settings.edit') }}" class="{{ request()->routeIs('portal.settings.*') ? 'is-active' : '' }}">Settings</a>
                     @endif
                 </nav>

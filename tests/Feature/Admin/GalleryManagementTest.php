@@ -3,6 +3,7 @@
 namespace Tests\Feature\Admin;
 
 use App\Models\Album;
+use App\Models\Client;
 use App\Models\Gallery;
 use App\Models\Photo;
 use App\Models\ShareToken;
@@ -58,6 +59,22 @@ class GalleryManagementTest extends TestCase
         $this->assertSame('Renamed', $gallery->title);
         $this->assertSame('public', $gallery->visibility);
         $this->assertNull($gallery->password);
+    }
+
+    public function test_admin_can_assign_a_client_and_enable_the_payment_gate(): void
+    {
+        $client = Client::factory()->create();
+
+        $this->actingAs($this->admin())->post(route('admin.galleries.store'), [
+            'title' => 'Gated Wedding',
+            'visibility' => 'private',
+            'client_id' => $client->id,
+            'requires_payment' => '1',
+        ])->assertRedirect();
+
+        $gallery = Gallery::query()->firstOrFail();
+        $this->assertSame($client->id, $gallery->client_id);
+        $this->assertTrue($gallery->requires_payment);
     }
 
     public function test_admin_can_add_rename_and_delete_albums(): void
