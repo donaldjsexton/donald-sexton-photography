@@ -62,6 +62,14 @@
         ratio="portrait"
     />
 
+    @if ($post->hasClientGallery())
+        <x-editorial.client-gallery
+            :gallery="$post->clientGallery"
+            :alt-base="$post->title"
+            :group="'post-gallery-'.$post->id"
+        />
+    @endif
+
     @if ($pictime->showNativeGallery())
         <x-editorial.native-gallery
             :items="$nativeGallery"

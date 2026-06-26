@@ -68,6 +68,16 @@
             <input type="text" name="author_name" value="{{ old('author_name', $post->author_name) }}">
         </label>
 
+        <label>
+            Client gallery <span class="meta">(delivers this post's photos)</span>
+            <select name="gallery_id">
+                <option value="">None</option>
+                @foreach ($galleries as $gallery)
+                    <option value="{{ $gallery->id }}" @selected((string) old('gallery_id', $post->gallery_id) === (string) $gallery->id)>{{ $gallery->title }}</option>
+                @endforeach
+            </select>
+        </label>
+
         <div class="field-grid">
             <label>
                 Published at

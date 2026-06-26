@@ -34,6 +34,7 @@ class WeddingStory extends Model
         'body',
         'source_markup',
         'hero_media_id',
+        'gallery_id',
         'event_date',
         'location_name',
         'city',
@@ -63,6 +64,21 @@ class WeddingStory extends Model
     public function heroMedia(): BelongsTo
     {
         return $this->belongsTo(Media::class, 'hero_media_id');
+    }
+
+    /**
+     * The native client gallery delivering this story's photos, if linked.
+     *
+     * @return BelongsTo<Gallery, $this>
+     */
+    public function clientGallery(): BelongsTo
+    {
+        return $this->belongsTo(Gallery::class, 'gallery_id');
+    }
+
+    public function hasClientGallery(): bool
+    {
+        return $this->gallery_id !== null;
     }
 
     public function venue(): BelongsTo

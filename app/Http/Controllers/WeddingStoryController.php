@@ -25,7 +25,7 @@ class WeddingStoryController extends Controller
     public function show(string $slug): View|RedirectResponse
     {
         $story = WeddingStory::published()
-            ->with(['heroMedia', 'venue', 'blocks.media', 'tags', 'media'])
+            ->with(['heroMedia', 'venue', 'blocks.media', 'tags', 'media', 'clientGallery'])
             ->where('slug', $slug)
             ->first();
 

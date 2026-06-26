@@ -71,6 +71,16 @@
             </select>
         </label>
 
+        <label>
+            Client gallery <span class="meta">(delivers this story's photos)</span>
+            <select name="gallery_id">
+                <option value="">None</option>
+                @foreach ($galleries as $gallery)
+                    <option value="{{ $gallery->id }}" @selected((string) old('gallery_id', $story->gallery_id) === (string) $gallery->id)>{{ $gallery->title }}</option>
+                @endforeach
+            </select>
+        </label>
+
         <div class="field-grid">
             <label>
                 Event date

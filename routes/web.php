@@ -33,6 +33,7 @@ use App\Http\Controllers\Admin\WeddingStoryController as AdminWeddingStoryContro
 use App\Http\Controllers\Admin\WordPressImportController as AdminWordPressImportController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\ContractPublicController;
+use App\Http\Controllers\GalleryEmbedController;
 use App\Http\Controllers\GalleryShareController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\InquiryController;
@@ -311,6 +312,8 @@ Route::get('/thank-you', [InquiryController::class, 'thankYou'])->name('inquiry.
 Route::get('/questionnaire/thank-you', [QuestionnaireController::class, 'thankYou'])->name('questionnaire.thank-you');
 Route::get('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'show'])->name('questionnaire.show');
 Route::put('/questionnaire/{questionnaire}', [QuestionnaireController::class, 'update'])->name('questionnaire.update');
+
+Route::get('/galleries/{gallery:uuid}/embed/{photo}', [GalleryEmbedController::class, 'photo'])->name('galleries.embed.photo');
 
 Route::prefix('g')->name('galleries.share.')->group(function () {
     Route::get('/{token}', [GalleryShareController::class, 'show'])->name('show');
