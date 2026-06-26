@@ -84,6 +84,21 @@ class EditorialGalleryTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_embed_photo_is_hidden_for_a_future_scheduled_story(): void
+    {
+        [$gallery, $photo] = $this->galleryWithPhoto();
+        WeddingStory::create([
+            'title' => 'Scheduled Story',
+            'slug' => 'scheduled-story',
+            'status' => 'published',
+            'gallery_id' => $gallery->id,
+            'published_at' => now()->addWeek(),
+        ]);
+
+        $this->get(route('galleries.embed.photo', ['gallery' => $gallery, 'photo' => $photo->uuid]))
+            ->assertNotFound();
+    }
+
     public function test_embed_photo_is_hidden_for_an_unreferenced_private_gallery(): void
     {
         [$gallery, $photo] = $this->galleryWithPhoto();

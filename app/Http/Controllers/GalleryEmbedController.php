@@ -33,13 +33,13 @@ class GalleryEmbedController extends Controller
         }
 
         $referencedByStory = WeddingStory::query()
+            ->published()
             ->where('gallery_id', $gallery->id)
-            ->where('status', 'published')
             ->exists();
 
         $referencedByPost = JournalPost::query()
+            ->published()
             ->where('gallery_id', $gallery->id)
-            ->where('status', 'published')
             ->exists();
 
         return $referencedByStory || $referencedByPost;

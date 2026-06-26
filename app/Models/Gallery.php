@@ -57,9 +57,32 @@ class Gallery extends Model
             }
 
             if (empty($gallery->slug) && ! empty($gallery->title)) {
-                $gallery->slug = Str::slug($gallery->title);
+                $gallery->slug = $gallery->uniqueSlug(Str::slug($gallery->title));
             }
         });
+    }
+
+    /**
+     * Build a slug unique within the gallery's site, suffixing -2, -3, … on
+     * collision so the composite unique(site_id, slug) index is never violated.
+     */
+    private function uniqueSlug(string $base): string
+    {
+        $base = $base !== '' ? $base : 'gallery';
+        $slug = $base;
+        $suffix = 2;
+
+        while (
+            static::query()
+                ->withoutGlobalScope('site')
+                ->where('site_id', $this->site_id)
+                ->where('slug', $slug)
+                ->exists()
+        ) {
+            $slug = $base.'-'.$suffix++;
+        }
+
+        return $slug;
     }
 
     /**
@@ -133,6 +156,9 @@ class Gallery extends Model
      */
     public function orderedPhotos(): Collection
     {
+        // Deduped in PHP rather than via SELECT DISTINCT: a DISTINCT with an
+        // ORDER BY on the joined sort columns is invalid on PostgreSQL, and
+        // unique() keeps the first (lowest-ordered) occurrence deterministically.
         return Photo::query()
             ->join('album_photo', 'album_photo.photo_id', '=', 'photos.id')
             ->join('albums', 'albums.id', '=', 'album_photo.album_id')
@@ -140,7 +166,8 @@ class Gallery extends Model
             ->orderBy('albums.sort_order')
             ->orderBy('album_photo.sort_order')
             ->select('photos.*')
-            ->distinct()
-            ->get();
+            ->get()
+            ->unique('id')
+            ->values();
     }
 }

@@ -18,9 +18,10 @@ class GalleryArchive
      */
     public function download(Collection $photos, string $filename): BinaryFileResponse
     {
-        $archivePath = tempnam(sys_get_temp_dir(), 'gallery-zip').'.zip';
+        $archivePath = tempnam(sys_get_temp_dir(), 'gallery-zip');
         $zip = new \ZipArchive;
-        $zip->open($archivePath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+
+        abort_unless($zip->open($archivePath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === true, 500);
 
         $usedNames = [];
 

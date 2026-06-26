@@ -343,9 +343,21 @@ class PhotoIngestionService
             return $img;
         };
 
+        $flip = static function (\GdImage $img, int $mode): \GdImage {
+            if (function_exists('imageflip')) {
+                imageflip($img, $mode);
+            }
+
+            return $img;
+        };
+
         return match ($orientation) {
+            2 => $flip($image, IMG_FLIP_HORIZONTAL),
             3 => $rotate($image, 180),
+            4 => $flip($image, IMG_FLIP_VERTICAL),
+            5 => $flip($rotate($image, -90), IMG_FLIP_HORIZONTAL),
             6 => $rotate($image, -90),
+            7 => $flip($rotate($image, 90), IMG_FLIP_HORIZONTAL),
             8 => $rotate($image, 90),
             default => $image,
         };

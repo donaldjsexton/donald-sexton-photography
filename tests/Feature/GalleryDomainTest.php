@@ -45,6 +45,15 @@ class GalleryDomainTest extends TestCase
         $this->assertNotEmpty($photo->uuid);
     }
 
+    public function test_duplicate_titles_produce_distinct_slugs_within_a_site(): void
+    {
+        $first = Gallery::factory()->create(['title' => 'Smith Wedding', 'slug' => null]);
+        $second = Gallery::factory()->create(['title' => 'Smith Wedding', 'slug' => null]);
+
+        $this->assertSame('smith-wedding', $first->slug);
+        $this->assertSame('smith-wedding-2', $second->slug);
+    }
+
     public function test_photos_are_deduplicated_per_site_but_not_across_sites(): void
     {
         $default = Site::default();
