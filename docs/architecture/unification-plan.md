@@ -159,3 +159,31 @@ Per this repo's `CLAUDE.md` (live infrastructure at `/srv/dsp`):
    (`galleries/{site}/{gallery}/...`), not a separate bucket.
 3. **Gating available, default off** — per-gallery opt-in payment gate on
    full-res download; galleries are ungated unless explicitly flagged.
+
+## Deploy provisioning (R2)
+
+Galleries stream from the disk named by `config('galleries.disk')` —
+`GALLERY_DISK`, default `s3`. The `s3` disk is already R2-compatible via
+`AWS_ENDPOINT`. To go live on production (in `shared/.env`, **with owner
+confirmation** — never edit `.env` unprompted):
+
+1. Set the R2 credentials and endpoint:
+   - `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+   - `AWS_BUCKET` (the client-gallery bucket — reusing the existing media bucket
+     per the resolved decision)
+   - `AWS_ENDPOINT=https://<accountid>.r2.cloudflarestorage.com`
+   - `AWS_DEFAULT_REGION=auto`
+   - optionally `AWS_URL=https://<public-r2-domain>` for direct asset URLs
+   - leave `GALLERY_DISK` unset (defaults to `s3`) unless a dedicated disk is
+     wanted.
+2. Run the gallery migrations after `--pretend` review and confirmation:
+   `php artisan migrate --pretend` then `php artisan migrate --force`. New
+   tables: `photos`, `galleries`, `albums`, `album_photo`, `share_tokens`, plus
+   the `galleries` CRM columns and editorial `gallery_id` columns.
+3. `php artisan config:cache` so the new `galleries` config is compiled.
+4. No `storage:link` or Caddy file-permission work is needed: originals and
+   renditions live in R2 and are streamed through the app, never served as
+   static files from the release directory.
+
+Until R2 is configured, gallery uploads will fail at the storage write — the
+rest of the app is unaffected because every gallery table is additive.
