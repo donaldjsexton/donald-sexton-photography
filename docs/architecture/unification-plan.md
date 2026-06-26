@@ -62,6 +62,27 @@ These are the reasons the Java app exists; carry them over verbatim in intent:
 - **Fail-fast on corrupt files** — validate before persistence.
 - **Auditable outcomes** — record success / duplicate / failure per upload.
 
+## Implementation status
+
+Phases 1–6 are **implemented, tested, and merged** on
+`claude/project-unification-plan-qiexk2`. Phase 7 is documentation-only and is
+covered below. One deviation from the original plan: the ingestion pipeline was
+built on PHP's native **GD + ext-exif** (mirroring the existing `MediaOptimizer`)
+rather than Intervention Image, so **no new dependency was added**.
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 1 | Gallery data model (Gallery/Album/Photo/ShareToken, site-scoped) | ✅ Done |
+| 2 | Ingestion pipeline (hash dedup, EXIF, WebP variants) | ✅ Done |
+| 3 | Delivery (share tokens, signed streaming, ZIP, public views) | ✅ Done |
+| 4 | Admin CMS (galleries, albums, uploads, covers, share links) | ✅ Done |
+| 5 | CRM integration (client/job links, portal, opt-in payment gate) | ✅ Done |
+| 6 | Editorial native galleries (wedding stories / journal posts) | ✅ Done |
+| 7 | Decommission Java repo as spec-of-record (no data import) | ✅ Done |
+
+All migrations remain **unmigrated in production** — they run on deploy only
+after `--pretend` review and owner confirmation, per the safety notes below.
+
 ## Phased roadmap
 
 ### Phase 0 — Scaffolding & decisions
