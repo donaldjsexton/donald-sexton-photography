@@ -66,6 +66,14 @@ class Album extends Model
     }
 
     /**
+     * Resolve a single photo in this album by its public uuid in one query.
+     */
+    public function findPhotoByUuid(string $uuid): ?Photo
+    {
+        return $this->photos()->where('photos.uuid', $uuid)->first();
+    }
+
+    /**
      * @return MorphMany<ShareToken, $this>
      */
     public function shareTokens(): MorphMany

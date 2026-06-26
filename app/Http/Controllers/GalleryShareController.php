@@ -80,6 +80,7 @@ class GalleryShareController extends Controller
     public function downloadPhoto(Request $request, string $token, string $photo): StreamedResponse
     {
         $shareToken = $this->resolveUnlockedToken($request, $token);
+        $this->ensureDownloadable($shareToken);
         $model = $this->photoWithin($shareToken, $photo);
 
         return Storage::disk($model->disk ?? 's3')->download($model->path, $model->downloadName());
@@ -88,6 +89,7 @@ class GalleryShareController extends Controller
     public function downloadAll(Request $request, string $token, GalleryArchive $archive): BinaryFileResponse
     {
         $shareToken = $this->resolveUnlockedToken($request, $token);
+        $this->ensureDownloadable($shareToken);
         $photos = $this->photosFor($shareToken);
 
         abort_if($photos->isEmpty(), 404);
@@ -144,11 +146,34 @@ class GalleryShareController extends Controller
 
     private function photoWithin(ShareToken $shareToken, string $photoUuid): Photo
     {
-        $photo = $this->photosFor($shareToken)->firstWhere('uuid', $photoUuid);
+        $shareable = $shareToken->shareable;
+
+        $photo = match (true) {
+            $shareable instanceof Album => $shareable->findPhotoByUuid($photoUuid),
+            $shareable instanceof Gallery => $shareable->findPhotoByUuid($photoUuid),
+            default => null,
+        };
 
         abort_if($photo === null, 404);
 
         return $photo;
+    }
+
+    /**
+     * Withhold full-resolution downloads when the underlying gallery's payment
+     * gate is engaged (its owning client still owes a balance).
+     */
+    private function ensureDownloadable(ShareToken $shareToken): void
+    {
+        $shareable = $shareToken->shareable;
+
+        $gallery = match (true) {
+            $shareable instanceof Gallery => $shareable,
+            $shareable instanceof Album => $shareable->gallery,
+            default => null,
+        };
+
+        abort_if($gallery?->downloadsLocked() ?? false, 403);
     }
 
     private function titleFor(ShareToken $shareToken): string

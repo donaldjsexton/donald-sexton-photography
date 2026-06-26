@@ -96,6 +96,23 @@ class GalleryAccessTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_a_voided_invoice_does_not_lock_a_gated_gallery(): void
+    {
+        $client = $this->client();
+        Invoice::factory()->create([
+            'billable_type' => Client::class,
+            'billable_id' => $client->id,
+            'status' => Invoice::STATUS_VOID,
+            'total_cents' => 50000,
+            'amount_paid_cents' => 0,
+        ]);
+        [$gallery, $photo] = $this->galleryWithPhoto($client, requiresPayment: true);
+
+        $this->actingAs($client, 'client')
+            ->get(route('portal.galleries.photo.download', ['gallery' => $gallery, 'photo' => $photo->uuid]))
+            ->assertOk();
+    }
+
     public function test_a_paid_balance_unlocks_a_gated_gallery(): void
     {
         $client = $this->client();

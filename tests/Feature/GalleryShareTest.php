@@ -3,7 +3,9 @@
 namespace Tests\Feature;
 
 use App\Models\Album;
+use App\Models\Client;
 use App\Models\Gallery;
+use App\Models\Invoice;
 use App\Models\Photo;
 use App\Models\ShareToken;
 use App\Models\Site;
@@ -115,14 +117,41 @@ class GalleryShareTest extends TestCase
         $this->assertStringContainsString('.zip', (string) $response->headers->get('content-disposition'));
     }
 
+    public function test_share_link_downloads_honor_the_galleries_payment_gate(): void
+    {
+        $client = Client::factory()->create();
+        Invoice::factory()->sent()->create([
+            'billable_type' => Client::class,
+            'billable_id' => $client->id,
+            'total_cents' => 50000,
+            'amount_paid_cents' => 0,
+        ]);
+
+        ['token' => $token, 'photos' => $photos] = $this->makeSharedGallery(1, gallery: [
+            'client_id' => $client->id,
+            'requires_payment' => true,
+        ]);
+        $photo = $photos->first();
+
+        // Viewing and the web preview remain available.
+        $this->get(route('galleries.share.show', $token->token))->assertOk();
+        $this->get(route('galleries.share.photo', ['token' => $token->token, 'photo' => $photo->uuid]))->assertOk();
+
+        // Full-resolution downloads are withheld while the balance is owed.
+        $this->get(route('galleries.share.photo.download', ['token' => $token->token, 'photo' => $photo->uuid]))
+            ->assertForbidden();
+        $this->get(route('galleries.share.download', $token->token))->assertForbidden();
+    }
+
     /**
      * Build a gallery + album with ingested-style photos and a share token.
      *
+     * @param  array<string, mixed>  $gallery
      * @return array{token: ShareToken, gallery: Gallery, album: Album, photos: Collection<int, Photo>}
      */
-    private function makeSharedGallery(int $photoCount, ?string $password = null): array
+    private function makeSharedGallery(int $photoCount, ?string $password = null, array $gallery = []): array
     {
-        $gallery = Gallery::factory()->create();
+        $gallery = Gallery::factory()->create($gallery);
         $album = Album::factory()->for($gallery)->create();
 
         $photos = collect(range(1, $photoCount))->map(function (int $index) use ($album): Photo {

@@ -47,7 +47,7 @@ class GalleryEmbedController extends Controller
 
     private function photoWithin(Gallery $gallery, string $photoUuid): Photo
     {
-        $photo = $gallery->orderedPhotos()->firstWhere('uuid', $photoUuid);
+        $photo = $gallery->findPhotoByUuid($photoUuid);
 
         abort_if($photo === null, 404);
 

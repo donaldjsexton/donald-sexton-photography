@@ -47,7 +47,7 @@ class GalleryController extends Controller
 
         return view('portal.galleries.show', [
             'gallery' => $gallery,
-            'downloadsLocked' => $gallery->downloadsLockedFor($client),
+            'downloadsLocked' => $gallery->downloadsLocked(),
         ]);
     }
 
@@ -61,8 +61,8 @@ class GalleryController extends Controller
 
     public function downloadPhoto(Gallery $gallery, string $photo): StreamedResponse
     {
-        $client = $this->ownedOrFail($gallery);
-        $this->ensureDownloadable($gallery, $client);
+        $this->ownedOrFail($gallery);
+        $this->ensureDownloadable($gallery);
         $model = $this->photoWithin($gallery, $photo);
 
         return Storage::disk($model->disk ?? 's3')->download($model->path, $model->downloadName());
@@ -70,8 +70,8 @@ class GalleryController extends Controller
 
     public function downloadAll(Gallery $gallery, GalleryArchive $archive): BinaryFileResponse
     {
-        $client = $this->ownedOrFail($gallery);
-        $this->ensureDownloadable($gallery, $client);
+        $this->ownedOrFail($gallery);
+        $this->ensureDownloadable($gallery);
 
         $photos = $gallery->orderedPhotos();
         abort_if($photos->isEmpty(), 404);
@@ -97,14 +97,14 @@ class GalleryController extends Controller
         return $client;
     }
 
-    private function ensureDownloadable(Gallery $gallery, Client $client): void
+    private function ensureDownloadable(Gallery $gallery): void
     {
-        abort_if($gallery->downloadsLockedFor($client), 403);
+        abort_if($gallery->downloadsLocked(), 403);
     }
 
     private function photoWithin(Gallery $gallery, string $photoUuid): Photo
     {
-        $photo = $gallery->orderedPhotos()->firstWhere('uuid', $photoUuid);
+        $photo = $gallery->findPhotoByUuid($photoUuid);
 
         abort_if($photo === null, 404);
 

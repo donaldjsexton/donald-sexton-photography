@@ -118,22 +118,44 @@ class Gallery extends Model
     }
 
     /**
-     * Whether full-resolution downloads are withheld from the given client.
-     * Only gated when the gallery opts in and the client has an outstanding
-     * balance; proofing/viewing is never gated.
+     * Whether full-resolution downloads are withheld. Only gated when the
+     * gallery opts in and its owning client has a genuinely owed, unpaid
+     * balance; proofing/viewing is never gated. A gallery with no owning client
+     * has no balance to enforce, so it is not gated.
      */
-    public function downloadsLockedFor(Client $client): bool
+    public function downloadsLocked(): bool
     {
-        if (! $this->requires_payment) {
+        if (! $this->requires_payment || $this->client_id === null) {
             return false;
         }
 
-        $outstanding = $client->invoices()
-            ->whereNotIn('status', [Invoice::STATUS_DRAFT])
-            ->get()
-            ->sum(fn (Invoice $invoice): int => $invoice->amountDueCents());
+        // A single existence check on owed-but-unpaid invoices: excludes draft
+        // (not yet owed), paid, void, and refunded, and avoids hydrating rows.
+        return (bool) $this->client?->invoices()
+            ->whereIn('status', [
+                Invoice::STATUS_SENT,
+                Invoice::STATUS_PARTIALLY_PAID,
+                Invoice::STATUS_OVERDUE,
+            ])
+            ->whereColumn('amount_paid_cents', '<', 'total_cents')
+            ->exists();
+    }
 
-        return $outstanding > 0;
+    /**
+     * Resolve a single photo in this gallery by its public uuid, verifying
+     * album membership in one indexed query rather than loading every photo.
+     */
+    public function findPhotoByUuid(string $uuid): ?Photo
+    {
+        return Photo::query()
+            ->where('photos.uuid', $uuid)
+            ->whereExists(function ($query): void {
+                $query->from('album_photo')
+                    ->join('albums', 'albums.id', '=', 'album_photo.album_id')
+                    ->whereColumn('album_photo.photo_id', 'photos.id')
+                    ->where('albums.gallery_id', $this->id);
+            })
+            ->first();
     }
 
     /**
