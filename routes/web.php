@@ -9,6 +9,9 @@ use App\Http\Controllers\Admin\ContractController as AdminContractController;
 use App\Http\Controllers\Admin\ContractTemplateController as AdminContractTemplateController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
 use App\Http\Controllers\Admin\DomainController as AdminDomainController;
+use App\Http\Controllers\Admin\GalleryAlbumController as AdminGalleryAlbumController;
+use App\Http\Controllers\Admin\GalleryController as AdminGalleryController;
+use App\Http\Controllers\Admin\GalleryShareLinkController as AdminGalleryShareLinkController;
 use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
 use App\Http\Controllers\Admin\HomepageBlockController as AdminHomepageBlockController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
@@ -238,6 +241,23 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/venues/{venue}/edit', [AdminVenueController::class, 'edit'])->name('venues.edit');
         Route::put('/venues/{venue}', [AdminVenueController::class, 'update'])->name('venues.update');
         Route::delete('/venues/{venue}', [AdminVenueController::class, 'destroy'])->name('venues.destroy');
+
+        Route::get('/galleries', [AdminGalleryController::class, 'index'])->name('galleries.index');
+        Route::get('/galleries/create', [AdminGalleryController::class, 'create'])->name('galleries.create');
+        Route::post('/galleries', [AdminGalleryController::class, 'store'])->name('galleries.store');
+        Route::get('/galleries/{gallery}/edit', [AdminGalleryController::class, 'edit'])->name('galleries.edit');
+        Route::put('/galleries/{gallery}', [AdminGalleryController::class, 'update'])->name('galleries.update');
+        Route::delete('/galleries/{gallery}', [AdminGalleryController::class, 'destroy'])->name('galleries.destroy');
+        Route::post('/galleries/{gallery}/cover/{photo}', [AdminGalleryController::class, 'setCover'])->name('galleries.cover');
+
+        Route::post('/galleries/{gallery}/albums', [AdminGalleryAlbumController::class, 'store'])->name('galleries.albums.store');
+        Route::put('/galleries/{gallery}/albums/{album}', [AdminGalleryAlbumController::class, 'update'])->name('galleries.albums.update');
+        Route::delete('/galleries/{gallery}/albums/{album}', [AdminGalleryAlbumController::class, 'destroy'])->name('galleries.albums.destroy');
+        Route::post('/galleries/{gallery}/albums/{album}/photos', [AdminGalleryAlbumController::class, 'storePhotos'])->name('galleries.albums.photos.store');
+        Route::delete('/galleries/{gallery}/albums/{album}/photos/{photo}', [AdminGalleryAlbumController::class, 'destroyPhoto'])->name('galleries.albums.photos.destroy');
+
+        Route::post('/galleries/{gallery}/shares', [AdminGalleryShareLinkController::class, 'store'])->name('galleries.shares.store');
+        Route::delete('/galleries/{gallery}/shares/{shareToken}', [AdminGalleryShareLinkController::class, 'destroy'])->name('galleries.shares.destroy');
 
         Route::get('/console', [AdminConsoleCommandController::class, 'index'])->name('console.index');
         Route::post('/console/run', [AdminConsoleCommandController::class, 'run'])->name('console.run');

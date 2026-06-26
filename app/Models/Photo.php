@@ -53,6 +53,27 @@ class Photo extends Model
                 $photo->uuid = (string) Str::uuid();
             }
         });
+
+        static::deleting(function (Photo $photo): void {
+            $photo->deleteFiles();
+        });
+    }
+
+    /**
+     * Remove the original and every generated rendition from storage.
+     */
+    public function deleteFiles(): void
+    {
+        if (! $this->path) {
+            return;
+        }
+
+        $disk = Storage::disk($this->disk ?? 's3');
+        $disk->delete($this->path);
+
+        foreach (PhotoVariant::cases() as $variant) {
+            $disk->delete($this->variantPath($variant));
+        }
     }
 
     /**
