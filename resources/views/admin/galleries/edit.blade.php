@@ -28,6 +28,11 @@
         .inline-form { display: inline; }
         .share-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #efe3d3; }
         .share-row code { word-break: break-all; }
+        .upload-status { margin: 10px 0 0; padding: 8px 12px; border-radius: 6px; font-size: 13px; background: #f4ece0; color: #5b4636; border: 1px solid #e7d8c5; }
+        .upload-status[data-tone="success"] { background: #e8f3e8; border-color: #cbe3c9; color: #2f5d34; }
+        .upload-status[data-tone="warn"] { background: #fbeee0; border-color: #f0d4b0; color: #8a5a1f; }
+        .gallery-photo.is-fresh { animation: gallery-photo-pop .45s ease; outline: 2px solid #b88a4f; outline-offset: -2px; }
+        @keyframes gallery-photo-pop { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
     </style>
 
     {{-- Gallery settings --}}
@@ -89,6 +94,9 @@
             </form>
         </div>
 
+        <div data-gallery-uploads
+             data-gallery-channel="galleries.{{ $gallery->id }}"
+             data-gallery-event=".upload.progressed">
         @forelse ($gallery->albums as $album)
             <div class="album-block">
                 <div class="album-block__head">
@@ -111,7 +119,10 @@
                 </div>
 
                 <form method="POST" action="{{ route('admin.galleries.albums.photos.store', [$gallery, $album]) }}"
-                      enctype="multipart/form-data" class="admin-form" style="margin-top:10px;">
+                      enctype="multipart/form-data" class="admin-form" style="margin-top:10px;"
+                      data-upload-form
+                      data-album-id="{{ $album->id }}"
+                      data-upload-url="{{ route('admin.galleries.albums.photos.upload', [$gallery, $album]) }}">
                     @csrf
                     <label>
                         Upload photos <span class="meta">(JPEG, PNG, or WebP)</span>
@@ -122,13 +133,15 @@
                     </div>
                 </form>
 
+                <p class="upload-status" data-upload-status data-album-id="{{ $album->id }}" hidden></p>
+
                 @if ($album->photos->isEmpty())
-                    <p class="meta">No photos in this album yet.</p>
-                @else
-                    <div class="gallery-photo-grid">
-                        @foreach ($album->photos as $photo)
-                            <div class="gallery-photo">
-                                <img src="{{ $photo->url() }}" alt="{{ $photo->original_name }}" loading="lazy">
+                    <p class="meta" data-empty-note>No photos in this album yet.</p>
+                @endif
+                <div class="gallery-photo-grid" data-photo-grid data-album-id="{{ $album->id }}">
+                    @foreach ($album->photos as $photo)
+                        <div class="gallery-photo" data-photo-id="{{ $photo->id }}">
+                                <img src="{{ route('admin.galleries.photos.thumb', [$gallery, $photo]) }}" alt="{{ $photo->original_name }}" loading="lazy">
                                 <div class="gallery-photo__bar">
                                     <form method="POST" action="{{ route('admin.galleries.cover', [$gallery, $photo]) }}" class="inline-form" style="flex:1;">
                                         @csrf
@@ -147,11 +160,11 @@
                             </div>
                         @endforeach
                     </div>
-                @endif
             </div>
         @empty
             <p class="meta">Add an album to start uploading photos.</p>
         @endforelse
+        </div>
     </section>
 
     {{-- Share links --}}
