@@ -13,6 +13,7 @@
         "laravel/reverb": "^1.10",
         "laravel/socialite": "^5.26",
         "laravel/tinker": "^3.0",
+        "league/flysystem-aws-s3-v3": "^3.25.1",
         "minishlink/web-push": "^10.0",
         "paypal/paypal-server-sdk": "^2.2",
         "spatie/laravel-pdf": "^2.8",
