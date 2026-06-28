@@ -55,6 +55,11 @@ jobs:
         run: npm ci
 
       - name: Build frontend assets
+        env:
+          VITE_REVERB_APP_KEY: ${{ vars.VITE_REVERB_APP_KEY }}
+          VITE_REVERB_HOST: ${{ vars.VITE_REVERB_HOST }}
+          VITE_REVERB_PORT: ${{ vars.VITE_REVERB_PORT }}
+          VITE_REVERB_SCHEME: ${{ vars.VITE_REVERB_SCHEME }}
         run: npm run build
 
       - name: Create release archive

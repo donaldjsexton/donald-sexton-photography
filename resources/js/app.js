@@ -1,4 +1,5 @@
 import './bootstrap';
+import './gallery-uploader';
 
 const errorSummary = document.querySelector('[data-error-summary]');
 

@@ -6,12 +6,15 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Gallery;
 use App\Models\Photo;
+use App\Services\Galleries\PhotoVariant;
 use App\Tenancy\CurrentSite;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class GalleryController extends Controller
 {
@@ -108,6 +111,21 @@ class GalleryController extends Controller
         return redirect()
             ->route('admin.galleries.edit', $gallery)
             ->with('status', 'Gallery updated.');
+    }
+
+    /**
+     * Stream a photo's thumbnail through the app. Originals live on a private
+     * disk (R2), so the admin grid cannot link to them directly — it would 404.
+     * Falls back to the original when the thumb rendition was never generated.
+     */
+    public function thumbnail(Gallery $gallery, Photo $photo): StreamedResponse
+    {
+        abort_unless(
+            $photo->albums()->where('albums.gallery_id', $gallery->id)->exists(),
+            404,
+        );
+
+        return Storage::disk($photo->disk ?? 's3')->response($photo->pathForVariant(PhotoVariant::Thumb));
     }
 
     public function setCover(Gallery $gallery, Photo $photo): RedirectResponse

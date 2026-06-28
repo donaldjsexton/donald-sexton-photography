@@ -2,14 +2,19 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Events\GalleryUploadProgressed;
+use App\Jobs\IngestGalleryUpload;
 use App\Models\Album;
 use App\Models\Client;
 use App\Models\Gallery;
 use App\Models\Photo;
 use App\Models\ShareToken;
 use App\Models\User;
+use App\Services\Galleries\PhotoIngestionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -117,6 +122,99 @@ class GalleryManagementTest extends TestCase
         $photo = $album->photos()->first();
         Storage::disk('s3')->assertExists($photo->path);
         $this->assertSame($gallery->site_id, $photo->site_id);
+    }
+
+    public function test_edit_page_renders_with_albums_and_photos(): void
+    {
+        $gallery = Gallery::factory()->create();
+        $album = Album::factory()->for($gallery)->create();
+        $photo = Photo::factory()->create();
+        $album->photos()->attach($photo, ['sort_order' => 1, 'added_at' => now()]);
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.galleries.edit', $gallery))
+            ->assertOk()
+            ->assertSee('data-gallery-uploads', false)
+            ->assertSee(route('admin.galleries.photos.thumb', [$gallery, $photo]), false);
+    }
+
+    public function test_thumbnail_route_streams_a_photo_in_the_gallery(): void
+    {
+        $gallery = Gallery::factory()->create();
+        $album = Album::factory()->for($gallery)->create();
+        $photo = Photo::factory()->create();
+        Storage::disk('s3')->put($photo->path, 'bytes');
+        $album->photos()->attach($photo, ['sort_order' => 1, 'added_at' => now()]);
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.galleries.photos.thumb', [$gallery, $photo]))
+            ->assertOk();
+    }
+
+    public function test_thumbnail_route_rejects_a_photo_outside_the_gallery(): void
+    {
+        $gallery = Gallery::factory()->create();
+        $photo = Photo::factory()->create();
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.galleries.photos.thumb', [$gallery, $photo]))
+            ->assertNotFound();
+    }
+
+    public function test_ajax_upload_stages_files_and_dispatches_the_ingest_job(): void
+    {
+        Bus::fake();
+        Storage::fake('local');
+
+        $gallery = Gallery::factory()->create();
+        $album = Album::factory()->for($gallery)->create();
+
+        $response = $this->actingAs($this->admin())->postJson(
+            route('admin.galleries.albums.photos.upload', [$gallery, $album]),
+            ['photos' => [UploadedFile::fake()->image('one.jpg', 800, 600)]],
+        );
+
+        $response->assertOk()->assertJson([
+            'album_id' => $album->id,
+            'total' => 1,
+            'channel' => 'galleries.'.$gallery->id,
+            'event' => '.upload.progressed',
+        ]);
+
+        Bus::assertDispatched(IngestGalleryUpload::class, function (IngestGalleryUpload $job) use ($album) {
+            return $job->albumId === $album->id
+                && count($job->files) === 1
+                && Storage::disk('local')->exists($job->files[0]['path']);
+        });
+    }
+
+    public function test_ingest_job_ingests_files_and_broadcasts_progress(): void
+    {
+        Event::fake([GalleryUploadProgressed::class]);
+        Storage::fake('s3');
+        Storage::fake('local');
+
+        $gallery = Gallery::factory()->create();
+        $album = Album::factory()->for($gallery)->create();
+
+        $path = UploadedFile::fake()->image('one.jpg', 800, 600)->store('gallery-uploads/test', 'local');
+
+        (new IngestGalleryUpload($album->id, 'batch-1', [
+            ['path' => $path, 'original_name' => 'one.jpg'],
+        ]))->handle(app(PhotoIngestionService::class));
+
+        $this->assertSame(1, $album->photos()->count());
+        Storage::disk('local')->assertMissing($path);
+
+        Event::assertDispatched(GalleryUploadProgressed::class, function (GalleryUploadProgressed $event) use ($gallery, $album) {
+            return $event->galleryId === $gallery->id
+                && $event->albumId === $album->id
+                && $event->batchId === 'batch-1'
+                && $event->index === 1
+                && $event->total === 1
+                && $event->status === 'created'
+                && $event->photo !== null;
+        });
     }
 
     public function test_admin_can_set_a_cover_and_remove_a_photo(): void

@@ -251,11 +251,13 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/galleries/{gallery}', [AdminGalleryController::class, 'update'])->name('galleries.update');
         Route::delete('/galleries/{gallery}', [AdminGalleryController::class, 'destroy'])->name('galleries.destroy');
         Route::post('/galleries/{gallery}/cover/{photo}', [AdminGalleryController::class, 'setCover'])->name('galleries.cover');
+        Route::get('/galleries/{gallery}/photos/{photo}/thumb', [AdminGalleryController::class, 'thumbnail'])->name('galleries.photos.thumb');
 
         Route::post('/galleries/{gallery}/albums', [AdminGalleryAlbumController::class, 'store'])->name('galleries.albums.store');
         Route::put('/galleries/{gallery}/albums/{album}', [AdminGalleryAlbumController::class, 'update'])->name('galleries.albums.update');
         Route::delete('/galleries/{gallery}/albums/{album}', [AdminGalleryAlbumController::class, 'destroy'])->name('galleries.albums.destroy');
         Route::post('/galleries/{gallery}/albums/{album}/photos', [AdminGalleryAlbumController::class, 'storePhotos'])->name('galleries.albums.photos.store');
+        Route::post('/galleries/{gallery}/albums/{album}/photos/upload', [AdminGalleryAlbumController::class, 'uploadPhotos'])->name('galleries.albums.photos.upload');
         Route::delete('/galleries/{gallery}/albums/{album}/photos/{photo}', [AdminGalleryAlbumController::class, 'destroyPhoto'])->name('galleries.albums.photos.destroy');
 
         Route::post('/galleries/{gallery}/shares', [AdminGalleryShareLinkController::class, 'store'])->name('galleries.shares.store');
