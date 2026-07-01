@@ -13,6 +13,7 @@ LOCK_FILE="${LOCK_FILE:-/tmp/donald-sexton-photography-deploy.lock}"
 NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=512}"
 RELEASES_TO_KEEP="${RELEASES_TO_KEEP:-5}"
 LEGACY_WORDPRESS_UPLOADS_PATH="${LEGACY_WORDPRESS_UPLOADS_PATH:-}"
+WEB_GROUP="${WEB_GROUP:-www-data}"
 
 DEPLOY_MODE=""
 DEPLOY_ROOT=""
@@ -86,12 +87,34 @@ prepare_release_paths() {
     fi
 
     mkdir -p \
-        "$DEPLOY_ROOT/shared/storage/app/public" \
+        "$DEPLOY_ROOT/shared/storage/app/private" \
+        "$DEPLOY_ROOT/shared/storage/app/public/og" \
         "$DEPLOY_ROOT/shared/storage/framework/cache/data" \
         "$DEPLOY_ROOT/shared/storage/framework/sessions" \
         "$DEPLOY_ROOT/shared/storage/framework/testing" \
         "$DEPLOY_ROOT/shared/storage/framework/views" \
         "$DEPLOY_ROOT/shared/storage/logs"
+
+    normalize_shared_storage_permissions
+}
+
+# PHP-FPM must be able to create directories anywhere under shared storage
+# (gallery upload staging, OG image cache, framework caches). Directories in
+# this tree are created by the deploy SSH user, so hand the tree to the web
+# group, make it group-writable, and mark directories setgid so files created
+# at runtime stay group-owned. Every step is best-effort: a failed chgrp (the
+# deploy user not being a member of $WEB_GROUP) is logged, not fatal.
+normalize_shared_storage_permissions() {
+    local storage_dir="$DEPLOY_ROOT/shared/storage"
+
+    if ! chgrp -R "$WEB_GROUP" "$storage_dir" 2>/dev/null; then
+        log "WARNING: could not set group '$WEB_GROUP' on $storage_dir; PHP-FPM may be unable to write there. Run 'chown -R :$WEB_GROUP $storage_dir' as root."
+    fi
+
+    chmod -R ug+rwX "$storage_dir" 2>/dev/null || \
+        log "WARNING: could not make $storage_dir group-writable."
+
+    find "$storage_dir" -type d -exec chmod g+s {} + 2>/dev/null || true
 }
 
 link_shared_paths() {

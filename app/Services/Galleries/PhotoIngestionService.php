@@ -7,8 +7,10 @@ use App\Models\Photo;
 use App\Services\Media\GdImageProcessor;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use League\Flysystem\FilesystemException;
 
 /**
  * Controlled ingestion pipeline for client-gallery photos. Ports the Java
@@ -84,10 +86,27 @@ class PhotoIngestionService
             return IngestionResult::failed('unreadable_file');
         }
 
+        // The configured disks use throw=false (returning false on write
+        // failure), but directory-creation errors on local disks still throw;
+        // both must fail the ingest before a Photo row points at nothing.
         try {
-            $this->storage()->writeStream($path, $stream);
+            $written = $this->storage()->writeStream($path, $stream) !== false;
+        } catch (FilesystemException $e) {
+            Log::error('Gallery ingest could not write the original to the "'.$this->diskName().'" disk: '.$e->getMessage(), [
+                'path' => $path,
+            ]);
+
+            return IngestionResult::failed('storage_write_failed');
         } finally {
             fclose($stream);
+        }
+
+        if (! $written) {
+            Log::error('Gallery ingest could not write the original to the "'.$this->diskName().'" disk; check disk credentials and permissions.', [
+                'path' => $path,
+            ]);
+
+            return IngestionResult::failed('storage_write_failed');
         }
 
         $exif = $this->extractExif($sourcePath, $mime);

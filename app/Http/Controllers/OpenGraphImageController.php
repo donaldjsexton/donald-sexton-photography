@@ -13,8 +13,6 @@ use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 class OpenGraphImageController extends Controller
 {
-    private const DISK = 'public';
-
     public function __construct(private readonly OpenGraphImageRenderer $renderer) {}
 
     public function story(string $slug): Response
@@ -83,20 +81,13 @@ class OpenGraphImageController extends Controller
     {
         $sourcePath = $this->resolveSourcePath($sourceMedia);
 
-        $relativePath = $this->renderer->render(
+        $bytes = $this->renderer->render(
             type: $type,
             cacheKey: $cacheKey,
             title: $title,
             eyebrow: $eyebrow,
             sourceImagePath: $sourcePath,
         );
-
-        $disk = Storage::disk(self::DISK);
-        $bytes = $disk->get($relativePath);
-
-        if ($bytes === null) {
-            throw new NotFoundHttpException;
-        }
 
         return response($bytes, 200, [
             'Content-Type' => 'image/png',

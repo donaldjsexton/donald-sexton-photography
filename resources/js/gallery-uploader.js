@@ -165,8 +165,10 @@ function initGalleryUploader() {
 
                     input.value = '';
                 })
-                .catch(() => {
-                    setStatus(albumId, 'Upload failed. Please try again.', 'warn');
+                .catch((error) => {
+                    const message = error?.response?.data?.message;
+
+                    setStatus(albumId, message || 'Upload failed. Please try again.', 'warn');
                 });
         });
     });
