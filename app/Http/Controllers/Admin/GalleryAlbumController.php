@@ -11,8 +11,11 @@ use App\Services\Galleries\PhotoIngestionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use League\Flysystem\FilesystemException;
 
 class GalleryAlbumController extends Controller
 {
@@ -75,6 +78,7 @@ class GalleryAlbumController extends Controller
 
         $created = 0;
         $duplicates = 0;
+        $failed = 0;
 
         foreach ($request->file('photos', []) as $file) {
             $result = $this->ingestion->ingest($file->getRealPath(), $album, $file->getClientOriginalName());
@@ -82,11 +86,11 @@ class GalleryAlbumController extends Controller
             match (true) {
                 $result->isCreated() => $created++,
                 $result->isDuplicate() => $duplicates++,
-                default => null,
+                default => $failed++,
             };
         }
 
-        return back()->with('status', $this->uploadSummary($created, $duplicates));
+        return back()->with('status', $this->uploadSummary($created, $duplicates, $failed));
     }
 
     /**
@@ -105,13 +109,36 @@ class GalleryAlbumController extends Controller
         ]);
 
         $batchId = (string) Str::uuid();
+        $files = [];
 
-        $files = collect($request->file('photos', []))
-            ->map(fn ($file) => [
-                'path' => (string) $file->store('gallery-uploads/'.$batchId, 'local'),
+        foreach ($request->file('photos', []) as $file) {
+            // The local disk uses throw=false so a failed write returns false,
+            // but directory creation can still throw; either way the batch must
+            // stop with a clear error instead of queueing jobs for phantom paths.
+            try {
+                $path = $file->store('gallery-uploads/'.$batchId, 'local');
+            } catch (FilesystemException $e) {
+                report($e);
+                $path = false;
+            }
+
+            if ($path === false || $path === '') {
+                $this->discardStagedUploads($files);
+
+                Log::error('Gallery upload staging failed: the "local" disk is not writable. Check ownership and permissions on storage/app/private.', [
+                    'album_id' => $album->id,
+                ]);
+
+                return response()->json([
+                    'message' => __('Upload failed: the server could not write to its storage directory. Ask your administrator to check storage permissions.'),
+                ], 500);
+            }
+
+            $files[] = [
+                'path' => (string) $path,
                 'original_name' => $file->getClientOriginalName(),
-            ])
-            ->all();
+            ];
+        }
 
         IngestGalleryUpload::dispatch($album->id, $batchId, $files);
 
@@ -143,12 +170,26 @@ class GalleryAlbumController extends Controller
         abort_unless($album->gallery_id === $gallery->id, 404);
     }
 
-    private function uploadSummary(int $created, int $duplicates): string
+    /**
+     * @param  list<array{path:string, original_name:string}>  $files
+     */
+    private function discardStagedUploads(array $files): void
+    {
+        foreach ($files as $file) {
+            Storage::disk('local')->delete($file['path']);
+        }
+    }
+
+    private function uploadSummary(int $created, int $duplicates, int $failed = 0): string
     {
         $summary = trans_choice(':count photo added|:count photos added', $created, ['count' => $created]);
 
         if ($duplicates > 0) {
             $summary .= ', '.trans_choice(':count duplicate skipped|:count duplicates skipped', $duplicates, ['count' => $duplicates]);
+        }
+
+        if ($failed > 0) {
+            $summary .= ', '.trans_choice(':count failed|:count failed', $failed, ['count' => $failed]);
         }
 
         return $summary.'.';

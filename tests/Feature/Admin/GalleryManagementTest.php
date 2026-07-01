@@ -188,6 +188,33 @@ class GalleryManagementTest extends TestCase
         });
     }
 
+    public function test_ajax_upload_fails_cleanly_when_staging_storage_is_unwritable(): void
+    {
+        Bus::fake();
+
+        // Point the local disk at a root that is a file, so staging the upload
+        // fails with a directory-creation error — the same failure mode as a
+        // production storage directory the PHP user cannot write to.
+        $blockedRoot = storage_path('framework/testing/blocked-local-root');
+        @mkdir(dirname($blockedRoot), 0777, true);
+        file_put_contents($blockedRoot, 'a file, not a directory');
+        config(['filesystems.disks.local.root' => $blockedRoot]);
+        Storage::forgetDisk('local');
+
+        $gallery = Gallery::factory()->create();
+        $album = Album::factory()->for($gallery)->create();
+
+        $response = $this->actingAs($this->admin())->postJson(
+            route('admin.galleries.albums.photos.upload', [$gallery, $album]),
+            ['photos' => [UploadedFile::fake()->image('one.jpg', 800, 600)]],
+        );
+
+        $response->assertStatus(500)->assertJsonStructure(['message']);
+        Bus::assertNotDispatched(IngestGalleryUpload::class);
+
+        @unlink($blockedRoot);
+    }
+
     public function test_ingest_job_ingests_files_and_broadcasts_progress(): void
     {
         Event::fake([GalleryUploadProgressed::class]);

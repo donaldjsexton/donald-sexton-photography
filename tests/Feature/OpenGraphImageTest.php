@@ -126,6 +126,34 @@ class OpenGraphImageTest extends TestCase
         $this->assertNotEmpty($disk->files('og/wedding-stories'));
     }
 
+    public function test_og_route_serves_the_card_even_when_the_cache_write_fails(): void
+    {
+        // Make `og` a file inside a real public-disk root so caching the card
+        // fails with a directory-creation error — the same failure mode as a
+        // production og/ directory the PHP user cannot write to.
+        $root = storage_path('framework/testing/og-blocked-'.uniqid());
+        mkdir($root, 0777, true);
+        file_put_contents($root.'/og', 'a file, not a directory');
+        config(['filesystems.disks.public.root' => $root]);
+        Storage::forgetDisk('public');
+
+        $story = WeddingStory::create([
+            'title' => 'Uncached Card',
+            'slug' => 'uncached-card',
+            'status' => 'published',
+            'published_at' => now()->subDay(),
+        ]);
+
+        $response = $this->get(route('og.story', $story->slug));
+
+        $response->assertOk();
+        $this->assertSame('image/png', $response->headers->get('Content-Type'));
+        $this->assertStringStartsWith("\x89PNG", $response->getContent());
+
+        @unlink($root.'/og');
+        @rmdir($root);
+    }
+
     public function test_wedding_story_show_view_references_generated_og_image(): void
     {
         $story = WeddingStory::create([

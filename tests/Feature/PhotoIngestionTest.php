@@ -6,8 +6,11 @@ use App\Models\Album;
 use App\Models\Photo;
 use App\Services\Galleries\PhotoIngestionService;
 use App\Services\Galleries\PhotoVariant;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\UnableToCreateDirectory;
+use Mockery;
 use Tests\TestCase;
 
 class PhotoIngestionTest extends TestCase
@@ -103,6 +106,46 @@ class PhotoIngestionTest extends TestCase
 
         $this->assertTrue($result->isFailed());
         $this->assertSame('unsupported_mime', $result->reason);
+        $this->assertSame(0, Photo::query()->count());
+
+        @unlink($path);
+    }
+
+    public function test_a_rejected_disk_write_fails_the_ingest_without_persisting(): void
+    {
+        $album = Album::factory()->create();
+        $path = $this->makeJpeg(400, 300);
+
+        // The s3/R2 disk is configured with throw=false, so a failed write
+        // (bad credentials, missing bucket) surfaces as a false return value.
+        Storage::shouldReceive('disk')->with('s3')->andReturn($disk = Mockery::mock(Filesystem::class));
+        $disk->shouldReceive('writeStream')->once()->andReturn(false);
+
+        $result = (new PhotoIngestionService)->ingest($path, $album, 'beach.jpg');
+
+        $this->assertTrue($result->isFailed());
+        $this->assertSame('storage_write_failed', $result->reason);
+        $this->assertSame(0, Photo::query()->count());
+        $this->assertSame(0, $album->photos()->count());
+
+        @unlink($path);
+    }
+
+    public function test_an_unwritable_disk_fails_the_ingest_without_persisting(): void
+    {
+        $album = Album::factory()->create();
+        $path = $this->makeJpeg(400, 300);
+
+        // Local drivers throw on directory-creation failure even with throw=false.
+        Storage::shouldReceive('disk')->with('s3')->andReturn($disk = Mockery::mock(Filesystem::class));
+        $disk->shouldReceive('writeStream')->once()->andThrow(
+            UnableToCreateDirectory::atLocation('galleries/1/1', 'Permission denied'),
+        );
+
+        $result = (new PhotoIngestionService)->ingest($path, $album, 'beach.jpg');
+
+        $this->assertTrue($result->isFailed());
+        $this->assertSame('storage_write_failed', $result->reason);
         $this->assertSame(0, Photo::query()->count());
 
         @unlink($path);

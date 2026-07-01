@@ -4,12 +4,15 @@ namespace App\Support;
 
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\FilesystemException;
 
 /**
  * Renders 1200x630 PNG social cards using GD. Source image is centered and
  * dark-blended so the title and brand mark stay legible regardless of the
  * underlying photograph. Output is cached on the public disk under
- * `og/{type}/{key}.png` and served byte-for-byte on subsequent requests.
+ * `og/{type}/{key}.png` and served byte-for-byte on subsequent requests. The
+ * cache is best-effort: when the disk is not writable the freshly rendered
+ * bytes are still returned so the route never fails.
  */
 class OpenGraphImageRenderer
 {
@@ -41,7 +44,7 @@ class OpenGraphImageRenderer
     private const FG_B = 236;
 
     /**
-     * Resolve the disk path for the cached image, generating it when missing.
+     * Return the PNG bytes for the card, generating and caching when missing.
      */
     public function render(
         string $type,
@@ -54,7 +57,11 @@ class OpenGraphImageRenderer
         $disk = Storage::disk(self::DISK);
 
         if ($disk->exists($relativePath)) {
-            return $relativePath;
+            $cached = $disk->get($relativePath);
+
+            if ($cached !== null) {
+                return $cached;
+            }
         }
 
         $canvas = $this->compose($title, $eyebrow, $sourceImagePath);
@@ -64,9 +71,16 @@ class OpenGraphImageRenderer
         $bytes = (string) ob_get_clean();
         imagedestroy($canvas);
 
-        $disk->put($relativePath, $bytes, ['visibility' => 'public']);
+        try {
+            $disk->put($relativePath, $bytes, ['visibility' => 'public']);
+        } catch (FilesystemException $e) {
+            Log::warning('OpenGraphImageRenderer: could not cache the card on the public disk; serving the rendered bytes uncached. Check ownership and permissions on storage/app/public/og.', [
+                'path' => $relativePath,
+                'error' => $e->getMessage(),
+            ]);
+        }
 
-        return $relativePath;
+        return $bytes;
     }
 
     /**
