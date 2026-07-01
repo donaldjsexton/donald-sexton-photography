@@ -11,6 +11,7 @@ use App\Models\Photo;
 use App\Models\ShareToken;
 use App\Models\User;
 use App\Services\Galleries\PhotoIngestionService;
+use App\Support\UploadRequestBudget;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Bus;
@@ -213,6 +214,66 @@ class GalleryManagementTest extends TestCase
         Bus::assertNotDispatched(IngestGalleryUpload::class);
 
         @unlink($blockedRoot);
+    }
+
+    public function test_gallery_edit_page_exposes_the_upload_request_budget(): void
+    {
+        $gallery = Gallery::factory()->create();
+
+        $this->actingAs($this->admin())
+            ->get(route('admin.galleries.edit', $gallery))
+            ->assertOk()
+            ->assertSee('data-max-request-bytes="'.UploadRequestBudget::maxRequestBytes().'"', false);
+    }
+
+    public function test_ajax_upload_bigger_than_post_max_size_gets_a_friendly_json_413(): void
+    {
+        $maxBytes = UploadRequestBudget::maxRequestBytes();
+
+        if ($maxBytes === 0) {
+            $this->markTestSkipped('post_max_size is unlimited in this environment.');
+        }
+
+        $gallery = Gallery::factory()->create();
+        $album = Album::factory()->for($gallery)->create();
+
+        $response = $this->actingAs($this->admin())->call(
+            'POST',
+            route('admin.galleries.albums.photos.upload', [$gallery, $album]),
+            [],
+            [],
+            [],
+            [
+                'HTTP_ACCEPT' => 'application/json',
+                'CONTENT_LENGTH' => $maxBytes + 1,
+            ],
+        );
+
+        $response->assertStatus(413)->assertJsonStructure(['message']);
+    }
+
+    public function test_browser_upload_bigger_than_post_max_size_shows_the_413_error_page(): void
+    {
+        $maxBytes = UploadRequestBudget::maxRequestBytes();
+
+        if ($maxBytes === 0) {
+            $this->markTestSkipped('post_max_size is unlimited in this environment.');
+        }
+
+        $gallery = Gallery::factory()->create();
+        $album = Album::factory()->for($gallery)->create();
+
+        $response = $this->actingAs($this->admin())->call(
+            'POST',
+            route('admin.galleries.albums.photos.store', [$gallery, $album]),
+            [],
+            [],
+            [],
+            ['CONTENT_LENGTH' => $maxBytes + 1],
+        );
+
+        $response->assertStatus(413)
+            ->assertSee('larger than the server accepts');
     }
 
     public function test_ingest_job_ingests_files_and_broadcasts_progress(): void

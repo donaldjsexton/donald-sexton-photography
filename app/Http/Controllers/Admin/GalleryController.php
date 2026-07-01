@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\Gallery;
 use App\Models\Photo;
 use App\Services\Galleries\PhotoVariant;
+use App\Support\UploadRequestBudget;
 use App\Tenancy\CurrentSite;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -80,6 +81,7 @@ class GalleryController extends Controller
         return view('admin.galleries.edit', [
             'gallery' => $gallery,
             'clients' => $this->clientOptions(),
+            'maxUploadRequestBytes' => UploadRequestBudget::maxRequestBytes(),
         ]);
     }
 

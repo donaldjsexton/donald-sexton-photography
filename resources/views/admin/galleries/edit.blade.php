@@ -96,7 +96,8 @@
 
         <div data-gallery-uploads
              data-gallery-channel="galleries.{{ $gallery->id }}"
-             data-gallery-event=".upload.progressed">
+             data-gallery-event=".upload.progressed"
+             data-max-request-bytes="{{ $maxUploadRequestBytes }}">
         @forelse ($gallery->albums as $album)
             <div class="album-block">
                 <div class="album-block__head">
