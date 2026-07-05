@@ -99,6 +99,38 @@ class LogControllerTest extends TestCase
         $response->assertDontSee('Bookings imported');
     }
 
+    public function test_index_renders_copy_controls_for_log_entries(): void
+    {
+        $admin = User::factory()->create();
+
+        $this->writeLog('laravel.log', <<<'LOG'
+            [2026-04-26 10:00:00] testing.INFO: User signed in {"user_id":1}
+            LOG);
+
+        $response = $this->actingAs($admin)->get('/admin/logs');
+
+        $response->assertOk();
+        $response->assertSee('data-copy-all-entries', false);
+        $response->assertSee('data-copy-entry', false);
+        $response->assertSee('data-log-line="[2026-04-26 10:00:00] testing.INFO: User signed in"', false);
+    }
+
+    public function test_index_omits_copy_controls_when_no_entries_match(): void
+    {
+        $admin = User::factory()->create();
+
+        $this->writeLog('laravel.log', <<<'LOG'
+            [2026-04-26 10:00:00] testing.INFO: Routine heartbeat
+            LOG);
+
+        $response = $this->actingAs($admin)
+            ->get('/admin/logs?file=laravel.log&level=ERROR');
+
+        $response->assertOk();
+        $response->assertDontSee('data-copy-all-entries', false);
+        $response->assertDontSee('data-copy-entry', false);
+    }
+
     public function test_index_rejects_path_traversal_in_file_param_and_falls_back_to_default(): void
     {
         $admin = User::factory()->create();
