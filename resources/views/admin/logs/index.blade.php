@@ -119,7 +119,13 @@
                 eyebrow="Recent Activity"
                 title="Latest entries first"
                 description="Each entry shows the timestamp, level, and message. Expand the context for the JSON payload or stack trace when present."
-            />
+            >
+                @if (! empty($entries))
+                    <div>
+                        <button type="button" class="admin-copy-btn" data-copy-all-entries>Copy all shown</button>
+                    </div>
+                @endif
+            </x-admin.section-header>
 
             @if (empty($entries))
                 <p class="meta">
@@ -132,7 +138,17 @@
             @else
                 <ol class="admin-import-run-list" style="list-style: none; padding: 0;">
                     @foreach ($entries as $entry)
-                        <li class="admin-import-run">
+                        @php
+                            $logLine = sprintf(
+                                '[%s] %s%s: %s',
+                                $entry['timestamp']?->format('Y-m-d H:i:s') ?? 'unknown time',
+                                $entry['environment'] ? $entry['environment'].'.' : '',
+                                $entry['level'],
+                                $entry['message'],
+                            );
+                        @endphp
+
+                        <li class="admin-import-run" data-log-entry data-log-line="{{ $logLine }}">
                             <div class="admin-import-run__header">
                                 <div class="admin-import-run__copy">
                                     <p class="eyebrow">
@@ -146,15 +162,21 @@
                                     </h3>
                                 </div>
 
-                                <x-admin.badge :tone="$levelTone[$entry['level']] ?? 'archived'">
-                                    {{ $entry['level'] }}
-                                </x-admin.badge>
+                                <div class="admin-log-entry__actions">
+                                    <x-admin.badge :tone="$levelTone[$entry['level']] ?? 'archived'">
+                                        {{ $entry['level'] }}
+                                    </x-admin.badge>
+
+                                    <button type="button" class="admin-copy-btn" data-copy-entry aria-label="Copy log entry">
+                                        Copy
+                                    </button>
+                                </div>
                             </div>
 
                             @if ($entry['context'])
                                 <details class="admin-details">
                                     <summary>Context</summary>
-                                    <pre class="admin-pre admin-pre--wrap">{{ $entry['context'] }}</pre>
+                                    <pre class="admin-pre admin-pre--wrap" data-log-context>{{ $entry['context'] }}</pre>
                                 </details>
                             @endif
                         </li>
@@ -162,5 +184,85 @@
                 </ol>
             @endif
         </section>
+
+        @if (! empty($entries))
+            <script>
+            (function () {
+                function entryText(entry) {
+                    let text = entry.dataset.logLine || '';
+                    const context = entry.querySelector('[data-log-context]');
+
+                    if (context && context.textContent.trim() !== '') {
+                        text += '\n' + context.textContent;
+                    }
+
+                    return text;
+                }
+
+                async function copyText(text) {
+                    if (navigator.clipboard && window.isSecureContext) {
+                        await navigator.clipboard.writeText(text);
+                        return;
+                    }
+
+                    const textarea = document.createElement('textarea');
+                    textarea.value = text;
+                    textarea.setAttribute('readonly', '');
+                    textarea.style.position = 'fixed';
+                    textarea.style.opacity = '0';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    textarea.remove();
+                }
+
+                function flash(button, label) {
+                    if (button.dataset.flashing) return;
+                    button.dataset.flashing = '1';
+
+                    const original = button.textContent;
+                    button.textContent = label;
+                    button.classList.add('is-copied');
+
+                    setTimeout(() => {
+                        button.textContent = original;
+                        button.classList.remove('is-copied');
+                        delete button.dataset.flashing;
+                    }, 1800);
+                }
+
+                document.querySelectorAll('[data-copy-entry]').forEach((button) => {
+                    button.addEventListener('click', async () => {
+                        const entry = button.closest('[data-log-entry]');
+                        if (!entry) return;
+
+                        try {
+                            await copyText(entryText(entry));
+                            flash(button, 'Copied');
+                        } catch {
+                            flash(button, 'Failed');
+                        }
+                    });
+                });
+
+                const copyAll = document.querySelector('[data-copy-all-entries]');
+
+                if (copyAll) {
+                    copyAll.addEventListener('click', async () => {
+                        const text = Array.from(document.querySelectorAll('[data-log-entry]'))
+                            .map(entryText)
+                            .join('\n\n');
+
+                        try {
+                            await copyText(text);
+                            flash(copyAll, 'Copied');
+                        } catch {
+                            flash(copyAll, 'Copy failed');
+                        }
+                    });
+                }
+            })();
+            </script>
+        @endif
     @endif
 @endsection

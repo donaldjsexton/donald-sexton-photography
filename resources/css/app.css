@@ -3943,6 +3943,37 @@ textarea {
     overflow-wrap: anywhere;
 }
 
+.admin-log-entry__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.admin-copy-btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
+    padding: 0.45rem 0.95rem;
+    border: 1px solid var(--admin-line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.82);
+    color: inherit;
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    cursor: pointer;
+}
+
+.admin-copy-btn:hover {
+    border-color: var(--line-strong);
+}
+
+.admin-copy-btn.is-copied {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
 .admin-import-activity-card {
     gap: 1rem;
 }
