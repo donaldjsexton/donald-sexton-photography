@@ -9,7 +9,7 @@
 @endphp
 
 @section('title', $story->seo_title ?: $story->title)
-@section('meta_description', $story->seo_description ?: $presentation['hero_copy'] ?: ($showExternalFallback ? $story->externalGallerySummary() : ''))
+@section('meta_description', $story->seo_description ?: $presentation->heroCopy ?: ($showExternalFallback ? $story->externalGallerySummary() : ''))
 @section('canonical_url', $story->seoCanonicalUrl() ?: url()->current())
 @section('og_type', 'article')
 @section('og_image', route('og.story', $story->slug))
@@ -76,11 +76,11 @@
         />
     @endif
 
-    @if ($pictime->showImportedGallery($presentation['gallery_html']))
+    @if ($pictime->showImportedGallery($presentation->galleryHtml))
         <section class="section">
             <div class="page-shell--wide">
                 <div class="imported-story-gallery rich-text" data-reveal>
-                    {!! $presentation['gallery_html'] !!}
+                    {!! $presentation->galleryHtml !!}
                 </div>
             </div>
         </section>

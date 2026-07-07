@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use App\Data\PresentationContent;
 use App\Models\Media;
 use App\Models\WeddingStory;
 use Illuminate\Support\Facades\File;
@@ -27,17 +28,18 @@ HTML,
 
         $presentation = $story->presentationContent();
 
+        $this->assertInstanceOf(PresentationContent::class, $presentation);
         $this->assertSame(
             'Some weddings are beautiful, and some weddings are alive. Christopher and Jennifer’s day felt like a celebration from the moment it began.',
-            $presentation['hero_copy']
+            $presentation->heroCopy
         );
-        $this->assertNotNull($presentation['gallery_html']);
-        $this->assertStringContainsString('wp-import-gallery', $presentation['gallery_html']);
-        $this->assertStringContainsString('loading="lazy"', $presentation['gallery_html']);
-        $this->assertStringContainsString('decoding="async"', $presentation['gallery_html']);
-        $this->assertNotNull($presentation['body_html']);
-        $this->assertStringContainsString('closing paragraph', $presentation['body_html']);
-        $this->assertStringNotContainsString('Some weddings are beautiful', $presentation['body_html']);
+        $this->assertNotNull($presentation->galleryHtml);
+        $this->assertStringContainsString('wp-import-gallery', $presentation->galleryHtml);
+        $this->assertStringContainsString('loading="lazy"', $presentation->galleryHtml);
+        $this->assertStringContainsString('decoding="async"', $presentation->galleryHtml);
+        $this->assertNotNull($presentation->bodyHtml);
+        $this->assertStringContainsString('closing paragraph', $presentation->bodyHtml);
+        $this->assertStringNotContainsString('Some weddings are beautiful', $presentation->bodyHtml);
     }
 
     public function test_featured_image_url_falls_back_to_first_imported_body_image(): void
@@ -120,8 +122,8 @@ HTML,
         $presentation = $story->presentationContent();
 
         $this->assertNull($story->featuredImageUrl());
-        $this->assertNull($presentation['gallery_html']);
-        $this->assertSame('<p>Closing copy.</p>', trim((string) $presentation['body_html']));
+        $this->assertNull($presentation->galleryHtml);
+        $this->assertSame('<p>Closing copy.</p>', trim((string) $presentation->bodyHtml));
         $this->assertStringNotContainsString('wp-content/uploads', (string) $story->sanitizedBody());
     }
 

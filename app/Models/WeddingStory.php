@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Data\PresentationContent;
+use App\Data\StorySegments;
 use App\Models\Concerns\BelongsToSite;
 use App\Models\Concerns\HasBlocks;
 use App\Models\Concerns\InteractsWithPicTime;
@@ -235,16 +237,16 @@ class WeddingStory extends Model
             ->toString();
     }
 
-    public function presentationContent(): array
+    public function presentationContent(): PresentationContent
     {
         $body = trim((string) $this->sanitizedBody());
         $picTimeExcerpt = PicTimeContent::excerpt($this->picTimeSourceMarkup());
 
-        $default = [
-            'hero_copy' => $this->excerpt ?: $picTimeExcerpt,
-            'gallery_html' => null,
-            'body_html' => $body !== '' ? $body : null,
-        ];
+        $default = new PresentationContent(
+            heroCopy: $this->excerpt ?: $picTimeExcerpt,
+            galleryHtml: null,
+            bodyHtml: $body !== '' ? $body : null,
+        );
 
         if (! $this->original_wp_post_id || $body === '') {
             return $default;
@@ -256,19 +258,19 @@ class WeddingStory extends Model
             return $default;
         }
 
-        $bodyHtml = trim($segments['body_html']);
+        $bodyHtml = trim($segments->bodyHtml);
 
-        return [
-            'hero_copy' => $segments['lead_text'] ?: $default['hero_copy'],
-            'gallery_html' => $segments['gallery_html'] ?: null,
-            'body_html' => $bodyHtml !== '' ? $bodyHtml : null,
-        ];
+        return new PresentationContent(
+            heroCopy: $segments->leadText ?: $default->heroCopy,
+            galleryHtml: $segments->galleryHtml ?: null,
+            bodyHtml: $bodyHtml !== '' ? $bodyHtml : null,
+        );
     }
 
     public function summaryText(?int $words = null): ?string
     {
         $fallback = $this->normalizeImportedText($this->sanitizedBody() ?? '');
-        $copy = $this->presentationContent()['hero_copy']
+        $copy = $this->presentationContent()->heroCopy
             ?: $this->excerpt
             ?: PicTimeContent::excerpt($this->picTimeSourceMarkup())
             ?: $fallback;
@@ -285,15 +287,15 @@ class WeddingStory extends Model
         $presentation = $this->presentationContent();
 
         return $this->stripLeadingDuplicateParagraph(
-            $presentation['body_html'] ?? null,
-            $presentation['hero_copy'] ?? $this->excerpt
+            $presentation->bodyHtml,
+            $presentation->heroCopy ?? $this->excerpt
         );
     }
 
     public function detailHeroCopy(): ?string
     {
         $presentation = $this->presentationContent();
-        $copy = $presentation['hero_copy'];
+        $copy = $presentation->heroCopy;
 
         if (filled($copy)) {
             return $copy;
@@ -379,7 +381,7 @@ class WeddingStory extends Model
         return $this->rawPicTimeEmbedMarkup();
     }
 
-    private function parseImportedPresentationContent(string $body): ?array
+    private function parseImportedPresentationContent(string $body): ?StorySegments
     {
         $previousState = libxml_use_internal_errors(true);
 
@@ -436,11 +438,11 @@ class WeddingStory extends Model
                 $bodyParts[] = $childHtml;
             }
 
-            return [
-                'lead_text' => $leadText,
-                'gallery_html' => trim((string) $galleryHtml),
-                'body_html' => trim(implode("\n\n", $bodyParts)),
-            ];
+            return new StorySegments(
+                leadText: $leadText,
+                galleryHtml: trim((string) $galleryHtml),
+                bodyHtml: trim(implode("\n\n", $bodyParts)),
+            );
         } finally {
             libxml_clear_errors();
             libxml_use_internal_errors($previousState);
