@@ -9,6 +9,7 @@ use App\Models\SiteSetting;
 use App\Models\Venue;
 use App\Models\WeddingStory;
 use App\Services\GoogleBusinessProfile;
+use App\Support\StructuredData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -166,7 +167,7 @@ class StructuredDataTest extends TestCase
             ->assertSee('"@type":"Person"', false)
             ->assertSee('"name":"Donald Sexton"', false)
             ->assertSee('"jobTitle":"Wedding Photographer"', false)
-            ->assertSee('"worksFor":{"@id":"'.\App\Support\StructuredData::organizationId().'"}', false);
+            ->assertSee('"worksFor":{"@id":"'.StructuredData::organizationId().'"}', false);
     }
 
     public function test_inquiry_page_renders_faq_page_schema(): void
