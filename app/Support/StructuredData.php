@@ -32,6 +32,56 @@ class StructuredData
         return route('venues.show', $venue->slug).'#place';
     }
 
+    public static function personId(): string
+    {
+        return route('pages.about').'#donald-sexton';
+    }
+
+    /**
+     * Person markup for Donald, emitted on the About page. Linking the person
+     * to the organization (and back via `founder`) helps search engines
+     * disambiguate the brand from other photographers named Sexton.
+     *
+     * @return array<string, mixed>
+     */
+    public static function person(): array
+    {
+        $logo = (string) config('seo.default_og_image', '');
+        $imageUrl = $logo === '' ? null : (preg_match('#^https?://#i', $logo) ? $logo : url($logo));
+
+        return self::compact([
+            '@context' => 'https://schema.org',
+            '@type' => 'Person',
+            '@id' => self::personId(),
+            'name' => 'Donald Sexton',
+            'jobTitle' => 'Wedding Photographer',
+            'description' => 'Wedding photographer based in Clearwater, Florida, photographing weddings, engagements, and elopements across Tampa Bay and the Gulf Coast.',
+            'url' => route('pages.about'),
+            'image' => $imageUrl,
+            'worksFor' => ['@id' => self::organizationId()],
+            'homeLocation' => [
+                '@type' => 'Place',
+                'address' => [
+                    '@type' => 'PostalAddress',
+                    'addressLocality' => 'Clearwater',
+                    'addressRegion' => 'FL',
+                    'addressCountry' => 'US',
+                ],
+            ],
+            'knowsAbout' => [
+                'Wedding Photography',
+                'Engagement Photography',
+                'Elopement Photography',
+                'Documentary Wedding Photography',
+            ],
+            'sameAs' => self::organizationSameAs(),
+            'mainEntityOfPage' => [
+                '@type' => 'ProfilePage',
+                '@id' => route('pages.about'),
+            ],
+        ]);
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -117,6 +167,12 @@ class StructuredData
                         'provider' => ['@id' => self::organizationId()],
                     ],
                 ],
+            ],
+            'founder' => [
+                '@type' => 'Person',
+                '@id' => self::personId(),
+                'name' => 'Donald Sexton',
+                'jobTitle' => 'Wedding Photographer',
             ],
             'sameAs' => self::organizationSameAs(),
         ]);
@@ -282,6 +338,8 @@ class StructuredData
                     'creditText' => $item->credit ?: null,
                     'creator' => ['@id' => self::organizationId()],
                     'copyrightHolder' => ['@id' => self::organizationId()],
+                    'license' => route('legal.terms'),
+                    'acquireLicensePage' => route('inquiry.create'),
                 ]);
             })
             ->filter()

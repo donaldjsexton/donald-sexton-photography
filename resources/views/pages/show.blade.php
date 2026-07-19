@@ -4,6 +4,29 @@
 @section('meta_description', $page->seo_description ?: $page->excerpt ?: '')
 @section('canonical_url', $page->canonical_url ?: url()->current())
 
+@push('json_ld')
+    @if (! empty($breadcrumbs ?? null))
+        @php
+            $breadcrumbSchema = \App\Support\StructuredData::breadcrumbList(
+                collect($breadcrumbs)
+                    ->map(fn (array $item) => [
+                        'name' => $item['name'],
+                        'url' => $item['url'] !== '' ? $item['url'] : url()->current(),
+                    ])
+                    ->all()
+            );
+        @endphp
+        <script type="application/ld+json">{!! json_encode($breadcrumbSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    @endif
+    @if (! empty($personSchema ?? null))
+        <script type="application/ld+json">{!! json_encode($personSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    @endif
+    @php $pageFaqs = $page->structuredFaqs(); @endphp
+    @if (! empty($pageFaqs))
+        <script type="application/ld+json">{!! json_encode(\App\Support\StructuredData::faqPage($pageFaqs), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
+    @endif
+@endpush
+
 @section('content')
     @if (! empty($breadcrumbs ?? null))
         <x-editorial.breadcrumbs :items="$breadcrumbs" />
@@ -23,6 +46,27 @@
         <x-editorial.reading-section>
             {!! $page->body !!}
         </x-editorial.reading-section>
+    @endif
+
+    @php $pageFaqs = $page->structuredFaqs(); @endphp
+    @if (! empty($pageFaqs))
+        <section class="section" aria-labelledby="page-faqs-heading">
+            <div class="page-shell--tight page-stack">
+                <x-editorial.section-heading
+                    eyebrow="FAQ"
+                    title="Questions couples ask."
+                />
+
+                <dl class="venue-faqs">
+                    @foreach ($pageFaqs as $faq)
+                        <div class="venue-faqs__item">
+                            <dt class="venue-faqs__question">{{ $faq['question'] }}</dt>
+                            <dd class="venue-faqs__answer">{{ $faq['answer'] }}</dd>
+                        </div>
+                    @endforeach
+                </dl>
+            </div>
+        </section>
     @endif
 
     @if (! empty($relatedVenues ?? null) && $relatedVenues->isNotEmpty())

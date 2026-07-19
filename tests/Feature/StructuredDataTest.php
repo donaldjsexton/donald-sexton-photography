@@ -9,6 +9,7 @@ use App\Models\SiteSetting;
 use App\Models\Venue;
 use App\Models\WeddingStory;
 use App\Services\GoogleBusinessProfile;
+use App\Support\StructuredData;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -94,6 +95,8 @@ class StructuredDataTest extends TestCase
             ->assertSee('"contentLocation":{"@id":"'.$venuePlaceId.'"}', false)
             ->assertSee('"startDate":"2027-03-14"', false)
             ->assertSee('"@type":"Photograph"', false)
+            ->assertSee('"license":"'.route('legal.terms').'"', false)
+            ->assertSee('"acquireLicensePage":"'.route('inquiry.create').'"', false)
             ->assertSee('"@type":"BreadcrumbList"', false);
     }
 
@@ -138,6 +141,35 @@ class StructuredDataTest extends TestCase
             ->assertSee('"@type":"BreadcrumbList"', false);
     }
 
+    public function test_collections_index_renders_pricing_faq_section_and_schema(): void
+    {
+        Collection::create([
+            'name' => 'Essential Coverage',
+            'slug' => 'essential-coverage',
+            'status' => 'published',
+            'starting_price' => 4200,
+            'display_order' => 1,
+        ]);
+
+        $this->get(route('collections.index'))
+            ->assertOk()
+            ->assertSee('class="venue-faqs"', false)
+            ->assertSee('How much does wedding photography cost in Clearwater and Tampa Bay?', false)
+            ->assertSee('start at $4,200', false)
+            ->assertSee('"@type":"FAQPage"', false)
+            ->assertSee('"@type":"Question"', false);
+    }
+
+    public function test_about_page_renders_person_schema_linked_to_organization(): void
+    {
+        $this->get('/about')
+            ->assertOk()
+            ->assertSee('"@type":"Person"', false)
+            ->assertSee('"name":"Donald Sexton"', false)
+            ->assertSee('"jobTitle":"Wedding Photographer"', false)
+            ->assertSee('"worksFor":{"@id":"'.StructuredData::organizationId().'"}', false);
+    }
+
     public function test_inquiry_page_renders_faq_page_schema(): void
     {
         $this->get(route('inquiry.create'))
@@ -156,7 +188,9 @@ class StructuredDataTest extends TestCase
             ->assertSee('"@type":"WeddingPhotographer"', false)
             ->assertSee('"name":"Wedding Photography"', false)
             ->assertSee('"name":"Engagement Photography"', false)
-            ->assertSee('"name":"Elopement Photography"', false);
+            ->assertSee('"name":"Elopement Photography"', false)
+            ->assertSee('"founder":', false)
+            ->assertSee('"name":"Donald Sexton"', false);
     }
 
     public function test_organization_schema_includes_same_as_from_settings(): void

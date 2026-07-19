@@ -21,6 +21,8 @@ class LocationPageDraft
         public readonly string $body,
         public readonly string $seoTitle,
         public readonly string $seoDescription,
+        /** @var array<int, array{question: string, answer: string}> */
+        public readonly array $faqs,
     ) {}
 
     public static function build(string $city, ?string $state = null, ?string $region = null): self
@@ -53,7 +55,33 @@ class LocationPageDraft
             body: $body,
             seoTitle: $seoTitle,
             seoDescription: $seoDescription,
+            faqs: self::faqs($city, $locationLabel),
         );
+    }
+
+    /**
+     * Starter FAQs so every generated location page ships with FAQPage schema.
+     * Deliberately generic — the photographer should tighten these before
+     * publishing, same as the body copy.
+     *
+     * @return array<int, array{question: string, answer: string}>
+     */
+    private static function faqs(string $city, string $locationLabel): array
+    {
+        return [
+            [
+                'question' => 'Do you photograph weddings in '.$city.'?',
+                'answer' => 'Yes — '.$locationLabel.' is part of my regular coverage area. I am based in Clearwater, Florida and photograph weddings, engagements, and elopements throughout the region with no travel fee inside Tampa Bay.',
+            ],
+            [
+                'question' => 'Do you offer elopement packages in '.$city.'?',
+                'answer' => 'Yes. Smaller weddings and elopements in '.$locationLabel.' are welcome — shorter coverage collections are built for exactly that. Send your date and location through the inquiry form for current options.',
+            ],
+            [
+                'question' => 'How far in advance should we book a '.$city.' wedding photographer?',
+                'answer' => 'Most couples book nine to fourteen months ahead, and popular spring and fall dates go earliest. If your date is closer than that, still reach out — openings do come up.',
+            ],
+        ];
     }
 
     private static function locationLabel(string $city, ?string $state): string

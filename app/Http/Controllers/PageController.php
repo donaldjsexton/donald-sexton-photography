@@ -6,6 +6,7 @@ use App\Models\JournalPost;
 use App\Models\Page;
 use App\Models\Venue;
 use App\Models\WeddingStory;
+use App\Support\StructuredData;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\View\View;
@@ -20,8 +21,11 @@ class PageController extends Controller
             ->first();
 
         return view('pages.show', [
+            'personSchema' => StructuredData::person(),
             'page' => $page ?: Page::make([
                 'title' => 'About',
+                'seo_title' => 'About Donald Sexton — Clearwater Wedding Photographer',
+                'seo_description' => 'Donald Sexton is a wedding photographer based in Clearwater, Florida, photographing weddings, engagements, and elopements across Tampa Bay.',
                 'excerpt' => 'I photograph weddings with a calm, simple approach so you can stay in the day and still come away with images that feel true to you.',
                 'body' => <<<'HTML'
 <p>I am Donald Sexton, a wedding photographer based in Clearwater and working across Tampa, the Gulf Coast, and beyond.</p>
