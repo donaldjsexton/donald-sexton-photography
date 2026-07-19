@@ -30,13 +30,30 @@ class Page extends Model
         'canonical_url',
         'published_at',
         'sort_order',
+        'faqs',
     ];
 
     protected function casts(): array
     {
         return [
             'published_at' => 'datetime',
+            'faqs' => 'array',
         ];
+    }
+
+    /**
+     * @return array<int, array{question: string, answer: string}>
+     */
+    public function structuredFaqs(): array
+    {
+        return collect($this->faqs ?? [])
+            ->map(fn ($item) => is_array($item) ? [
+                'question' => trim((string) ($item['question'] ?? '')),
+                'answer' => trim((string) ($item['answer'] ?? '')),
+            ] : null)
+            ->filter(fn (?array $item) => $item !== null && $item['question'] !== '' && $item['answer'] !== '')
+            ->values()
+            ->all();
     }
 
     public function heroMedia(): BelongsTo

@@ -159,7 +159,8 @@ class PublicRoutesTest extends TestCase
     {
         $this->get('/')
             ->assertOk()
-            ->assertSee('<meta name="description" content="Calm wedding photography for Clearwater, Tampa, and beyond. Real wedding stories, planning guidance, and straightforward next steps.">', false)
+            ->assertSee('<title>Clearwater Wedding Photographer | Donald Sexton Photography</title>', false)
+            ->assertSee('<meta name="description" content="Calm, documentary wedding photography in Clearwater, Clearwater Beach, and Tampa Bay. See real wedding stories, transparent collection pricing, and check your date.">', false)
             ->assertSee('<meta name="robots" content="index,follow,max-image-preview:large">', false)
             ->assertSee('"@type":"WebSite"', false)
             ->assertSee('"@type":"WeddingPhotographer"', false)

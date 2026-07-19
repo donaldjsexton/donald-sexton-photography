@@ -89,6 +89,19 @@
             <textarea name="seo_description" rows="3">{{ old('seo_description', $page->seo_description) }}</textarea>
         </label>
 
+        @php
+            $faqsText = old('faqs_text', collect($page->structuredFaqs())
+                ->map(fn (array $item) => $item['question'].' | '.$item['answer'])
+                ->implode("\n"));
+        @endphp
+
+        <label>
+            FAQs
+            <textarea name="faqs_text" rows="6" placeholder="Do you photograph weddings in this area? | Yes — this area is part of my regular coverage, with no travel fee inside Tampa Bay.
+How far in advance should we book? | Most couples book nine to fourteen months ahead of their date.">{{ $faqsText }}</textarea>
+            <span class="meta">One FAQ per line, formatted <code>Question | Answer</code>. These render on the page and emit FAQPage schema so Google can surface them in search.</span>
+        </label>
+
         <label>
             Sort order
             <input type="number" name="sort_order" min="0" value="{{ old('sort_order', $page->sort_order ?? 0) }}">
