@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Clearwater Wedding Photographer | Donald Sexton Photography')
+@section('title', 'Clearwater Wedding Photographer')
 @section('meta_description', 'Calm, documentary wedding photography in Clearwater, Clearwater Beach, and Tampa Bay. See real wedding stories, transparent collection pricing, and check your date.')
 @section('canonical_url', url()->current())
 @section('og_image', $content->leadImage() ?: '')

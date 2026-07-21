@@ -29,7 +29,9 @@ class LocationPageGeneratorTest extends TestCase
         $this->assertSame('Tampa Wedding Photographer', $page->title);
         $this->assertSame('location', $page->template);
         $this->assertSame('draft', $page->status);
-        $this->assertSame('Tampa Wedding Photographer | Donald Sexton', $page->seo_title);
+        // seo_title no longer carries a brand suffix — the layout appends it
+        // centrally (App\Support\MetaTitle).
+        $this->assertSame('Tampa Wedding Photographer', $page->seo_title);
         $this->assertNotNull($page->seo_description);
         $this->assertStringContainsString('Tampa, FL', $page->excerpt);
         $this->assertStringContainsString('Tampa Bay', $page->body);

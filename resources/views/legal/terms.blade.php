@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Terms of Service — Donald Sexton Photography')
+@section('title', 'Terms of Service')
 @section('meta_description', 'Terms of service for Donald Sexton Photography, including SMS messaging terms and conditions.')
 
 @section('content')

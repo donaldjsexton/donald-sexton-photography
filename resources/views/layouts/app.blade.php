@@ -8,10 +8,16 @@
         // so yieldContent here returns HTML-escaped strings. Emit them with {!! !!} to avoid
         // double-encoding (e.g. `&` becoming `&amp;amp;` and rendering as literal `&amp;`).
         $defaultDescription = 'Calm wedding photography for Clearwater, Tampa, and beyond.';
-        $metaTitle = trim($__env->yieldContent('title', 'Donald Sexton Photography'));
+        $siteName = config('app.name', 'Donald Sexton Photography');
+        // Per-record SEO titles are stored without a brand suffix; append it in
+        // one place so every page ends "… | Donald Sexton Photography". The
+        // helper is idempotent, so pages that already include the brand (home,
+        // legal) are left untouched. yieldContent escapes via e(), so decode
+        // back to plain text before formatting and re-escape when emitting.
+        $rawTitle = htmlspecialchars_decode(trim($__env->yieldContent('title', $siteName)), ENT_QUOTES | ENT_HTML5);
+        $metaTitle = e(\App\Support\MetaTitle::format($rawTitle, $siteName));
         $metaDescription = trim($__env->yieldContent('meta_description', $defaultDescription));
         $canonicalUrl = trim($__env->yieldContent('canonical_url', url()->current()));
-        $siteName = config('app.name', 'Donald Sexton Photography');
         $siteUrl = rtrim(config('app.url', url('/')), '/');
         $ogType = trim($__env->yieldContent('og_type', 'website')) ?: 'website';
         $rawOgImage = trim($__env->yieldContent('og_image', (string) config('seo.default_og_image', '')));

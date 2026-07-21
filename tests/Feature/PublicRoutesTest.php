@@ -180,9 +180,11 @@ class PublicRoutesTest extends TestCase
 
         $response = $this->get('/weddings/'.$story->slug)->assertOk();
 
-        $response->assertSee('<title>Christopher &amp; Jennifer at the Club</title>', false);
+        // The brand suffix is appended centrally (App\Support\MetaTitle); the
+        // ampersand must stay singly-encoded through that decode/re-encode.
+        $response->assertSee('<title>Christopher &amp; Jennifer at the Club | Donald Sexton Photography</title>', false);
         $response->assertDontSee('&amp;amp;', false);
-        $response->assertSee('content="Christopher &amp; Jennifer at the Club"', false);
+        $response->assertSee('content="Christopher &amp; Jennifer at the Club | Donald Sexton Photography"', false);
         $response->assertSee('content="Coastal wedding with food &amp; dancing."', false);
     }
 
