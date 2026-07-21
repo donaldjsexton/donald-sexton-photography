@@ -39,7 +39,8 @@ class LocationPageDraft
 
         $body = self::body($city, $locationLabel, $region);
 
-        $seoTitle = $city.' Wedding Photographer | Donald Sexton';
+        // No brand suffix — the layout appends it centrally (see App\Support\MetaTitle).
+        $seoTitle = $city.' Wedding Photographer';
         $seoDescription = self::clamp(
             'Donald Sexton is a wedding photographer covering '.$locationLabel.'. See recent stories, planning notes, and the venues couples are choosing in the area.',
             160,

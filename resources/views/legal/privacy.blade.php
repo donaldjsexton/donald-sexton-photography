@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Privacy Policy — Donald Sexton Photography')
+@section('title', 'Privacy Policy')
 @section('meta_description', 'How Donald Sexton Photography collects, uses, and protects your personal information, including SMS data practices.')
 
 @section('content')

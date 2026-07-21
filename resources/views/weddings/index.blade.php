@@ -6,7 +6,7 @@
         ->first(fn ($url) => filled($url));
 @endphp
 
-@section('title', 'Wedding Photography Portfolio — Clearwater & Tampa Bay | Donald Sexton')
+@section('title', 'Wedding Photography Portfolio — Clearwater & Tampa Bay')
 @section('meta_description', 'Real weddings photographed across Clearwater, St. Petersburg, and Tampa Bay — from beach elopements to full ballroom days. Browse complete wedding stories.')
 @section('og_image', $firstWeddingImage ?: '')
 @section('og_image_alt', 'Wedding stories by Donald Sexton Photography')
