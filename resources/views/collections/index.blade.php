@@ -14,7 +14,7 @@
             ['name' => 'Collections', 'url' => route('collections.index')],
         ]);
         $collectionsFromPrice = $collections->min('starting_price');
-        $collectionsFromLabel = '$'.number_format((float) ($collectionsFromPrice ?: 3800), 0);
+        $collectionsFromLabel = '$'.number_format((float) ($collectionsFromPrice ?: 2100), 0);
         $collectionsFaqs = [
             [
                 'question' => 'How much does wedding photography cost in Clearwater and Tampa Bay?',
@@ -115,7 +115,7 @@
                         <div class="collection-step__body">
                             <div class="collection-step__price-row">
                                 <p class="collection-step__hours">6 hours</p>
-                                <p class="collection-step__price">Starting at $3,800</p>
+                                <p class="collection-step__price">Starting at $2,100</p>
                             </div>
                             <h2 class="collection-step__title">Essential</h2>
                             <p class="collection-step__headline">Full day, core moments.</p>
@@ -126,7 +126,7 @@
                         <div class="collection-step__body">
                             <div class="collection-step__price-row">
                                 <p class="collection-step__hours">8 hours</p>
-                                <p class="collection-step__price">Starting at $5,200</p>
+                                <p class="collection-step__price">Starting at $2,800</p>
                             </div>
                             <h2 class="collection-step__title">Complete</h2>
                             <p class="collection-step__headline">All day, all moments.</p>
@@ -137,7 +137,7 @@
                         <div class="collection-step__body">
                             <div class="collection-step__price-row">
                                 <p class="collection-step__hours">10+ hours</p>
-                                <p class="collection-step__price">Starting at $6,800</p>
+                                <p class="collection-step__price">Starting at $3,500</p>
                             </div>
                             <h2 class="collection-step__title">Extended</h2>
                             <p class="collection-step__headline">Full coverage, no limits.</p>
@@ -153,7 +153,7 @@
                         <li>Engagement session (+$600)</li>
                         <li>Rehearsal coverage (+$500)</li>
                         <li>Getting ready only (+$400)</li>
-                        <li>Additional hour (+$650)</li>
+                        <li>Additional hour (+$350)</li>
                         <li>Custom coverage (ask in inquiry)</li>
                     </ul>
                 </div>
