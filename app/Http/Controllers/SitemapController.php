@@ -25,6 +25,22 @@ class SitemapController extends Controller
      */
     private const IMAGES_PER_URL = 40;
 
+    /**
+     * Records are streamed in batches so the whole content catalogue is
+     * never held in memory at once. This keeps the render comfortably
+     * under the PHP-FPM memory_limit even as the catalogue grows.
+     */
+    private const CHUNK_SIZE = 50;
+
+    /**
+     * The only media columns the sitemap needs. Loading the full model —
+     * and especially the parent records' longText body columns — was
+     * exhausting the request memory_limit and returning a 500.
+     *
+     * @var array<int, string>
+     */
+    private const MEDIA_COLUMNS = ['media.id', 'media.disk', 'media.path', 'media.alt_text', 'media.caption'];
+
     public function __invoke(): Response
     {
         $body = Cache::remember(self::CACHE_KEY, self::CACHE_TTL_SECONDS, fn () => $this->renderXml());
@@ -52,7 +68,7 @@ class SitemapController extends Controller
         $latestJournalPost = JournalPost::published()->latest('updated_at')->first();
         $latestVenue = Venue::query()->latest('updated_at')->first();
 
-        $rootEntries = collect([
+        $entries = collect([
             $this->entry(route('home'), $homeSettings?->updated_at),
             $this->entry(route('collections.index'), $collectionsPage?->updated_at ?? $collectionsPage?->published_at),
             $this->entry(route('weddings.index'), $latestStory?->updated_at),
@@ -61,48 +77,63 @@ class SitemapController extends Controller
             $this->entry(route('inquiry.create')),
         ]);
 
-        $locationPages = Page::published()
-            ->with('heroMedia')
+        $heroMedia = fn ($query) => $query->select(self::MEDIA_COLUMNS);
+        $gallery = fn ($query) => $query->select(self::MEDIA_COLUMNS);
+
+        Page::published()
+            ->select(['id', 'slug', 'title', 'template', 'hero_media_id', 'updated_at', 'published_at'])
+            ->with(['heroMedia' => $heroMedia])
             ->where('template', 'location')
-            ->get()
-            ->map(fn (Page $page): array => $this->entry(
-                route('pages.location', $page->slug),
-                $page->updated_at ?? $page->published_at,
-                $this->imagesFor($page->heroMedia ? collect([$page->heroMedia]) : collect(), $page->title),
-            ));
+            ->chunkById(self::CHUNK_SIZE, function ($pages) use ($entries): void {
+                foreach ($pages as $page) {
+                    $entries->push($this->entry(
+                        route('pages.location', $page->slug),
+                        $page->updated_at ?? $page->published_at,
+                        $this->imagesFor($page->heroMedia ? collect([$page->heroMedia]) : collect(), $page->title),
+                    ));
+                }
+            });
 
-        $weddingStories = WeddingStory::published()
-            ->with(['heroMedia', 'media'])
-            ->get()
-            ->map(fn (WeddingStory $story): array => $this->entry(
-                route('weddings.show', $story->slug),
-                $story->updated_at ?? $story->published_at,
-                $this->imagesFor($this->collectMedia($story->heroMedia, $story->media), $story->title),
-            ));
+        WeddingStory::published()
+            ->select(['id', 'slug', 'title', 'hero_media_id', 'updated_at', 'published_at'])
+            ->with(['heroMedia' => $heroMedia, 'media' => $gallery])
+            ->chunkById(self::CHUNK_SIZE, function ($stories) use ($entries): void {
+                foreach ($stories as $story) {
+                    $entries->push($this->entry(
+                        route('weddings.show', $story->slug),
+                        $story->updated_at ?? $story->published_at,
+                        $this->imagesFor($this->collectMedia($story->heroMedia, $story->media), $story->title),
+                    ));
+                }
+            });
 
-        $journalPosts = JournalPost::published()
-            ->with(['heroMedia', 'media'])
-            ->get()
-            ->map(fn (JournalPost $post): array => $this->entry(
-                route('journal.show', $post->slug),
-                $post->updated_at ?? $post->published_at,
-                $this->imagesFor($this->collectMedia($post->heroMedia, $post->media), $post->title),
-            ));
+        JournalPost::published()
+            ->select(['id', 'slug', 'title', 'hero_media_id', 'updated_at', 'published_at'])
+            ->with(['heroMedia' => $heroMedia, 'media' => $gallery])
+            ->chunkById(self::CHUNK_SIZE, function ($posts) use ($entries): void {
+                foreach ($posts as $post) {
+                    $entries->push($this->entry(
+                        route('journal.show', $post->slug),
+                        $post->updated_at ?? $post->published_at,
+                        $this->imagesFor($this->collectMedia($post->heroMedia, $post->media), $post->title),
+                    ));
+                }
+            });
 
-        $venues = Venue::query()
-            ->with('heroMedia')
-            ->get()
-            ->map(fn (Venue $venue): array => $this->entry(
-                route('venues.show', $venue->slug),
-                $venue->updated_at,
-                $this->imagesFor($venue->heroMedia ? collect([$venue->heroMedia]) : collect(), $venue->name),
-            ));
+        Venue::query()
+            ->select(['id', 'slug', 'name', 'hero_media_id', 'updated_at'])
+            ->with(['heroMedia' => $heroMedia])
+            ->chunkById(self::CHUNK_SIZE, function ($venues) use ($entries): void {
+                foreach ($venues as $venue) {
+                    $entries->push($this->entry(
+                        route('venues.show', $venue->slug),
+                        $venue->updated_at,
+                        $this->imagesFor($venue->heroMedia ? collect([$venue->heroMedia]) : collect(), $venue->name),
+                    ));
+                }
+            });
 
-        return $rootEntries
-            ->merge($locationPages)
-            ->merge($weddingStories)
-            ->merge($journalPosts)
-            ->merge($venues)
+        return $entries
             ->unique('loc')
             ->values();
     }
