@@ -10,6 +10,7 @@ use App\Models\Venue;
 use App\Models\WeddingStory;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class SitemapTest extends TestCase
@@ -92,6 +93,38 @@ class SitemapTest extends TestCase
             ->assertSee(route('venues.show', 'lakeside-estate'))
             ->assertSee('/storage/media/test/venue.jpg', false)
             ->assertSee('Venue hero', false);
+    }
+
+    public function test_sitemap_renders_many_records_without_loading_heavy_columns(): void
+    {
+        // The longText body/summary columns and full media galleries were
+        // being loaded for every record at once, exhausting the request
+        // memory_limit in production and returning a 500. The render must
+        // stream records and select only the columns it emits.
+        foreach (range(1, 30) as $index) {
+            WeddingStory::create([
+                'title' => "Story {$index}",
+                'slug' => "story-{$index}",
+                'status' => 'published',
+                'published_at' => now()->subDay(),
+                'body' => str_repeat('body copy that must never be loaded by the sitemap. ', 2000),
+            ]);
+        }
+
+        $heavyColumnQueried = false;
+
+        DB::listen(function ($query) use (&$heavyColumnQueried): void {
+            if (preg_match('/\bfrom\b.*wedding_stories/i', $query->sql) === 1
+                && preg_match('/\b(body|summary)\b/i', $query->sql) === 1) {
+                $heavyColumnQueried = true;
+            }
+        });
+
+        $response = $this->get(route('sitemap'));
+
+        $response->assertOk();
+        $this->assertStringNotContainsString('body copy that must never be loaded', $response->getContent());
+        $this->assertFalse($heavyColumnQueried, 'Sitemap must not select the heavy body/summary columns.');
     }
 
     public function test_sitemap_response_is_cached_between_requests(): void
