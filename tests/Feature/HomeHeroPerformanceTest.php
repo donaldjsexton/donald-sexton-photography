@@ -42,4 +42,26 @@ class HomeHeroPerformanceTest extends TestCase
             'The lead hero image must render with loading="eager" and fetchpriority="high".',
         );
     }
+
+    public function test_font_stylesheet_is_loaded_without_blocking_first_paint(): void
+    {
+        $content = $this->get(route('home'))->assertOk()->getContent();
+
+        $this->assertStringContainsString('rel="preload" as="style" href="https://fonts.bunny.net', $content);
+        $this->assertStringContainsString('this.rel=\'stylesheet\'', $content);
+        $this->assertStringContainsString('display=swap', $content);
+    }
+
+    public function test_analytics_script_is_deferred_off_the_critical_path(): void
+    {
+        config(['services.google_analytics.measurement_id' => 'G-TEST12345']);
+
+        $content = $this->get(route('home'))->assertOk()->getContent();
+
+        // The queue is set up inline, but the gtag.js download must be deferred
+        // rather than loaded with a render-time <script async src> tag.
+        $this->assertStringContainsString("gtag('config', 'G-TEST12345')", $content);
+        $this->assertStringContainsString('requestIdleCallback', $content);
+        $this->assertStringNotContainsString('<script async src="https://www.googletagmanager.com/gtag/js', $content);
+    }
 }
