@@ -31,6 +31,17 @@
         </div>
     </section>
 
+    @if (! empty($pendingQuestionnaire))
+        <section class="card">
+            <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+                <h3 style="margin:0;">Wedding questionnaire</h3>
+                <span class="pill">Awaiting your answers</span>
+            </div>
+            <p style="margin:0 0 16px;" class="meta">Help us plan your day — share the details, timeline, and shots that matter most to you.</p>
+            <a class="cta" href="{{ route('portal.questionnaires.show', ['questionnaire' => $pendingQuestionnaire->token]) }}">Complete questionnaire</a>
+        </section>
+    @endif
+
     @if ($upcomingBooking)
         <section class="card">
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
