@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreClientRequest;
 use App\Http\Requests\Admin\UpdateClientRequest;
+use App\Mail\QuestionnaireInvitation;
 use App\Models\Client;
 use App\Models\Contract;
 use App\Models\Inquiry;
@@ -16,6 +17,7 @@ use App\Services\Portal\PortalInviteSender;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\View\View;
 
 class ClientController extends Controller
@@ -64,6 +66,7 @@ class ClientController extends Controller
             'inquiries' => fn ($q) => $q->latest('created_at'),
             'inquiries.bookedJob',
             'inquiries.venue',
+            'inquiries.questionnaire',
             'invoices' => fn ($q) => $q->latest('issue_date'),
             'invoices.bookedJob',
             'invoices.payments',
@@ -253,6 +256,39 @@ class ClientController extends Controller
         return redirect()
             ->route('admin.clients.show', $client)
             ->with('status', 'Client created from inquiry.');
+    }
+
+    public function sendQuestionnaire(Client $client): RedirectResponse
+    {
+        $inquiry = $client->currentBookedJob()?->inquiry
+            ?? $client->inquiries()->latest('created_at')->first();
+
+        if ($inquiry === null) {
+            return redirect()
+                ->route('admin.clients.show', $client)
+                ->with('error', 'Add an inquiry for this client before sending a questionnaire.');
+        }
+
+        $questionnaire = $inquiry->ensureQuestionnaire();
+
+        if ($client->email) {
+            try {
+                Mail::to($client->email, $client->displayName())
+                    ->send(new QuestionnaireInvitation($questionnaire));
+            } catch (\Throwable $exception) {
+                report($exception);
+
+                return redirect()
+                    ->route('admin.clients.show', $client)
+                    ->with('error', 'Questionnaire link ready, but the email failed to send. Check the logs and retry.');
+            }
+        }
+
+        return redirect()
+            ->route('admin.clients.show', $client)
+            ->with('status', $client->email
+                ? 'Questionnaire sent to '.$client->email.'.'
+                : 'Questionnaire link ready. Add an email address to send it automatically.');
     }
 
     public function sendPortalInvite(Client $client, PortalInviteSender $inviteSender): RedirectResponse

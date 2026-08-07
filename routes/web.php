@@ -150,6 +150,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::put('/clients/{client}', [AdminClientController::class, 'update'])->name('clients.update');
         Route::delete('/clients/{client}', [AdminClientController::class, 'destroy'])->name('clients.destroy');
         Route::post('/clients/{client}/portal-invite', [AdminClientController::class, 'sendPortalInvite'])->name('clients.portal-invite');
+        Route::post('/clients/{client}/questionnaire', [AdminClientController::class, 'sendQuestionnaire'])->name('clients.questionnaire');
         Route::post('/inquiries/{inquiry}/convert-to-client', [AdminClientController::class, 'convertFromInquiry'])->name('clients.convert-from-inquiry');
 
         Route::get('/invoices', [AdminInvoiceController::class, 'index'])->name('invoices.index');
