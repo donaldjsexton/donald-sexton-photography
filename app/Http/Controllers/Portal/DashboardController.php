@@ -41,12 +41,20 @@ class DashboardController extends Controller
             && ! $booking->isCancelled()
             && ($eventDate === null || $eventDate->gte(today()));
 
+        $pendingQuestionnaire = $billable instanceof Client
+            ? $billable->questionnaires()
+                ->whereNull('wedding_questionnaires.submitted_at')
+                ->orderByDesc('wedding_questionnaires.created_at')
+                ->first()
+            : null;
+
         return view('portal.dashboard', [
             'billable' => $billable,
             'invoices' => $invoices,
             'outstandingCents' => $outstandingCents,
             'nextInstallment' => $nextInstallment,
             'upcomingBooking' => $showBooking ? $booking : null,
+            'pendingQuestionnaire' => $pendingQuestionnaire,
         ]);
     }
 }

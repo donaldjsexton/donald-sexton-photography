@@ -54,6 +54,7 @@ use App\Http\Controllers\Portal\PasswordResetController as PortalPasswordResetCo
 use App\Http\Controllers\Portal\PayPalPaymentController as PortalPayPalPaymentController;
 use App\Http\Controllers\Portal\PortalInviteController;
 use App\Http\Controllers\Portal\ProposalController as PortalProposalController;
+use App\Http\Controllers\Portal\QuestionnaireController as PortalQuestionnaireController;
 use App\Http\Controllers\Portal\SettingsController as PortalSettingsController;
 use App\Http\Controllers\Portal\SquarePaymentController as PortalSquarePaymentController;
 use App\Http\Controllers\QuestionnaireController;
@@ -368,6 +369,10 @@ Route::prefix('portal')->name('portal.')->group(function () {
         Route::middleware('auth:client')->group(function () {
             Route::get('/settings', [PortalSettingsController::class, 'edit'])->name('settings.edit');
             Route::patch('/settings', [PortalSettingsController::class, 'update'])->name('settings.update');
+
+            Route::get('/questionnaires', [PortalQuestionnaireController::class, 'index'])->name('questionnaires.index');
+            Route::get('/questionnaires/{questionnaire}', [PortalQuestionnaireController::class, 'show'])->name('questionnaires.show');
+            Route::put('/questionnaires/{questionnaire}', [PortalQuestionnaireController::class, 'update'])->name('questionnaires.update');
 
             Route::get('/galleries', [PortalGalleryController::class, 'index'])->name('galleries.index');
             Route::get('/galleries/{gallery}', [PortalGalleryController::class, 'show'])->name('galleries.show');

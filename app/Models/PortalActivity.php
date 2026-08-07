@@ -22,6 +22,10 @@ class PortalActivity extends Model
 
     public const TYPE_INVOICE_VIEWED = 'invoice_viewed';
 
+    public const TYPE_QUESTIONNAIRE_VIEWED = 'questionnaire_viewed';
+
+    public const TYPE_QUESTIONNAIRE_SUBMITTED = 'questionnaire_submitted';
+
     protected $fillable = [
         'actor_type',
         'actor_id',
