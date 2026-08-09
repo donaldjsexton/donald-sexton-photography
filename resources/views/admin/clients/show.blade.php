@@ -67,6 +67,10 @@
                 <div class="client-hero__actions-row">
                     <a class="cta-secondary" href="{{ route('admin.contracts.create', ['client_id' => $client->id]) }}">Contract</a>
                     <a class="cta-secondary" href="{{ route('admin.invoices.create', ['client_id' => $client->id]) }}">Invoice</a>
+                    <form method="POST" action="{{ route('admin.clients.questionnaire', $client) }}">
+                        @csrf
+                        <button class="cta-secondary" type="submit">Send questionnaire</button>
+                    </form>
                     <a class="cta-secondary" href="{{ route('admin.clients.edit', $client) }}">Edit</a>
                 </div>
             </div>
@@ -143,6 +147,30 @@
                             @csrf
                             <button class="cta-secondary" type="submit">Send portal invite</button>
                         </form>
+                    @endif
+                </div>
+
+                @php
+                    $questionnaires = $client->inquiries
+                        ->map(fn ($inquiry) => $inquiry->questionnaire)
+                        ->filter();
+                @endphp
+                <div class="client-aux__item">
+                    <h3 class="client-section__title">Questionnaire</h3>
+                    @if ($questionnaires->isEmpty())
+                        <p class="client-muted">Not sent yet. Use “Send questionnaire” above to email {{ $client->email ?: 'the client' }} a link.</p>
+                    @else
+                        @foreach ($questionnaires as $questionnaire)
+                            <p class="client-muted">
+                                @if ($questionnaire->isSubmitted())
+                                    ✅ Submitted {{ $questionnaire->submitted_at->format('M j, Y') }} ·
+                                    <a href="{{ route('admin.inquiries.questionnaire.show', $questionnaire->inquiry_id) }}">View responses</a>
+                                @else
+                                    ⏳ Sent · awaiting responses ·
+                                    <a href="{{ $questionnaire->publicUrl() }}">Open link</a>
+                                @endif
+                            </p>
+                        @endforeach
                     @endif
                 </div>
 
