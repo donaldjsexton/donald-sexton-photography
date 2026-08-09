@@ -66,7 +66,7 @@ class ClientController extends Controller
             'inquiries' => fn ($q) => $q->latest('created_at'),
             'inquiries.bookedJob',
             'inquiries.venue',
-            'inquiries.questionnaire',
+            'questionnaires' => fn ($q) => $q->latest('id'),
             'invoices' => fn ($q) => $q->latest('issue_date'),
             'invoices.bookedJob',
             'invoices.payments',
@@ -79,10 +79,7 @@ class ClientController extends Controller
         return view('admin.clients.show', [
             'client' => $client,
             'timeline' => $this->buildTimeline($client),
-            'questionnaires' => $client->inquiries
-                ->map(fn (Inquiry $inquiry) => $inquiry->questionnaire)
-                ->filter()
-                ->values(),
+            'questionnaires' => $client->questionnaires,
             'loginCount' => $client->portalActivities
                 ->where('type', PortalActivity::TYPE_LOGIN)
                 ->count(),
@@ -264,16 +261,16 @@ class ClientController extends Controller
 
     public function sendQuestionnaire(Client $client): RedirectResponse
     {
-        $inquiry = $client->currentBookedJob()?->inquiry
-            ?? $client->inquiries()->latest('created_at')->first();
+        $questionnaire = $client->questionnaires()->latest('id')->first();
 
-        if ($inquiry === null) {
-            return redirect()
-                ->route('admin.clients.show', $client)
-                ->with('error', 'Add an inquiry for this client before sending a questionnaire.');
+        if ($questionnaire === null) {
+            $inquiry = $client->currentBookedJob()?->inquiry
+                ?? $client->inquiries()->latest('created_at')->first();
+
+            $questionnaire = $inquiry
+                ? $inquiry->ensureQuestionnaire()
+                : $client->questionnaires()->create([]);
         }
-
-        $questionnaire = $inquiry->ensureQuestionnaire();
 
         if ($client->email) {
             try {

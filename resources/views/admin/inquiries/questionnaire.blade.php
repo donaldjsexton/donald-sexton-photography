@@ -2,10 +2,14 @@
 
 @section('title', 'Wedding Questionnaire')
 @section('eyebrow', 'Leads')
-@section('heading', ($questionnaire->response('bride_name') ?: $inquiry->primary_name).' — Questionnaire')
+@section('heading', ($questionnaire->response('bride_name') ?: $inquiry?->primary_name ?: $questionnaire->client?->displayName() ?: 'Client').' — Questionnaire')
 @section('subheading', $questionnaire->isSubmitted() ? 'Submitted '.$questionnaire->submitted_at->format('F j, Y g:i A') : 'Awaiting submission.')
 @section('header_actions')
-    <a class="cta-secondary" href="{{ route('admin.inquiries.edit', $inquiry) }}">Back to Lead</a>
+    @if ($inquiry)
+        <a class="cta-secondary" href="{{ route('admin.inquiries.edit', $inquiry) }}">Back to Lead</a>
+    @elseif ($questionnaire->client)
+        <a class="cta-secondary" href="{{ route('admin.clients.show', $questionnaire->client) }}">Back to Client</a>
+    @endif
     @if ($questionnaire->isSubmitted())
         <button type="button" class="cta" onclick="window.print()" style="border:0; cursor:pointer; margin-left:.5rem;">Print / Save PDF</button>
     @endif

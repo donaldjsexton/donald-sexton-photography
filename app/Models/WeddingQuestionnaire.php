@@ -13,6 +13,7 @@ class WeddingQuestionnaire extends Model
 
     protected $fillable = [
         'inquiry_id',
+        'client_id',
         'token',
         'responses',
         'submitted_at',
@@ -43,6 +44,11 @@ class WeddingQuestionnaire extends Model
     public function inquiry(): BelongsTo
     {
         return $this->belongsTo(Inquiry::class);
+    }
+
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
     }
 
     public function publicUrl(): string

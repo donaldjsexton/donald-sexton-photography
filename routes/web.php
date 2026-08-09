@@ -26,6 +26,7 @@ use App\Http\Controllers\Admin\PageBlockController as AdminPageBlockController;
 use App\Http\Controllers\Admin\PageController as AdminPageController;
 use App\Http\Controllers\Admin\PicTimeImportController as AdminPicTimeImportController;
 use App\Http\Controllers\Admin\PushSubscriptionController as AdminPushSubscriptionController;
+use App\Http\Controllers\Admin\QuestionnaireController as AdminQuestionnaireController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\SquareOAuthController as AdminSquareOAuthController;
 use App\Http\Controllers\Admin\VenueController as AdminVenueController;
@@ -146,6 +147,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/clients/create', [AdminClientController::class, 'create'])->name('clients.create');
         Route::post('/clients', [AdminClientController::class, 'store'])->name('clients.store');
         Route::get('/clients/{client}', [AdminClientController::class, 'show'])->name('clients.show');
+        Route::get('/questionnaires/{questionnaire}', [AdminQuestionnaireController::class, 'show'])->name('questionnaires.show');
         Route::get('/clients/{client}/edit', [AdminClientController::class, 'edit'])->name('clients.edit');
         Route::put('/clients/{client}', [AdminClientController::class, 'update'])->name('clients.update');
         Route::delete('/clients/{client}', [AdminClientController::class, 'destroy'])->name('clients.destroy');

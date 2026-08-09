@@ -23,6 +23,24 @@ class QuestionnairePortalTest extends TestCase
             ->ensureQuestionnaire();
     }
 
+    public function test_a_client_questionnaire_without_an_inquiry_appears_in_the_portal(): void
+    {
+        $client = Client::factory()->create();
+        $questionnaire = $client->questionnaires()->create([]);
+
+        $this->assertNull($questionnaire->inquiry_id);
+
+        $this->actingAs($client, 'client')
+            ->get(route('portal.questionnaires.index'))
+            ->assertOk()
+            ->assertSee(route('portal.questionnaires.show', ['questionnaire' => $questionnaire->token]));
+
+        $this->actingAs($client, 'client')
+            ->get(route('portal.questionnaires.show', ['questionnaire' => $questionnaire->token]))
+            ->assertOk()
+            ->assertSee('Submit Questionnaire');
+    }
+
     public function test_index_lists_only_the_clients_questionnaires(): void
     {
         $client = Client::factory()->create();

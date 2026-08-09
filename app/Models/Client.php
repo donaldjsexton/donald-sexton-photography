@@ -98,11 +98,11 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
     }
 
     /**
-     * @return HasManyThrough<WeddingQuestionnaire, Inquiry, $this>
+     * @return HasMany<WeddingQuestionnaire, $this>
      */
-    public function questionnaires(): HasManyThrough
+    public function questionnaires(): HasMany
     {
-        return $this->hasManyThrough(WeddingQuestionnaire::class, Inquiry::class);
+        return $this->hasMany(WeddingQuestionnaire::class);
     }
 
     public function invoices(): MorphMany
