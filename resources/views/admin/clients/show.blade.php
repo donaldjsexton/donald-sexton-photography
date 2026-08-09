@@ -150,11 +150,6 @@
                     @endif
                 </div>
 
-                @php
-                    $questionnaires = $client->inquiries
-                        ->map(fn ($inquiry) => $inquiry->questionnaire)
-                        ->filter();
-                @endphp
                 <div class="client-aux__item">
                     <h3 class="client-section__title">Questionnaire</h3>
                     @if ($questionnaires->isEmpty())

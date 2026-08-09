@@ -79,6 +79,10 @@ class ClientController extends Controller
         return view('admin.clients.show', [
             'client' => $client,
             'timeline' => $this->buildTimeline($client),
+            'questionnaires' => $client->inquiries
+                ->map(fn (Inquiry $inquiry) => $inquiry->questionnaire)
+                ->filter()
+                ->values(),
             'loginCount' => $client->portalActivities
                 ->where('type', PortalActivity::TYPE_LOGIN)
                 ->count(),
