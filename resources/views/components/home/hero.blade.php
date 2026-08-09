@@ -45,6 +45,8 @@
                         ratio="portrait"
                         :alt="$leadStory?->title"
                         :sizes="$homeHeroSizes"
+                        loading="eager"
+                        fetchpriority="high"
                     />
                 @endif
                 @if ($secondStoryImage)
@@ -79,6 +81,8 @@
                     ratio="cinema"
                     :alt="$leadStory?->title"
                     :sizes="$homeHeroSizes"
+                    loading="eager"
+                    fetchpriority="high"
                 />
             </div>
         @endif

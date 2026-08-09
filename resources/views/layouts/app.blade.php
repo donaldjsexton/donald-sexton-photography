@@ -89,17 +89,48 @@
     <link rel="alternate" type="application/atom+xml" title="{{ $siteName }} — Journal" href="{{ route('journal.feed') }}">
     @stack('head_preload')
     <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=cormorant-garamond:400,500,600,700|jost:300,400,500,600" rel="stylesheet" />
+    @php
+        $fontStylesheet = 'https://fonts.bunny.net/css?family=cormorant-garamond:400,500,600,700|jost:300,400,500,600&display=swap';
+    @endphp
+    {{-- Load the font CSS without blocking first paint: fetch as a low-priority
+         stylesheet, then promote it to a real stylesheet once it arrives. --}}
+    <link rel="preload" as="style" href="{{ $fontStylesheet }}" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="{{ $fontStylesheet }}"></noscript>
     <script type="application/ld+json">{!! json_encode($websiteSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
     <script type="application/ld+json">{!! json_encode($businessSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
     @stack('json_ld')
     @if ($analyticsMeasurementId)
-        <script async src="https://www.googletagmanager.com/gtag/js?id={{ $analyticsMeasurementId }}"></script>
+        {{-- Queue analytics immediately but defer the gtag.js download until the
+             user interacts or the browser goes idle, keeping it off the critical
+             path. Queued calls flush once the script loads. --}}
         <script>
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
             gtag('js', new Date());
             gtag('config', '{{ $analyticsMeasurementId }}');
+            (function () {
+                var loaded = false;
+                var events = ['scroll', 'keydown', 'pointerdown', 'touchstart'];
+                function load() {
+                    if (loaded) { return; }
+                    loaded = true;
+                    events.forEach(function (name) {
+                        window.removeEventListener(name, load, { passive: true });
+                    });
+                    var script = document.createElement('script');
+                    script.async = true;
+                    script.src = 'https://www.googletagmanager.com/gtag/js?id={{ $analyticsMeasurementId }}';
+                    document.head.appendChild(script);
+                }
+                events.forEach(function (name) {
+                    window.addEventListener(name, load, { passive: true });
+                });
+                if ('requestIdleCallback' in window) {
+                    requestIdleCallback(load, { timeout: 5000 });
+                } else {
+                    window.setTimeout(load, 5000);
+                }
+            })();
         </script>
     @endif
     @if (file_exists(public_path('build/manifest.json')) || file_exists(public_path('hot')))
