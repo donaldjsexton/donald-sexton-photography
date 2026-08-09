@@ -159,7 +159,7 @@
                             <p class="client-muted">
                                 @if ($questionnaire->isSubmitted())
                                     ✅ Submitted {{ $questionnaire->submitted_at->format('M j, Y') }} ·
-                                    <a href="{{ route('admin.inquiries.questionnaire.show', $questionnaire->inquiry_id) }}">View responses</a>
+                                    <a href="{{ route('admin.questionnaires.show', $questionnaire) }}">View responses</a>
                                 @else
                                     ⏳ Sent · awaiting responses ·
                                     <a href="{{ $questionnaire->publicUrl() }}">Open link</a>

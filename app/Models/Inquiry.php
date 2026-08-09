@@ -118,6 +118,7 @@ class Inquiry extends Model
     {
         return $this->questionnaire()->firstOrCreate([], [
             'token' => Str::random(40),
+            'client_id' => $this->client_id,
         ]);
     }
 }
