@@ -5,6 +5,7 @@ namespace App\Services\Media;
 use App\Models\Media;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Storage;
+use League\Flysystem\Visibility;
 
 class MediaOptimizer
 {
@@ -155,6 +156,9 @@ class MediaOptimizer
                     media: $media,
                     mime: $mime,
                     absolutePath: $absolutePath,
+                    storageDisk: $storage,
+                    disk: $disk,
+                    path: $path,
                     canvas: $canvas,
                     originalBytes: (int) $originalBytes,
                     width: $targetWidth,
@@ -221,6 +225,9 @@ class MediaOptimizer
         Media $media,
         string $mime,
         string $absolutePath,
+        Filesystem $storageDisk,
+        string $disk,
+        string $path,
         \GdImage $canvas,
         int $originalBytes,
         int $width,
@@ -288,6 +295,8 @@ class MediaOptimizer
                     copy($tempPath, $absolutePath);
                     @unlink($tempPath);
                 }
+
+                $this->restoreDiskVisibility($storageDisk, $disk, $path);
 
                 $media->width = $width;
                 $media->height = $height;
@@ -374,6 +383,22 @@ class MediaOptimizer
         } finally {
             @unlink($tempPath);
         }
+    }
+
+    /**
+     * Re-apply the disk's configured visibility to a file that was replaced
+     * outside of Flysystem.
+     *
+     * `tempnam()` creates its file at 0600, and renaming that file into
+     * place carries the mode across with it. The web server runs as its own
+     * user, so an original left at 0600 is unreadable and every URL pointing
+     * at it 404s even though the file is on disk.
+     */
+    private function restoreDiskVisibility(Filesystem $storageDisk, string $disk, string $path): void
+    {
+        $visibility = config('filesystems.disks.'.$disk.'.visibility') ?: Visibility::PUBLIC;
+
+        $storageDisk->setVisibility($path, (string) $visibility);
     }
 
     private function writeJpeg(\GdImage $canvas, string $path, int $quality): bool

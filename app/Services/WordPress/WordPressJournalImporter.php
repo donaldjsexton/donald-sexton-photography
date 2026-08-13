@@ -715,6 +715,8 @@ class WordPressJournalImporter
                 $process->mustRun();
             }
 
+            $this->makeTemporaryFileServable($temporaryPath);
+
             if (! @rename($temporaryPath, $absolutePath)) {
                 throw new \RuntimeException('Legacy media download could not be moved into place: '.$absolutePath);
             }
@@ -738,6 +740,8 @@ class WordPressJournalImporter
                 throw new \RuntimeException('Legacy media could not be staged: '.$source);
             }
 
+            $this->makeTemporaryFileServable($temporaryPath);
+
             if (! @rename($temporaryPath, $destination)) {
                 throw new \RuntimeException('Legacy media could not be moved into place: '.$destination);
             }
@@ -746,6 +750,18 @@ class WordPressJournalImporter
                 @unlink($temporaryPath);
             }
         }
+    }
+
+    /**
+     * Widen a staged temporary file to the mode published media is served at.
+     *
+     * `tempnam()` creates its file at 0600 and a rename carries that mode
+     * onto the destination, so legacy uploads placed this way land on disk
+     * unreadable by the web server and 404 despite existing.
+     */
+    private function makeTemporaryFileServable(string $temporaryPath): void
+    {
+        @chmod($temporaryPath, 0644);
     }
 
     private function resolveExtension(string $imageUrl, Response $response): string

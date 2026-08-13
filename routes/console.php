@@ -401,6 +401,127 @@ Artisan::command('media:generate-variants {--disk=public} {--path-prefix=} {--fr
     return $summary['errors'] === 0 ? 0 : 1;
 })->purpose('Generate downscaled WebP variants for responsive image delivery');
 
+Artisan::command('media:fix-permissions {--disk=public} {--path-prefix=} {--file-mode=0644} {--dir-mode=0755} {--dry-run} {--summary-only}', function () {
+    $disk = (string) $this->option('disk');
+
+    if ((string) config("filesystems.disks.{$disk}.driver") !== 'local') {
+        $this->components->error("The [{$disk}] disk is not local; file modes only apply to local storage.");
+
+        return 1;
+    }
+
+    $fileMode = intval((string) $this->option('file-mode'), 8);
+    $dirMode = intval((string) $this->option('dir-mode'), 8);
+
+    if ($fileMode <= 0 || $dirMode <= 0) {
+        $this->components->error('The --file-mode and --dir-mode options must be octal, such as 0644 and 0755.');
+
+        return 1;
+    }
+
+    $pathPrefix = trim((string) $this->option('path-prefix'), '/');
+    $dryRun = (bool) $this->option('dry-run');
+    $summaryOnly = (bool) $this->option('summary-only');
+    $storage = Storage::disk($disk);
+    $scope = $pathPrefix === '' ? null : $pathPrefix;
+
+    $summary = [
+        'directories_seen' => 0,
+        'directories_fixed' => 0,
+        'files_seen' => 0,
+        'files_fixed' => 0,
+        'errors' => 0,
+    ];
+
+    // The disk root has to be traversable before anything beneath it is
+    // reachable, so it is repaired alongside its contents.
+    $directories = $storage->allDirectories($scope);
+
+    if ($scope === null) {
+        array_unshift($directories, '');
+    }
+
+    /**
+     * Widen a path's mode to include the required bits, never removing any.
+     * Returns true when the mode changed.
+     */
+    $widenMode = function (string $absolutePath, int $requiredMode) use ($dryRun): ?bool {
+        $current = fileperms($absolutePath);
+
+        if ($current === false) {
+            return null;
+        }
+
+        $current &= 0777;
+        $desired = $current | $requiredMode;
+
+        if ($desired === $current) {
+            return false;
+        }
+
+        if (! $dryRun && ! @chmod($absolutePath, $desired)) {
+            return null;
+        }
+
+        return true;
+    };
+
+    foreach ($directories as $directory) {
+        $summary['directories_seen']++;
+        $changed = $widenMode($storage->path($directory), $dirMode);
+
+        if ($changed === null) {
+            $summary['errors']++;
+
+            if (! $summaryOnly) {
+                $this->line('- error dir '.($directory === '' ? '<root>' : $directory));
+            }
+
+            continue;
+        }
+
+        if ($changed) {
+            $summary['directories_fixed']++;
+
+            if (! $summaryOnly) {
+                $this->line('- dir '.($directory === '' ? '<root>' : $directory));
+            }
+        }
+    }
+
+    foreach ($storage->allFiles($scope) as $file) {
+        $summary['files_seen']++;
+        $changed = $widenMode($storage->path($file), $fileMode);
+
+        if ($changed === null) {
+            $summary['errors']++;
+
+            if (! $summaryOnly) {
+                $this->line("- error file {$file}");
+            }
+
+            continue;
+        }
+
+        if ($changed) {
+            $summary['files_fixed']++;
+
+            if (! $summaryOnly) {
+                $this->line("- file {$file}");
+            }
+        }
+    }
+
+    $this->components->info($dryRun ? 'Permission repair dry run complete.' : 'Permission repair complete.');
+    $this->line("- directories seen: {$summary['directories_seen']}");
+    $this->line("- directories fixed: {$summary['directories_fixed']}");
+    $this->line("- files seen: {$summary['files_seen']}");
+    $this->line("- files fixed: {$summary['files_fixed']}");
+    $this->line("- errors: {$summary['errors']}");
+
+    return $summary['errors'] === 0 ? 0 : 1;
+})->purpose('Repair media files the web server cannot read because their mode is too restrictive');
+
 Artisan::command('wordpress:import {path}', function (WordPressJournalImporter $importer) {
     $path = (string) $this->argument('path');
 
