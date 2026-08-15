@@ -198,6 +198,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/media/picker', [AdminMediaController::class, 'picker'])->name('media.picker');
         Route::get('/media/create', [AdminMediaController::class, 'create'])->name('media.create');
         Route::post('/media', [AdminMediaController::class, 'store'])->name('media.store');
+        Route::post('/media/upload', [AdminMediaController::class, 'upload'])->name('media.upload');
         Route::get('/media/{media}/edit', [AdminMediaController::class, 'edit'])->name('media.edit');
         Route::put('/media/{media}', [AdminMediaController::class, 'update'])->name('media.update');
 

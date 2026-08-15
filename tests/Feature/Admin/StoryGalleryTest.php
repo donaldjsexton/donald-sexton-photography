@@ -48,6 +48,19 @@ class StoryGalleryTest extends TestCase
             ->assertSee('Photos');
     }
 
+    public function test_edit_page_offers_direct_upload_alongside_the_library_picker(): void
+    {
+        $user = User::factory()->create();
+        $story = $this->makeStory();
+
+        $this->actingAs($user)->get(route('admin.wedding-stories.edit', $story))
+            ->assertOk()
+            ->assertSee('data-story-upload', false)
+            ->assertSee('data-story-file-input', false)
+            ->assertSee('data-story-dropzone', false)
+            ->assertSee(route('admin.media.upload'), false);
+    }
+
     public function test_attach_appends_new_media_to_gallery(): void
     {
         $user = User::factory()->create();

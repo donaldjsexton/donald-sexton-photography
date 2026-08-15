@@ -136,6 +136,7 @@ class GalleryManagementTest extends TestCase
             ->get(route('admin.galleries.edit', $gallery))
             ->assertOk()
             ->assertSee('data-gallery-uploads', false)
+            ->assertSee('data-upload-dropzone', false)
             ->assertSee(route('admin.galleries.photos.thumb', [$gallery, $photo]), false);
     }
 

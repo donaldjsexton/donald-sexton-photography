@@ -7,13 +7,15 @@
     'pickerUrl',
     'editUrlPattern' => null,
     'title' => 'Photos',
-    'helpText' => 'Drag to reorder. Click ★ to promote a photo to hero.',
+    'helpText' => 'Drag to reorder. Click ★ to promote a photo to hero. Drop photos here to upload straight into the gallery.',
+    'pickerTitle' => 'Add photos to this gallery',
 ])
 
 @php
     $media = $owner->relationLoaded('media') ? $owner->media : $owner->media()->orderBy('mediables.sort_order')->get();
     $heroId = (int) ($owner->hero_media_id ?? 0);
     $updatedAt = $owner->updated_at;
+    $maxRequestBytes = \App\Support\UploadRequestBudget::maxRequestBytes();
 @endphp
 
 <section
@@ -24,6 +26,9 @@
     data-reorder-url="{{ $reorderUrl }}"
     data-hero-url-pattern="{{ $heroUrlPattern }}"
     data-picker-url="{{ $pickerUrl }}"
+    data-picker-title="{{ $pickerTitle }}"
+    data-upload-url="{{ route('admin.media.upload') }}"
+    data-max-request-bytes="{{ $maxRequestBytes }}"
     data-hero-input="hero_media_id"
 >
     <header class="story-gallery__head">
@@ -55,11 +60,24 @@
         </div>
 
         <div class="story-gallery__actions">
-            <button type="button" class="cta" data-story-add>＋ Add photos</button>
+            <button type="button" class="cta-secondary" data-story-upload>⬆ Upload photos</button>
+            <button type="button" class="cta" data-story-add>＋ Add from library</button>
+
+            <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                multiple
+                hidden
+                data-story-file-input
+            >
         </div>
     </header>
 
     <p class="story-gallery__status" role="status" aria-live="polite" data-story-status hidden></p>
+
+    <div class="story-gallery__dropzone" data-story-dropzone hidden aria-hidden="true">
+        <span class="story-gallery__dropzone-label">Drop to upload into this gallery</span>
+    </div>
 
     <ol class="story-gallery__grid" data-story-grid @class(['is-empty' => $media->isEmpty()])>
         @foreach ($media as $item)

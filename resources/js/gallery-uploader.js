@@ -195,9 +195,76 @@ function initGalleryUploader() {
         return `${Math.max(1, Math.floor(bytes / (1024 * 1024)))} MB`;
     }
 
+    /**
+     * Let photos be dropped onto the album's upload form instead of picked
+     * through the file dialog. The dropped files are handed to the form's own
+     * file input so the submit path below stays the single upload route.
+     */
+    function wireDropzone(form, input) {
+        const dropzone = form.querySelector('[data-upload-dropzone]');
+
+        if (!dropzone || !input || typeof DataTransfer !== 'function') {
+            return;
+        }
+
+        // `dragDepth` counts enter/leave pairs so crossing a child element
+        // doesn't drop the highlight mid-drag.
+        let dragDepth = 0;
+
+        const hasFiles = (event) => Array.from(event.dataTransfer?.types || []).includes('Files');
+
+        form.addEventListener('dragenter', (event) => {
+            if (!hasFiles(event)) {
+                return;
+            }
+
+            event.preventDefault();
+            dragDepth += 1;
+            dropzone.classList.add('is-dragging');
+        });
+
+        form.addEventListener('dragover', (event) => {
+            if (hasFiles(event)) {
+                event.preventDefault();
+            }
+        });
+
+        form.addEventListener('dragleave', () => {
+            dragDepth = Math.max(0, dragDepth - 1);
+
+            if (dragDepth === 0) {
+                dropzone.classList.remove('is-dragging');
+            }
+        });
+
+        form.addEventListener('drop', (event) => {
+            if (!hasFiles(event)) {
+                return;
+            }
+
+            event.preventDefault();
+            dragDepth = 0;
+            dropzone.classList.remove('is-dragging');
+
+            const images = Array.from(event.dataTransfer.files).filter((file) => file.type.startsWith('image/'));
+
+            if (images.length === 0) {
+                return;
+            }
+
+            const transfer = new DataTransfer();
+            images.forEach((file) => transfer.items.add(file));
+            input.files = transfer.files;
+
+            form.requestSubmit();
+        });
+    }
+
     root.querySelectorAll('form[data-upload-form]').forEach((form) => {
         const input = form.querySelector('input[type="file"]');
         const albumId = form.dataset.albumId;
+
+        wireDropzone(form, input);
 
         form.addEventListener('submit', async (event) => {
             if (!input || input.files.length === 0) {

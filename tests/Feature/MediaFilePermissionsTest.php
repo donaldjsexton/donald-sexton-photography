@@ -77,6 +77,38 @@ class MediaFilePermissionsTest extends TestCase
         }
     }
 
+    public function test_batch_uploaded_media_stays_readable_by_the_web_server(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->postJson(route('admin.media.upload'), [
+                'files' => [
+                    UploadedFile::fake()->image('first-look.jpg', 2400, 1600),
+                    UploadedFile::fake()->image('reception.jpg', 1600, 1200),
+                ],
+            ])
+            ->assertCreated()
+            ->assertJsonPath('uploaded', 2);
+
+        $this->assertSame(2, Media::query()->count());
+
+        foreach (Media::query()->get() as $media) {
+            $this->assertFileIsWorldReadable(
+                Storage::disk('public')->path($media->path),
+                'Every photo in a batch upload must stay readable after the optimizer replaces it.'
+            );
+
+            foreach (['webp', 'avif'] as $format) {
+                $siblingPath = preg_replace('/\.[^.]+$/', '.'.$format, $media->path);
+
+                if (Storage::disk('public')->exists($siblingPath)) {
+                    $this->assertFileIsWorldReadable(Storage::disk('public')->path($siblingPath));
+                }
+            }
+        }
+    }
+
     public function test_media_optimize_leaves_the_replaced_original_readable(): void
     {
         $path = 'imports/pictime/permissions/source.jpg';
