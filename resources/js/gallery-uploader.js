@@ -17,10 +17,21 @@
  *     [data-photo-grid][data-album-id]
  */
 
+import { startEcho } from './echo';
+
 function initGalleryUploader() {
     const root = document.querySelector('[data-gallery-uploads]');
 
-    if (!root || !window.Echo) {
+    if (!root) {
+        return;
+    }
+
+    // Open the Reverb websocket only now that a page actually needs it. When no
+    // key is configured, uploads still work — the forms POST synchronously and
+    // the server ingests them without the live progress heartbeat.
+    const echo = startEcho();
+
+    if (!echo) {
         return;
     }
 
@@ -124,7 +135,7 @@ function initGalleryUploader() {
         }
     }
 
-    window.Echo.private(channelName).listen(eventName, (payload) => {
+    echo.private(channelName).listen(eventName, (payload) => {
         const session = batches.get(payload.batch_id);
 
         if (!session) {
