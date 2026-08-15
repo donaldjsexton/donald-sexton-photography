@@ -104,6 +104,20 @@ class JournalPost extends Model
     }
 
     /**
+     * Order posts newest first, falling back to the creation date when a post
+     * has no explicit publish date so recent entries are never buried under
+     * older imported archives.
+     */
+    public function scopeRecentFirst(Builder $query): Builder
+    {
+        $table = $query->getModel()->getTable();
+
+        return $query
+            ->orderByRaw("COALESCE({$table}.published_at, {$table}.created_at) DESC")
+            ->orderByDesc($table.'.id');
+    }
+
+    /**
      * Resolve up to $limit published journal posts conceptually related
      * to $post. Match priority is shared tags, then shared venues, with
      * recent published posts padding any remaining slots so every

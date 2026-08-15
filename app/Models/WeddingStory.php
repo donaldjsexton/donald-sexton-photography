@@ -111,6 +111,20 @@ class WeddingStory extends Model
     }
 
     /**
+     * Order stories newest first, falling back to the creation date when a
+     * story has no explicit publish date so recent entries are never buried
+     * under older imported archives.
+     */
+    public function scopeRecentFirst(Builder $query): Builder
+    {
+        $table = $query->getModel()->getTable();
+
+        return $query
+            ->orderByRaw("COALESCE({$table}.published_at, {$table}.created_at) DESC")
+            ->orderByDesc($table.'.id');
+    }
+
+    /**
      * Resolve up to $limit published wedding stories that are conceptually
      * similar to $story. Match priority is venue first (couples shopping
      * a single venue care most about other weddings there), then tag

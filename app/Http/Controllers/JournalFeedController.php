@@ -16,9 +16,7 @@ class JournalFeedController extends Controller
         $posts = JournalPost::published()
             ->with('heroMedia')
             ->whereNotIn('slug', WeddingStory::published()->select('slug'))
-            ->orderByRaw('CASE WHEN published_at IS NULL THEN 1 ELSE 0 END')
-            ->orderByDesc('published_at')
-            ->orderByDesc('id')
+            ->recentFirst()
             ->limit(self::FEED_LIMIT)
             ->get();
 
