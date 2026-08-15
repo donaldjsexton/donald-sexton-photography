@@ -4,20 +4,36 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Media;
-use App\Services\Media\MediaOptimizer;
+use App\Services\Media\MediaUploader;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
 class MediaController extends Controller
 {
     private const VIEW_FILTERS = ['all', 'recent', 'unused', 'missing-alt', 'pictime', 'wp'];
 
-    public function __construct(private readonly MediaOptimizer $optimizer) {}
+    private const PICKER_SORTS = ['newest', 'oldest', 'name', 'largest'];
+
+    /** Mime-type groups the picker's type filter offers. */
+    private const PICKER_TYPES = [
+        'jpeg' => ['image/jpeg', 'image/jpg'],
+        'png' => ['image/png'],
+        'webp' => ['image/webp'],
+        'gif' => ['image/gif'],
+    ];
+
+    /** Accepted upload extensions, mirrored by the picker's file input. */
+    private const UPLOAD_MIMES = 'jpeg,jpg,png,webp,gif';
+
+    private const UPLOAD_MAX_KILOBYTES = 12288;
+
+    public function __construct(private readonly MediaUploader $uploader) {}
 
     public function index(Request $request): View
     {
@@ -114,45 +130,148 @@ class MediaController extends Controller
 
     public function picker(Request $request): JsonResponse
     {
-        $term = $request->string('q')->trim()->toString();
         $perPage = (int) $request->integer('per_page', 60);
         $perPage = max(12, min(120, $perPage));
 
-        $query = Media::query()->latest('id');
+        $filter = $request->string('filter')->toString();
 
-        if ($term !== '') {
-            if (ctype_digit($term)) {
-                $query->where(function ($builder) use ($term): void {
-                    $builder
-                        ->where('id', (int) $term)
-                        ->orWhereRaw('LOWER(filename) LIKE ?', ['%'.strtolower($term).'%'])
-                        ->orWhereRaw('LOWER(alt_text) LIKE ?', ['%'.strtolower($term).'%']);
-                });
-            } else {
-                $needle = '%'.strtolower($term).'%';
-                $query->where(function ($builder) use ($needle): void {
-                    $builder
-                        ->whereRaw('LOWER(filename) LIKE ?', [$needle])
-                        ->orWhereRaw('LOWER(alt_text) LIKE ?', [$needle]);
-                });
-            }
+        if (! in_array($filter, self::VIEW_FILTERS, true)) {
+            $filter = 'all';
         }
+
+        $sort = $request->string('sort')->toString();
+
+        if (! in_array($sort, self::PICKER_SORTS, true)) {
+            $sort = 'newest';
+        }
+
+        $query = Media::query();
+
+        $this->applyFilter($query, $filter);
+        $this->applySearch($query, $request->string('q')->trim()->toString());
+        $this->applyTypeFilter($query, $request->string('type')->toString());
+        $this->applyPickerSort($query, $sort);
 
         $paginator = $query->paginate($perPage);
 
         return response()->json([
-            'data' => $paginator->getCollection()->map(fn (Media $media) => [
-                'id' => $media->id,
-                'filename' => $media->filename,
-                'alt_text' => $media->alt_text,
-                'url' => $media->publicUrl(),
-                'webp_url' => $media->webpPublicUrl(),
-            ])->all(),
+            'data' => $paginator->getCollection()->map(fn (Media $media) => $this->pickerPayload($media))->all(),
             'current_page' => $paginator->currentPage(),
             'last_page' => $paginator->lastPage(),
             'has_more' => $paginator->hasMorePages(),
             'total' => $paginator->total(),
         ]);
+    }
+
+    /**
+     * Ingest a batch of uploaded images straight into the library.
+     *
+     * Each file is validated on its own so one rejected photo — the odd HEIC
+     * in a folder, a file over the size cap — doesn't throw away the rest of
+     * the batch. The response reports both halves so the picker can surface
+     * what landed and what didn't.
+     */
+    public function upload(Request $request): JsonResponse
+    {
+        $request->validate([
+            'files' => ['required', 'array', 'min:1', 'max:60'],
+            'files.*' => ['file'],
+        ]);
+
+        $uploaded = [];
+        $failed = [];
+
+        foreach ($request->file('files', []) as $file) {
+            if (! $file instanceof UploadedFile) {
+                continue;
+            }
+
+            $name = $file->getClientOriginalName() ?: 'upload';
+
+            $validator = Validator::make(['file' => $file], [
+                'file' => ['required', 'file', 'image', 'mimes:'.self::UPLOAD_MIMES, 'max:'.self::UPLOAD_MAX_KILOBYTES],
+            ], [], ['file' => $name]);
+
+            if ($validator->fails()) {
+                $failed[] = [
+                    'filename' => $name,
+                    'message' => (string) $validator->errors()->first('file'),
+                ];
+
+                continue;
+            }
+
+            $uploaded[] = $this->pickerPayload($this->uploader->store($file));
+        }
+
+        return response()->json([
+            'data' => $uploaded,
+            'failed' => $failed,
+            'uploaded' => count($uploaded),
+        ], $uploaded === [] && $failed !== [] ? 422 : 201);
+    }
+
+    /**
+     * @return array{id:int,filename:string,alt_text:string|null,url:string|null,webp_url:string|null,width:int|null,height:int|null,mime_type:string|null,kind:string,created_at:string|null}
+     */
+    private function pickerPayload(Media $media): array
+    {
+        return [
+            'id' => $media->id,
+            'filename' => $media->filename,
+            'alt_text' => $media->alt_text,
+            'url' => $media->publicUrl(),
+            'webp_url' => $media->webpPublicUrl(),
+            'width' => $media->width,
+            'height' => $media->height,
+            'mime_type' => $media->mime_type,
+            'kind' => $this->kindLabel($media),
+            'created_at' => $media->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Short uppercase label shown on a picker tile ("JPEG", "WEBP", "IMAGE").
+     */
+    private function kindLabel(Media $media): string
+    {
+        $subtype = str_contains((string) $media->mime_type, '/')
+            ? explode('/', (string) $media->mime_type)[1]
+            : '';
+
+        if ($subtype === '') {
+            $subtype = pathinfo((string) $media->filename, PATHINFO_EXTENSION);
+        }
+
+        $subtype = strtoupper(trim($subtype));
+
+        return match ($subtype) {
+            '' => 'IMAGE',
+            'JPG' => 'JPEG',
+            default => $subtype,
+        };
+    }
+
+    private function applyTypeFilter(Builder $query, string $type): void
+    {
+        $mimes = self::PICKER_TYPES[$type] ?? null;
+
+        if ($mimes === null) {
+            return;
+        }
+
+        $query->whereIn('mime_type', $mimes);
+    }
+
+    private function applyPickerSort(Builder $query, string $sort): void
+    {
+        match ($sort) {
+            'oldest' => $query->oldest('id'),
+            'name' => $query->orderByRaw('LOWER(filename) asc')->orderBy('id'),
+            // No byte size is stored, so "largest" ranks by pixel area.
+            'largest' => $query->orderByRaw('(COALESCE(width, 0) * COALESCE(height, 0)) desc')->orderByDesc('id'),
+            default => $query->latest('id'),
+        };
     }
 
     public function create(): View
@@ -209,16 +328,7 @@ class MediaController extends Controller
         $hasNewFile = $request->hasFile('file');
 
         if ($hasNewFile) {
-            $file = $request->file('file');
-            $path = $file->store('media/'.now()->format('Y/m'), 'public');
-            [$width, $height] = @getimagesize($file->getRealPath()) ?: [null, null];
-
-            $media->disk = 'public';
-            $media->path = $path;
-            $media->filename = $file->getClientOriginalName();
-            $media->mime_type = $file->getMimeType();
-            $media->width = $width;
-            $media->height = $height;
+            $this->uploader->applyFile($media, $request->file('file'));
         }
 
         $media->alt_text = $validated['alt_text'] ?? null;
@@ -229,18 +339,7 @@ class MediaController extends Controller
         $media->save();
 
         if ($hasNewFile) {
-            try {
-                $this->optimizer->optimizeUpload($media);
-            } catch (\Throwable $throwable) {
-                // Optimization is best-effort; the upload itself succeeded
-                // and the original file is on disk. Log so an admin can
-                // re-run media:optimize / media:generate-variants later.
-                Log::warning('Media upload optimization failed.', [
-                    'media_id' => $media->id,
-                    'path' => $media->path,
-                    'exception' => $throwable->getMessage(),
-                ]);
-            }
+            $this->uploader->optimize($media);
         }
     }
 }

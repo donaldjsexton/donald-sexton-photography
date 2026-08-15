@@ -1,5 +1,6 @@
 import './bootstrap';
 import './gallery-uploader';
+import { openMediaLibrary, uploadMediaFiles } from './media-library';
 
 const errorSummary = document.querySelector('[data-error-summary]');
 
@@ -711,361 +712,36 @@ if (venueWidget) {
     });
 }
 
-// ── Media picker ──
-
-/**
- * Build a single library tile shared by the single- and multi-select pickers.
- *
- * The square is reserved by the figure's percentage padding (see
- * `.media-picker-tile__image` in the CSS), which resolves against the column
- * width — never by `aspect-ratio` or a height handed down from the grid row,
- * the two chains iOS Safari kept resolving to slivers or zero-height rows.
- * The photo fades in over a shimmer skeleton once it loads, and tiles stagger
- * in for a livelier "feed loading" feel.
- */
-const buildMediaTile = (media, { multi = false, selected = false, index = 0 } = {}) => {
-    // A <div role="button"> rather than a real <button>, so the tile is an
-    // ordinary block box with no form-control sizing quirks. Keyboard
-    // activation is restored below.
-    const tile = document.createElement('div');
-    tile.setAttribute('role', 'button');
-    tile.tabIndex = 0;
-    tile.className = 'media-picker-tile';
-    tile.style.setProperty('--enter-delay', `${Math.min(index, 16) * 28}ms`);
-
-    // Restore the keyboard activation a native <button> gave us for free.
-    tile.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            tile.click();
-        }
-    });
-
-    if (multi) {
-        tile.dataset.multiTile = '';
-
-        if (selected) {
-            tile.classList.add('is-selected');
-        }
-    } else {
-        tile.dataset.mediaTile = '';
-    }
-
-    tile.dataset.id = String(media.id);
-    tile.dataset.filename = media.filename || '';
-    tile.dataset.url = media.url || '';
-    tile.dataset.altText = media.alt_text || '';
-
-    const figure = document.createElement('span');
-    figure.className = 'media-picker-tile__image';
-
-    if (media.url) {
-        const img = document.createElement('img');
-        img.loading = 'lazy';
-        img.decoding = 'async';
-        img.alt = media.alt_text || media.filename || '';
-
-        const reveal = () => figure.classList.add('is-loaded');
-        img.addEventListener('load', reveal);
-        img.addEventListener('error', () => figure.classList.add('is-error'));
-        img.src = media.url;
-
-        if (img.complete && img.naturalWidth > 0) {
-            reveal();
-        }
-
-        figure.appendChild(img);
-    } else {
-        figure.classList.add('is-error');
-    }
-
-    const idBadge = document.createElement('span');
-    idBadge.className = 'media-picker-tile__id';
-    idBadge.textContent = `#${media.id}`;
-    figure.appendChild(idBadge);
-
-    if (multi) {
-        const check = document.createElement('span');
-        check.className = 'media-picker-tile__check';
-        check.textContent = '✓';
-        figure.appendChild(check);
-    }
-
-    tile.appendChild(figure);
-
-    return tile;
-};
-
-/**
- * Auto-load the next page when the user scrolls near the end of a picker
- * grid. The sentinel rides along as the grid's last child; re-observing it
- * after each batch forces a fresh intersection check, so loading chains until
- * the sentinel sits beyond the preload margin or `has_more` runs out. The
- * "Load more" button remains as a manual fallback.
- */
-const createPickerInfiniteScroll = (grid, requestNextPage) => {
-    const sentinel = document.createElement('div');
-    sentinel.className = 'media-picker-modal__sentinel';
-    sentinel.setAttribute('aria-hidden', 'true');
-
-    let enabled = false;
-
-    const observer = typeof IntersectionObserver === 'function'
-        ? new IntersectionObserver((entries) => {
-            if (enabled && entries.some((entry) => entry.isIntersecting)) {
-                requestNextPage();
-            }
-        }, { root: grid, rootMargin: '600px 0px' })
-        : null;
-
-    return {
-        place() {
-            observer?.unobserve(sentinel);
-            grid.appendChild(sentinel);
-            observer?.observe(sentinel);
-        },
-        setEnabled(value) {
-            enabled = Boolean(value) && observer !== null;
-        },
-    };
-};
+// ── Media picker field ──
+//
+// The library dialog itself lives in ./media-library.js; this only binds the
+// `<x-admin.media-picker>` field (hero / featured image) to it and reflects
+// the chosen photo back into the field's preview.
 
 const mediaPickers = document.querySelectorAll('[data-media-picker]');
 
 if (mediaPickers.length > 0) {
-    let modal = null;
-    let modalSearch = null;
-    let modalGrid = null;
-    let modalStatus = null;
-    let modalLoadMore = null;
-    let modalInfinite = null;
-    let activePicker = null;
-    let currentPage = 1;
-    let lastPage = 1;
-    let isLoading = false;
-    let searchDebounce = null;
-    let lastFocusedTrigger = null;
-    let renderedIds = new Set();
-
-    const ensureModal = () => {
-        if (modal) {
-            return;
-        }
-
-        modal = document.createElement('div');
-        modal.className = 'media-picker-modal';
-        modal.setAttribute('role', 'dialog');
-        modal.setAttribute('aria-modal', 'true');
-        modal.setAttribute('aria-label', 'Choose media');
-        modal.hidden = true;
-        modal.innerHTML = `
-            <div class="media-picker-modal__backdrop" data-modal-close></div>
-            <div class="media-picker-modal__panel">
-                <header class="media-picker-modal__header">
-                    <div class="media-picker-modal__heading">
-                        <p class="eyebrow">Media library</p>
-                        <h2>Choose an image</h2>
-                    </div>
-                    <button type="button" class="media-picker-modal__close" data-modal-close aria-label="Close">&times;</button>
-                </header>
-                <div class="media-picker-modal__toolbar">
-                    <input type="search" class="media-picker-modal__search" placeholder="Search by filename, alt text, or ID…" autocomplete="off">
-                    <span class="media-picker-modal__status" aria-live="polite"></span>
-                </div>
-                <div class="media-picker-modal__grid" tabindex="0"></div>
-                <footer class="media-picker-modal__footer">
-                    <button type="button" class="cta-secondary media-picker-modal__more" hidden>Load more</button>
-                </footer>
-            </div>
-        `;
-
-        document.body.appendChild(modal);
-
-        modalSearch = modal.querySelector('.media-picker-modal__search');
-        modalGrid = modal.querySelector('.media-picker-modal__grid');
-        modalStatus = modal.querySelector('.media-picker-modal__status');
-        modalLoadMore = modal.querySelector('.media-picker-modal__more');
-        modalInfinite = createPickerInfiniteScroll(modalGrid, () => loadResults(false));
-
-        modal.querySelectorAll('[data-modal-close]').forEach((node) => {
-            node.addEventListener('click', closeModal);
-        });
-
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && !modal.hidden) {
-                closeModal();
-            }
-        });
-
-        modalSearch.addEventListener('input', () => {
-            clearTimeout(searchDebounce);
-            searchDebounce = setTimeout(() => loadResults(true), 220);
-        });
-
-        modalLoadMore.addEventListener('click', () => loadResults(false));
-
-        modalGrid.addEventListener('click', (event) => {
-            const tile = event.target.closest('[data-media-tile]');
-
-            if (!tile) {
-                return;
-            }
-
-            applySelection({
-                id: tile.dataset.id,
-                filename: tile.dataset.filename,
-                url: tile.dataset.url,
-                altText: tile.dataset.altText,
-            });
-        });
-    };
-
-    const setLoading = (loading) => {
-        isLoading = loading;
-        modalLoadMore.disabled = loading;
-
-        if (loading) {
-            modalLoadMore.textContent = 'Loading…';
-        } else {
-            modalLoadMore.textContent = 'Load more';
-        }
-    };
-
-    const renderTiles = (items, append) => {
-        if (!append) {
-            modalGrid.innerHTML = '';
-            renderedIds = new Set();
-        }
-
-        // Offset pagination can repeat an item across page boundaries when
-        // new media lands mid-browse — skip anything already in the grid.
-        const fresh = items.filter((media) => !renderedIds.has(media.id));
-
-        if (fresh.length === 0 && !append) {
-            const empty = document.createElement('p');
-            empty.className = 'media-picker-modal__empty';
-            empty.textContent = 'No media matched your search.';
-            modalGrid.appendChild(empty);
-        } else {
-            fresh.forEach((media, index) => {
-                renderedIds.add(media.id);
-                modalGrid.appendChild(buildMediaTile(media, { index }));
-            });
-        }
-
-        modalInfinite.place();
-    };
-
-    const loadResults = (reset) => {
-        if (!activePicker || isLoading) {
-            return;
-        }
-
-        const endpoint = activePicker.dataset.mediaPickerEndpoint;
-
-        if (!endpoint) {
-            return;
-        }
-
-        // Advance the page only once the response lands — bumping it up front
-        // meant a failed request skipped a page of results forever after.
-        const page = reset ? 1 : currentPage + 1;
-
-        if (reset) {
-            modalStatus.textContent = 'Searching…';
-            modalGrid.scrollTop = 0;
-        }
-
-        const params = new URLSearchParams();
-        const term = modalSearch.value.trim();
-
-        if (term !== '') {
-            params.set('q', term);
-        }
-
-        params.set('page', String(page));
-
-        setLoading(true);
-
-        fetch(`${endpoint}?${params.toString()}`, {
-            headers: { Accept: 'application/json' },
-            credentials: 'same-origin',
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error('Request failed');
-                }
-
-                return response.json();
-            })
-            .then((payload) => {
-                currentPage = payload.current_page || page;
-                lastPage = payload.last_page || 1;
-                renderTiles(payload.data || [], !reset);
-                modalLoadMore.hidden = !payload.has_more;
-                modalInfinite.setEnabled(Boolean(payload.has_more));
-                modalStatus.textContent = `${payload.total} result${payload.total === 1 ? '' : 's'}`;
-            })
-            .catch(() => {
-                modalStatus.textContent = 'Could not load media. Try again.';
-            })
-            .finally(() => {
-                setLoading(false);
-            });
-    };
-
-    const openModal = (picker) => {
-        ensureModal();
-        activePicker = picker;
-        lastFocusedTrigger = picker.querySelector('[data-media-picker-open]');
-        modal.hidden = false;
-        document.body.classList.add('media-picker-modal-open');
-        modalSearch.value = '';
-        modalGrid.innerHTML = '';
-        modalLoadMore.hidden = true;
-        modalInfinite.setEnabled(false);
-        modalStatus.textContent = '';
-        loadResults(true);
-        setTimeout(() => modalSearch.focus(), 50);
-    };
-
-    function closeModal() {
-        if (!modal || modal.hidden) {
-            return;
-        }
-
-        modal.hidden = true;
-        document.body.classList.remove('media-picker-modal-open');
-        modalInfinite?.setEnabled(false);
-        activePicker = null;
-        lastFocusedTrigger?.focus();
-    }
-
-    const applySelection = (media) => {
-        if (!activePicker) {
-            return;
-        }
-
-        const input = activePicker.querySelector('[data-media-picker-value]');
-        const surface = activePicker.querySelector('[data-media-picker-surface]');
-        const preview = activePicker.querySelector('[data-media-picker-preview]');
-        const filenameNode = activePicker.querySelector('[data-media-picker-filename]');
-        const idNode = activePicker.querySelector('[data-media-picker-id]');
-        const clearButton = activePicker.querySelector('[data-media-picker-clear]');
+    const applySelection = (picker, media) => {
+        const input = picker.querySelector('[data-media-picker-value]');
+        const surface = picker.querySelector('[data-media-picker-surface]');
+        const preview = picker.querySelector('[data-media-picker-preview]');
+        const filenameNode = picker.querySelector('[data-media-picker-filename]');
+        const idNode = picker.querySelector('[data-media-picker-id]');
+        const clearButton = picker.querySelector('[data-media-picker-clear]');
 
         if (input) {
-            input.value = media.id;
+            input.value = media ? media.id : '';
         }
 
-        surface?.classList.remove('is-empty');
+        surface?.classList.toggle('is-empty', !media);
 
         if (preview) {
             preview.innerHTML = '';
 
-            if (media.url) {
+            if (media?.url) {
                 const img = document.createElement('img');
                 img.src = media.url;
-                img.alt = media.altText || media.filename || '';
+                img.alt = media.alt_text || media.filename || '';
                 img.loading = 'lazy';
                 img.dataset.mediaPickerPreviewImage = '';
                 preview.appendChild(img);
@@ -1079,53 +755,41 @@ if (mediaPickers.length > 0) {
         }
 
         if (filenameNode) {
-            filenameNode.textContent = media.filename || '—';
+            filenameNode.textContent = media?.filename || '—';
         }
 
         if (idNode) {
-            idNode.textContent = media.id ? `#${media.id}` : '';
+            idNode.textContent = media ? `#${media.id}` : '';
         }
 
         if (clearButton) {
-            clearButton.hidden = false;
+            clearButton.hidden = !media;
         }
-
-        closeModal();
     };
 
     mediaPickers.forEach((picker) => {
         const openButton = picker.querySelector('[data-media-picker-open]');
         const clearButton = picker.querySelector('[data-media-picker-clear]');
 
-        openButton?.addEventListener('click', () => openModal(picker));
+        openButton?.addEventListener('click', async () => {
+            // A featured image is one photo by definition, so this field
+            // never offers the multi-select mode — it can still upload.
+            const [media] = await openMediaLibrary({
+                endpoint: picker.dataset.mediaPickerEndpoint,
+                uploadUrl: picker.dataset.mediaPickerUploadUrl,
+                maxRequestBytes: picker.dataset.maxRequestBytes,
+                mode: 'single',
+                allowModeToggle: false,
+                title: picker.dataset.mediaPickerTitle || 'Choose an image',
+                trigger: openButton,
+            });
 
-        clearButton?.addEventListener('click', () => {
-            const input = picker.querySelector('[data-media-picker-value]');
-            const surface = picker.querySelector('[data-media-picker-surface]');
-            const preview = picker.querySelector('[data-media-picker-preview]');
-            const filenameNode = picker.querySelector('[data-media-picker-filename]');
-            const idNode = picker.querySelector('[data-media-picker-id]');
-
-            if (input) {
-                input.value = '';
+            if (media) {
+                applySelection(picker, media);
             }
-
-            surface?.classList.add('is-empty');
-
-            if (preview) {
-                preview.innerHTML = '<span class="media-picker__placeholder" data-media-picker-placeholder>No image selected</span>';
-            }
-
-            if (filenameNode) {
-                filenameNode.textContent = '—';
-            }
-
-            if (idNode) {
-                idNode.textContent = '';
-            }
-
-            clearButton.hidden = true;
         });
+
+        clearButton?.addEventListener('click', () => applySelection(picker, null));
     });
 }
 
@@ -1161,241 +825,6 @@ if (storyGalleries.length > 0) {
         return response.json();
     };
 
-    // ── Multi-select picker modal (shared across all galleries) ──
-    let multiModal = null;
-    let multiSearch = null;
-    let multiGrid = null;
-    let multiStatus = null;
-    let multiLoadMore = null;
-    let multiConfirm = null;
-    let multiInfinite = null;
-    let multiSelected = new Map(); // id -> media
-    let multiPage = 1;
-    let multiLoading = false;
-    let multiResolver = null;
-    let multiSearchDebounce = null;
-    let multiEndpoint = null;
-    let multiRenderedIds = new Set();
-
-    const ensureMultiModal = () => {
-        if (multiModal) {
-            return;
-        }
-
-        multiModal = document.createElement('div');
-        multiModal.className = 'media-picker-modal';
-        multiModal.setAttribute('role', 'dialog');
-        multiModal.setAttribute('aria-modal', 'true');
-        multiModal.setAttribute('aria-label', 'Add photos from library');
-        multiModal.hidden = true;
-        multiModal.innerHTML = `
-            <div class="media-picker-modal__backdrop" data-multi-close></div>
-            <div class="media-picker-modal__panel is-multi">
-                <header class="media-picker-modal__header">
-                    <div class="media-picker-modal__heading">
-                        <p class="eyebrow">Library</p>
-                        <h2>Add photos to gallery</h2>
-                    </div>
-                    <button type="button" class="media-picker-modal__close" data-multi-close aria-label="Close">&times;</button>
-                </header>
-                <div class="media-picker-modal__toolbar">
-                    <input type="search" class="media-picker-modal__search" placeholder="Search by filename, alt text, or ID…" autocomplete="off">
-                    <span class="media-picker-modal__status" aria-live="polite"></span>
-                </div>
-                <div class="media-picker-modal__grid" tabindex="0"></div>
-                <footer class="media-picker-modal__footer">
-                    <button type="button" class="cta-secondary media-picker-modal__more" hidden>Load more</button>
-                    <button type="button" class="cta media-picker-modal__confirm" disabled>Add 0 photos</button>
-                </footer>
-            </div>
-        `;
-
-        document.body.appendChild(multiModal);
-
-        multiSearch = multiModal.querySelector('.media-picker-modal__search');
-        multiGrid = multiModal.querySelector('.media-picker-modal__grid');
-        multiStatus = multiModal.querySelector('.media-picker-modal__status');
-        multiLoadMore = multiModal.querySelector('.media-picker-modal__more');
-        multiConfirm = multiModal.querySelector('.media-picker-modal__confirm');
-        multiInfinite = createPickerInfiniteScroll(multiGrid, () => loadMulti(false));
-
-        multiModal.querySelectorAll('[data-multi-close]').forEach((node) => {
-            node.addEventListener('click', closeMulti);
-        });
-
-        document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && multiModal && !multiModal.hidden) {
-                closeMulti();
-            }
-        });
-
-        multiSearch.addEventListener('input', () => {
-            clearTimeout(multiSearchDebounce);
-            multiSearchDebounce = setTimeout(() => loadMulti(true), 220);
-        });
-
-        multiLoadMore.addEventListener('click', () => loadMulti(false));
-
-        multiConfirm.addEventListener('click', () => {
-            if (multiSelected.size === 0) {
-                return;
-            }
-
-            const result = Array.from(multiSelected.values());
-            const resolver = multiResolver;
-            closeMulti();
-            resolver?.(result);
-        });
-
-        multiGrid.addEventListener('click', (event) => {
-            const tile = event.target.closest('[data-multi-tile]');
-
-            if (!tile) {
-                return;
-            }
-
-            const id = Number(tile.dataset.id);
-
-            if (multiSelected.has(id)) {
-                multiSelected.delete(id);
-                tile.classList.remove('is-selected');
-            } else {
-                multiSelected.set(id, {
-                    id,
-                    filename: tile.dataset.filename || '',
-                    url: tile.dataset.url || '',
-                    alt_text: tile.dataset.altText || '',
-                });
-                tile.classList.add('is-selected');
-            }
-
-            updateMultiConfirm();
-        });
-    };
-
-    const updateMultiConfirm = () => {
-        const count = multiSelected.size;
-        multiConfirm.disabled = count === 0;
-        multiConfirm.textContent = `Add ${count} photo${count === 1 ? '' : 's'}`;
-    };
-
-    const renderMultiTiles = (items, append) => {
-        if (!append) {
-            multiGrid.innerHTML = '';
-            multiRenderedIds = new Set();
-        }
-
-        // Offset pagination can repeat an item across page boundaries when
-        // new media lands mid-browse — skip anything already in the grid.
-        const fresh = items.filter((media) => !multiRenderedIds.has(media.id));
-
-        if (fresh.length === 0 && !append) {
-            const empty = document.createElement('p');
-            empty.className = 'media-picker-modal__empty';
-            empty.textContent = 'No media matched your search.';
-            multiGrid.appendChild(empty);
-        } else {
-            fresh.forEach((media, index) => {
-                multiRenderedIds.add(media.id);
-                multiGrid.appendChild(buildMediaTile(media, {
-                    multi: true,
-                    selected: multiSelected.has(media.id),
-                    index,
-                }));
-            });
-        }
-
-        multiInfinite.place();
-    };
-
-    const loadMulti = (reset) => {
-        if (!multiEndpoint || multiLoading) {
-            return;
-        }
-
-        // Advance the page only once the response lands — bumping it up front
-        // meant a failed request skipped a page of results forever after.
-        const page = reset ? 1 : multiPage + 1;
-
-        if (reset) {
-            multiGrid.scrollTop = 0;
-            multiStatus.textContent = 'Searching…';
-        }
-
-        const params = new URLSearchParams();
-        const term = multiSearch.value.trim();
-
-        if (term !== '') {
-            params.set('q', term);
-        }
-
-        params.set('page', String(page));
-
-        multiLoading = true;
-        multiLoadMore.disabled = true;
-        multiLoadMore.textContent = 'Loading…';
-
-        fetch(`${multiEndpoint}?${params.toString()}`, {
-            headers: { Accept: 'application/json' },
-            credentials: 'same-origin',
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error('Request failed');
-                }
-
-                return response.json();
-            })
-            .then((payload) => {
-                multiPage = payload.current_page || page;
-                renderMultiTiles(payload.data || [], !reset);
-                multiLoadMore.hidden = !payload.has_more;
-                multiInfinite.setEnabled(Boolean(payload.has_more));
-                multiStatus.textContent = `${payload.total} result${payload.total === 1 ? '' : 's'}`;
-            })
-            .catch(() => {
-                multiStatus.textContent = 'Could not load media. Try again.';
-            })
-            .finally(() => {
-                multiLoading = false;
-                multiLoadMore.disabled = false;
-                multiLoadMore.textContent = 'Load more';
-            });
-    };
-
-    const openMulti = ({ endpoint, excludeIds }) => new Promise((resolve) => {
-        ensureMultiModal();
-        multiEndpoint = endpoint;
-        multiSelected = new Map();
-        multiResolver = resolve;
-        multiSearch.value = '';
-        multiGrid.innerHTML = '';
-        multiStatus.textContent = '';
-        multiLoadMore.hidden = true;
-        multiInfinite.setEnabled(false);
-        updateMultiConfirm();
-        multiModal.hidden = false;
-        document.body.classList.add('media-picker-modal-open');
-        loadMulti(true);
-        setTimeout(() => multiSearch.focus(), 50);
-    });
-
-    function closeMulti() {
-        if (!multiModal || multiModal.hidden) {
-            return;
-        }
-
-        multiModal.hidden = true;
-        document.body.classList.remove('media-picker-modal-open');
-        multiInfinite?.setEnabled(false);
-
-        if (multiResolver) {
-            const resolver = multiResolver;
-            multiResolver = null;
-            resolver([]);
-        }
-    }
-
     // ── Gallery instance ──
     const setupGallery = (root) => {
         const grid = root.querySelector('[data-story-grid]');
@@ -1405,12 +834,17 @@ if (storyGalleries.length > 0) {
         const heroStat = root.querySelector('[data-story-hero-stat]');
         const heroInput = document.querySelector(`form input[name="${root.dataset.heroInput || 'hero_media_id'}"]`);
         const addButton = root.querySelector('[data-story-add]');
+        const uploadButton = root.querySelector('[data-story-upload]');
+        const fileInput = root.querySelector('[data-story-file-input]');
+        const dropzone = root.querySelector('[data-story-dropzone]');
 
         const attachUrl = root.dataset.attachUrl;
         const reorderUrl = root.dataset.reorderUrl;
         const detachUrlPattern = root.dataset.detachUrlPattern;
         const heroUrlPattern = root.dataset.heroUrlPattern;
         const pickerUrl = root.dataset.pickerUrl;
+        const uploadUrl = root.dataset.uploadUrl;
+        const maxRequestBytes = Number(root.dataset.maxRequestBytes) || 0;
 
         const flash = (message, isError = false) => {
             if (!status) {
@@ -1598,31 +1032,141 @@ if (storyGalleries.length > 0) {
 
         grid.querySelectorAll('[data-story-tile]').forEach(attachTileHandlers);
 
-        addButton?.addEventListener('click', async () => {
-            const existingIds = collectIds();
-            const selection = await openMulti({ endpoint: pickerUrl, excludeIds: existingIds });
-
-            if (selection.length === 0) {
-                return;
+        const attachMedia = (mediaIds) => {
+            if (mediaIds.length === 0) {
+                return Promise.resolve(null);
             }
 
-            const fresh = selection.filter((m) => !existingIds.includes(m.id));
+            return jsonFetch(attachUrl, {
+                method: 'POST',
+                body: JSON.stringify({ media_ids: mediaIds }),
+            })
+                .then((payload) => {
+                    applyState(payload);
+                    flash(`Added ${mediaIds.length} photo${mediaIds.length === 1 ? '' : 's'}.`);
 
-            if (fresh.length === 0) {
+                    return payload;
+                })
+                .catch(() => flash('Could not add the selected photos.', true));
+        };
+
+        addButton?.addEventListener('click', async () => {
+            const existingIds = collectIds();
+
+            const selection = await openMediaLibrary({
+                endpoint: pickerUrl,
+                uploadUrl,
+                maxRequestBytes,
+                mode: 'multi',
+                allowModeToggle: true,
+                title: root.dataset.pickerTitle || 'Add photos to this gallery',
+                excludeIds: existingIds,
+                trigger: addButton,
+            });
+
+            const fresh = selection
+                .map((media) => media.id)
+                .filter((id) => !existingIds.includes(id));
+
+            if (selection.length > 0 && fresh.length === 0) {
                 flash('Those photos are already in this gallery.');
                 return;
             }
 
-            jsonFetch(attachUrl, {
-                method: 'POST',
-                body: JSON.stringify({ media_ids: fresh.map((m) => m.id) }),
-            })
-                .then((payload) => {
-                    applyState(payload);
-                    flash(`Added ${fresh.length} photo${fresh.length === 1 ? '' : 's'}.`);
-                })
-                .catch(() => flash('Could not attach the selected photos.', true));
+            attachMedia(fresh);
         });
+
+        /**
+         * Upload photos straight into this gallery: each file becomes a
+         * library item, then the whole batch is attached in one call so the
+         * gallery order matches the order they were chosen in.
+         */
+        const uploadInto = async (files) => {
+            if (!uploadUrl) {
+                return;
+            }
+
+            const list = Array.from(files || []);
+
+            if (list.length === 0) {
+                return;
+            }
+
+            root.classList.add('is-uploading');
+            flash(`Uploading ${list.length} photo${list.length === 1 ? '' : 's'}… 0%`);
+
+            const { created, failed } = await uploadMediaFiles({
+                uploadUrl,
+                files: list,
+                maxRequestBytes,
+                onProgress: ({ percent }) => flash(`Uploading ${list.length} photo${list.length === 1 ? '' : 's'}… ${percent}%`),
+            });
+
+            root.classList.remove('is-uploading');
+
+            if (created.length > 0) {
+                await attachMedia(created.map((media) => media.id));
+            }
+
+            if (failed.length > 0) {
+                flash(
+                    `${failed.length} photo${failed.length === 1 ? '' : 's'} skipped: ${failed.map((entry) => entry.filename).join(', ')}`,
+                    true,
+                );
+            }
+        };
+
+        uploadButton?.addEventListener('click', () => fileInput?.click());
+
+        fileInput?.addEventListener('change', () => {
+            const files = Array.from(fileInput.files || []);
+            fileInput.value = '';
+            uploadInto(files);
+        });
+
+        // Drop photos anywhere on the gallery panel. `dragDepth` counts
+        // enter/leave pairs so crossing a child tile doesn't flicker the
+        // overlay off mid-drag.
+        if (dropzone && uploadUrl) {
+            let dragDepth = 0;
+
+            const hasFiles = (event) => Array.from(event.dataTransfer?.types || []).includes('Files');
+
+            root.addEventListener('dragenter', (event) => {
+                if (!hasFiles(event)) {
+                    return;
+                }
+
+                event.preventDefault();
+                dragDepth += 1;
+                dropzone.hidden = false;
+            });
+
+            root.addEventListener('dragover', (event) => {
+                if (hasFiles(event)) {
+                    event.preventDefault();
+                }
+            });
+
+            root.addEventListener('dragleave', () => {
+                dragDepth = Math.max(0, dragDepth - 1);
+
+                if (dragDepth === 0) {
+                    dropzone.hidden = true;
+                }
+            });
+
+            root.addEventListener('drop', (event) => {
+                if (!hasFiles(event)) {
+                    return;
+                }
+
+                event.preventDefault();
+                dragDepth = 0;
+                dropzone.hidden = true;
+                uploadInto(event.dataTransfer.files);
+            });
+        }
     };
 
     storyGalleries.forEach(setupGallery);

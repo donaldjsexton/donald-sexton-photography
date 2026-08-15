@@ -31,6 +31,8 @@
         .upload-status { margin: 10px 0 0; padding: 8px 12px; border-radius: 6px; font-size: 13px; background: #f4ece0; color: #5b4636; border: 1px solid #e7d8c5; }
         .upload-status[data-tone="success"] { background: #e8f3e8; border-color: #cbe3c9; color: #2f5d34; }
         .upload-status[data-tone="warn"] { background: #fbeee0; border-color: #f0d4b0; color: #8a5a1f; }
+        .upload-dropzone { margin: 10px 0 0; padding: 14px; border: 1px dashed #d8c3a5; border-radius: 8px; background: #fbf6ef; color: #7a6753; font-size: 13px; text-align: center; transition: border-color .15s, background .15s, color .15s; }
+        .upload-dropzone.is-dragging { border-color: #b88a4f; border-style: solid; background: #f6ead9; color: #5b4636; }
         .gallery-photo.is-fresh { animation: gallery-photo-pop .45s ease; outline: 2px solid #b88a4f; outline-offset: -2px; }
         @keyframes gallery-photo-pop { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
     </style>
@@ -126,9 +128,10 @@
                       data-upload-url="{{ route('admin.galleries.albums.photos.upload', [$gallery, $album]) }}">
                     @csrf
                     <label>
-                        Upload photos <span class="meta">(JPEG, PNG, or WebP)</span>
+                        Upload photos <span class="meta">(JPEG, PNG, or WebP — select as many as you like)</span>
                         <input type="file" name="photos[]" accept="image/jpeg,image/png,image/webp" multiple required>
                     </label>
+                    <p class="upload-dropzone" data-upload-dropzone>Drop photos here to upload them to this album</p>
                     <div class="form-actions">
                         <button class="cta" type="submit">Upload</button>
                     </div>

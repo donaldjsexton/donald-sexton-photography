@@ -13,13 +13,18 @@
     $previewUrl = $currentMedia?->publicUrl();
     $previewAlt = $currentMedia?->alt_text ?: $currentMedia?->filename;
     $fieldId = 'media-picker-'.$name.'-'.\Illuminate\Support\Str::random(6);
+    $dialogTitle = 'Choose '.\Illuminate\Support\Str::lower($label);
+    $maxRequestBytes = \App\Support\UploadRequestBudget::maxRequestBytes();
 @endphp
 
 <div
     class="media-picker"
     data-media-picker
     data-media-picker-endpoint="{{ route('admin.media.picker') }}"
+    data-media-picker-upload-url="{{ route('admin.media.upload') }}"
+    data-media-picker-title="{{ $dialogTitle }}"
     data-media-picker-input="#{{ $fieldId }}"
+    data-max-request-bytes="{{ $maxRequestBytes }}"
 >
     <input
         type="hidden"
