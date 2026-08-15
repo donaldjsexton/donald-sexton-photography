@@ -98,9 +98,7 @@ class JournalController extends Controller
                         ->select('canonical_url'));
             })
             ->with(['heroMedia', 'categories', 'venues'])
-            ->orderByRaw('CASE WHEN journal_posts.published_at IS NULL THEN 1 ELSE 0 END')
-            ->orderByDesc('journal_posts.published_at')
-            ->orderByDesc('journal_posts.id');
+            ->recentFirst();
     }
 
     private function matchingWeddingStory(JournalPost $post): ?WeddingStory

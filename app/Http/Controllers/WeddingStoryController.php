@@ -15,9 +15,7 @@ class WeddingStoryController extends Controller
         return view('weddings.index', [
             'stories' => WeddingStory::published()
                 ->with(['heroMedia', 'venue'])
-                ->orderByRaw('CASE WHEN published_at IS NULL THEN 1 ELSE 0 END')
-                ->orderByDesc('published_at')
-                ->orderByDesc('id')
+                ->recentFirst()
                 ->paginate(12),
         ]);
     }
