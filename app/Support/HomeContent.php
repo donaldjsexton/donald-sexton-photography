@@ -7,11 +7,12 @@ use App\Models\HomepageSetting;
 use App\Models\JournalPost;
 use App\Models\Testimonial;
 use App\Models\WeddingStory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 /**
  * Request-scoped resolver for the homepage's curated content. Holds the
- * featured-or-fallback logic that used to live in HomeController so both the
+ * recency-then-featured logic that used to live in HomeController so both the
  * classic layout and the block components draw from one memoised source.
  */
 class HomeContent
@@ -19,6 +20,13 @@ class HomeContent
     private const FEATURED_LIMIT = 3;
 
     private const HOME_STORY_POOL_LIMIT = 5;
+
+    /**
+     * Homepage story slots handed to the most recently published wedding
+     * stories before the admin's featured picks are used. Keeps newly
+     * published work in the hero without anyone editing homepage settings.
+     */
+    private const RECENT_STORY_LEAD = 3;
 
     /** @var array<string, mixed> */
     private array $memo = [];
@@ -114,29 +122,41 @@ class HomeContent
     }
 
     /**
+     * The newest published wedding stories lead the homepage, then the
+     * admin's featured picks fill whatever slots are left. Recency uses the
+     * publish date, falling back to the wedding date so imported stories
+     * without a publish timestamp still sort as fresh work.
+     *
      * @param  array<int, int|string>  $ids
      */
     private function resolveStories(array $ids, int $limit = self::FEATURED_LIMIT): EloquentCollection
     {
-        $selectedIds = $this->sanitizeIds($ids);
-
-        $stories = WeddingStory::published()
-            ->with(['heroMedia', 'venue'])
-            ->when($selectedIds !== [], fn ($query) => $query->whereIn('id', $selectedIds))
-            ->orderByRaw('CASE WHEN published_at IS NULL THEN 1 ELSE 0 END')
-            ->orderByDesc('published_at')
-            ->orderByDesc('id')
+        $recentStories = $this->recentStoriesQuery()
+            ->limit(min($limit, self::RECENT_STORY_LEAD))
             ->get();
 
+        $selectedIds = array_values(array_diff($this->sanitizeIds($ids), $recentStories->modelKeys()));
+
+        $curatedStories = $selectedIds === []
+            ? new EloquentCollection
+            : $this->recentStoriesQuery()->whereIn('id', $selectedIds)->get();
+
         return $this->fillRemainingItems(
-            $stories,
-            WeddingStory::published()
-                ->with(['heroMedia', 'venue'])
-                ->orderByRaw('CASE WHEN published_at IS NULL THEN 1 ELSE 0 END')
-                ->orderByDesc('published_at')
-                ->orderByDesc('id'),
+            $recentStories->concat($curatedStories)->unique('id')->values(),
+            $this->recentStoriesQuery(),
             $limit,
         );
+    }
+
+    /**
+     * @return Builder<WeddingStory>
+     */
+    private function recentStoriesQuery(): Builder
+    {
+        return WeddingStory::published()
+            ->with(['heroMedia', 'venue'])
+            ->orderByRaw('COALESCE(published_at, event_date, created_at) DESC')
+            ->orderByDesc('id');
     }
 
     /**
