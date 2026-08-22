@@ -124,4 +124,31 @@ class GoogleBusinessProfileTest extends TestCase
 
         $this->assertNull(app(GoogleBusinessProfile::class)->snapshot());
     }
+
+    public function test_snapshot_qualifies_a_bare_location_name_with_the_account(): void
+    {
+        SiteSetting::current()->forceFill([
+            'gbp_location_name' => 'locations/222',
+        ])->save();
+
+        Cache::flush();
+
+        Http::fake([
+            'mybusiness.googleapis.com/v4/*' => Http::response([
+                'averageRating' => 5.0,
+                'totalReviewCount' => 3,
+                'reviews' => [],
+            ]),
+        ]);
+
+        $snapshot = app(GoogleBusinessProfile::class)->snapshot();
+
+        $this->assertNotNull($snapshot);
+        $this->assertSame(3, $snapshot['reviewCount']);
+
+        Http::assertSent(fn ($request) => str_contains(
+            $request->url(),
+            'v4/accounts/111/locations/222/reviews',
+        ));
+    }
 }

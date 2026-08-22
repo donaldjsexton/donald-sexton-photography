@@ -38,6 +38,15 @@ class ConsoleCommandController extends Controller
             ], 422);
         }
 
+        $missing = $this->registry->missingRequiredArguments($name, $validated['arguments'] ?? []);
+
+        if ($missing !== []) {
+            return response()->json([
+                'ok' => false,
+                'error' => "'{$name}' needs a value for: ".implode(', ', $missing).'.',
+            ], 422);
+        }
+
         $params = $this->registry->buildParameters(
             $name,
             $validated['arguments'] ?? [],
@@ -52,27 +61,42 @@ class ConsoleCommandController extends Controller
             $exitCode = Artisan::call($name, $params);
             $output = Artisan::output();
         } catch (\Throwable $e) {
-            Log::warning('Admin console command failed', [
+            $message = $this->friendlyError($e, $name);
+
+            Log::error('Admin console command failed', [
                 'command' => $name,
+                'parameters' => $params,
                 'user_id' => $request->user()?->id,
+                'duration_ms' => (int) round((microtime(true) - $started) * 1000),
+                'exception' => $e::class,
                 'error' => $e->getMessage(),
+                'file' => $e->getFile().':'.$e->getLine(),
             ]);
 
             return response()->json([
                 'ok' => false,
-                'error' => $e->getMessage(),
-                'output' => '',
+                'error' => $message,
+                'output' => Artisan::output(),
             ], 500);
         }
 
         $durationMs = (int) round((microtime(true) - $started) * 1000);
 
-        Log::info('Admin console command run', [
+        $context = [
             'command' => $name,
+            'parameters' => $params,
             'user_id' => $request->user()?->id,
             'exit_code' => $exitCode,
             'duration_ms' => $durationMs,
-        ]);
+        ];
+
+        if ($exitCode === 0) {
+            Log::info('Admin console command run', $context);
+        } else {
+            Log::warning('Admin console command exited non-zero', $context + [
+                'output' => str($output)->limit(2000)->toString(),
+            ]);
+        }
 
         return response()->json([
             'ok' => $exitCode === 0,
@@ -80,5 +104,19 @@ class ConsoleCommandController extends Controller
             'output' => $output,
             'duration_ms' => $durationMs,
         ]);
+    }
+
+    /**
+     * laravel/prompts surfaces a missing interactive answer as a bare
+     * "Required." with no hint of which command or field failed, which is
+     * useless in a log. Give the operator something actionable.
+     */
+    private function friendlyError(\Throwable $e, string $command): string
+    {
+        if (trim($e->getMessage()) === 'Required.') {
+            return "'{$command}' asked for input interactively, which the admin console cannot answer. Supply every argument it needs, or run it over SSH.";
+        }
+
+        return $e->getMessage();
     }
 }

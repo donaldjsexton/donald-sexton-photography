@@ -73,4 +73,16 @@ class ConsoleCommandControllerTest extends TestCase
         $this->postJson('/admin/console/run', ['command' => 'route:list'])
             ->assertStatus(401);
     }
+
+    public function test_run_rejects_command_missing_an_interactively_prompted_argument(): void
+    {
+        $admin = User::factory()->create();
+
+        $response = $this->actingAs($admin)
+            ->postJson('/admin/console/run', ['command' => 'db:table']);
+
+        $response->assertStatus(422);
+        $response->assertJson(['ok' => false]);
+        $this->assertStringContainsString('table', (string) $response->json('error'));
+    }
 }

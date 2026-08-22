@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\AttachLogContext;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -17,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             ResolveTenant::class,
+            AttachLogContext::class,
         ]);
 
         $middleware->redirectGuestsTo(function (Request $request) {
