@@ -4,9 +4,13 @@ use App\Models\ImportMapping;
 use App\Models\JournalPost;
 use App\Models\Media;
 use App\Models\Page;
+use App\Models\Photo;
 use App\Models\Redirect;
 use App\Models\User;
 use App\Models\WeddingStory;
+use App\Services\Galleries\PhotoFormat;
+use App\Services\Galleries\PhotoIngestionService;
+use App\Services\Media\GdImageProcessor;
 use App\Services\Media\MediaDuplicateAuditor;
 use App\Services\Media\MediaOptimizer;
 use App\Services\PicTime\PicTimeImporter;
@@ -400,6 +404,67 @@ Artisan::command('media:generate-variants {--disk=public} {--path-prefix=} {--fr
 
     return $summary['errors'] === 0 ? 0 : 1;
 })->purpose('Generate downscaled WebP variants for responsive image delivery');
+
+Artisan::command('galleries:backfill-variants {--format=avif} {--gallery=} {--limit=0} {--force} {--dry-run}', function (PhotoIngestionService $ingestion) {
+    $formatOption = strtolower(trim((string) $this->option('format')));
+    $format = PhotoFormat::tryFrom($formatOption);
+
+    if ($format === null) {
+        $this->components->error("Unknown format '{$formatOption}'. Supported: ".implode(', ', array_column(PhotoFormat::cases(), 'value')));
+
+        return 1;
+    }
+
+    if (! (new GdImageProcessor)->supportsFormat($format->value)) {
+        $this->components->error("This PHP build's GD cannot encode {$format->value}. Nothing to do.");
+
+        return 1;
+    }
+
+    $query = Photo::withoutSiteScope()->orderBy('id');
+
+    if ($galleryId = trim((string) $this->option('gallery'))) {
+        $query->whereHas('albums', fn ($albums) => $albums->where('albums.gallery_id', $galleryId));
+    }
+
+    if ($limit = max(0, (int) $this->option('limit'))) {
+        $query->limit($limit);
+    }
+
+    $force = (bool) $this->option('force');
+    $dryRun = (bool) $this->option('dry-run');
+    $totals = ['photos' => 0, 'written' => 0, 'skipped' => 0, 'failed' => 0];
+
+    $query->chunkById(50, function ($photos) use ($ingestion, $format, $force, $dryRun, &$totals) {
+        foreach ($photos as $photo) {
+            $totals['photos']++;
+
+            if ($dryRun) {
+                $this->line("would backfill {$format->value}: photo {$photo->id} ({$photo->path})");
+
+                continue;
+            }
+
+            $result = $ingestion->backfillVariants($photo, [$format], $force);
+
+            $totals['written'] += $result['written'];
+            $totals['skipped'] += $result['skipped'];
+            $totals['failed'] += $result['failed'];
+
+            if ($result['failed'] > 0) {
+                $this->components->warn("photo {$photo->id}: {$result['failed']} rendition(s) failed");
+            }
+        }
+    });
+
+    $this->components->info($dryRun ? 'Backfill dry run complete.' : 'Backfill complete.');
+    $this->line("- photos seen: {$totals['photos']}");
+    $this->line("- renditions written: {$totals['written']}");
+    $this->line("- renditions already present: {$totals['skipped']}");
+    $this->line("- renditions failed: {$totals['failed']}");
+
+    return $totals['failed'] === 0 ? 0 : 1;
+})->purpose('Generate missing gallery photo renditions (default: AVIF) for photos ingested before the format existed');
 
 Artisan::command('media:fix-permissions {--disk=public} {--path-prefix=} {--file-mode=0644} {--dir-mode=0755} {--dry-run} {--summary-only}', function () {
     $disk = (string) $this->option('disk');

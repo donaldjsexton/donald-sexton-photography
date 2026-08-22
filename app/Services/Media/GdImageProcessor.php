@@ -104,7 +104,7 @@ class GdImageProcessor
 
     private function prepareCanvas(\GdImage $canvas, string $mime): void
     {
-        if (in_array($mime, ['image/png', 'image/webp'], true)) {
+        if (in_array($mime, ['image/png', 'image/webp', 'image/avif'], true)) {
             imagealphablending($canvas, false);
             imagesavealpha($canvas, true);
             $transparent = imagecolorallocatealpha($canvas, 0, 0, 0, 127);

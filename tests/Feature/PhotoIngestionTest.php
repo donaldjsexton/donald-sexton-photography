@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Album;
 use App\Models\Photo;
+use App\Services\Galleries\PhotoFormat;
 use App\Services\Galleries\PhotoIngestionService;
 use App\Services\Galleries\PhotoVariant;
 use Illuminate\Contracts\Filesystem\Filesystem;
@@ -46,6 +47,8 @@ class PhotoIngestionTest extends TestCase
         $service = new PhotoIngestionService;
         $disk->assertExists($service->variantPath($photo->path, PhotoVariant::Thumb));
         $disk->assertExists($service->variantPath($photo->path, PhotoVariant::Web));
+        $disk->assertExists($service->variantPath($photo->path, PhotoVariant::Thumb, PhotoFormat::Avif));
+        $disk->assertExists($service->variantPath($photo->path, PhotoVariant::Web, PhotoFormat::Avif));
 
         $this->assertTrue($album->photos()->whereKey($photo->getKey())->exists());
     }
@@ -156,6 +159,114 @@ class PhotoIngestionTest extends TestCase
      *
      * @param  array{int,int,int}  $fill
      */
+    public function test_avif_renditions_are_smaller_than_their_webp_siblings(): void
+    {
+        $album = Album::factory()->create();
+        $path = $this->makePhotographicJpeg(1200, 800);
+
+        $photo = (new PhotoIngestionService)->ingest($path, $album, 'beach.jpg')->photo;
+
+        $service = new PhotoIngestionService;
+        $disk = Storage::disk('s3');
+
+        $webpBytes = $disk->size($service->variantPath($photo->path, PhotoVariant::Web));
+        $avifBytes = $disk->size($service->variantPath($photo->path, PhotoVariant::Web, PhotoFormat::Avif));
+
+        $this->assertGreaterThan(0, $avifBytes);
+        $this->assertLessThan(
+            $webpBytes,
+            $avifBytes,
+            'AVIF should beat WebP on bytes; if it does not, the conversion is not earning its keep.',
+        );
+
+        @unlink($path);
+    }
+
+    public function test_backfill_generates_only_the_missing_format(): void
+    {
+        $album = Album::factory()->create();
+        $path = $this->makeJpeg(900, 600);
+
+        $photo = (new PhotoIngestionService)->ingest($path, $album, 'legacy.jpg')->photo;
+
+        $service = new PhotoIngestionService;
+        $disk = Storage::disk('s3');
+
+        // Simulate a photo ingested before AVIF support existed.
+        foreach (PhotoVariant::cases() as $variant) {
+            $disk->delete($service->variantPath($photo->path, $variant, PhotoFormat::Avif));
+        }
+
+        $summary = $service->backfillVariants($photo, [PhotoFormat::Avif]);
+
+        $this->assertSame(2, $summary['written']);
+        $this->assertSame(0, $summary['failed']);
+        $this->assertSame(0, $summary['skipped']);
+
+        foreach (PhotoVariant::cases() as $variant) {
+            $disk->assertExists($service->variantPath($photo->path, $variant, PhotoFormat::Avif));
+            $disk->assertExists($service->variantPath($photo->path, $variant));
+        }
+
+        // A second pass must be a no-op rather than re-encoding everything.
+        $repeat = $service->backfillVariants($photo, [PhotoFormat::Avif]);
+        $this->assertSame(0, $repeat['written']);
+        $this->assertSame(2, $repeat['skipped']);
+
+        @unlink($path);
+    }
+
+    public function test_deleting_a_photo_removes_every_format(): void
+    {
+        $album = Album::factory()->create();
+        $path = $this->makeJpeg(800, 600);
+
+        $photo = (new PhotoIngestionService)->ingest($path, $album, 'gone.jpg')->photo;
+
+        $service = new PhotoIngestionService;
+        $disk = Storage::disk('s3');
+
+        $photo->deleteFiles();
+
+        $disk->assertMissing($photo->path);
+
+        foreach (PhotoVariant::cases() as $variant) {
+            foreach (PhotoFormat::cases() as $format) {
+                $disk->assertMissing($service->variantPath($photo->path, $variant, $format));
+            }
+        }
+
+        @unlink($path);
+    }
+
+    /**
+     * A flat-colour rectangle compresses to almost nothing in both formats,
+     * which hides real size differences. This produces gradient-and-noise
+     * content closer to an actual photograph.
+     */
+    private function makePhotographicJpeg(int $width, int $height): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'gallery-photo').'.jpg';
+        $image = imagecreatetruecolor($width, $height);
+
+        for ($x = 0; $x < $width; $x++) {
+            for ($y = 0; $y < $height; $y++) {
+                $color = imagecolorallocate(
+                    $image,
+                    (int) min(255, ($x / $width) * 255),
+                    (int) min(255, ($y / $height) * 255),
+                    (int) min(255, (($x + $y) % 64) * 4),
+                );
+                imagesetpixel($image, $x, $y, $color);
+            }
+        }
+
+        imagejpeg($image, $path, 90);
+        imagedestroy($image);
+
+        return $path;
+    }
+
     private function makeJpeg(int $width, int $height, array $fill = [120, 140, 160]): string
     {
         $path = tempnam(sys_get_temp_dir(), 'gallery-src').'.jpg';

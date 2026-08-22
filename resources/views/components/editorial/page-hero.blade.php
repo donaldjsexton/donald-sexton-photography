@@ -21,14 +21,29 @@
     $heroWebpUrl = $hasMedia && $media && method_exists($media, 'webpPublicUrl')
         ? $media->webpPublicUrl()
         : null;
+    $heroAvifSrcset = $hasMedia && $media && method_exists($media, 'avifSrcset')
+        ? $media->avifSrcset()
+        : null;
+    $heroAvifUrl = $hasMedia && $media && method_exists($media, 'avifPublicUrl')
+        ? $media->avifPublicUrl()
+        : null;
     $heroFallbackUrl = $hasMedia
         ? ($src ?: ($media && method_exists($media, 'publicUrl') ? $media->publicUrl() : null))
         : null;
 @endphp
 
 @if ($hasMedia)
+    {{--
+        Preload exactly one format, and it must be the one <picture> will pick:
+        x-editorial.media-frame offers AVIF ahead of WebP, so preloading WebP
+        here made AVIF-capable browsers fetch the LCP image twice.
+    --}}
     @push('head_preload')
-        @if ($heroWebpSrcset)
+        @if ($heroAvifSrcset)
+            <link rel="preload" as="image" type="image/avif" imagesrcset="{{ $heroAvifSrcset }}" imagesizes="{{ $sizes }}" fetchpriority="high">
+        @elseif ($heroAvifUrl)
+            <link rel="preload" as="image" href="{{ $heroAvifUrl }}" type="image/avif" fetchpriority="high">
+        @elseif ($heroWebpSrcset)
             <link rel="preload" as="image" type="image/webp" imagesrcset="{{ $heroWebpSrcset }}" imagesizes="{{ $sizes }}" fetchpriority="high">
         @elseif ($heroWebpUrl)
             <link rel="preload" as="image" href="{{ $heroWebpUrl }}" type="image/webp" fetchpriority="high">
@@ -79,6 +94,7 @@
                     :alt="$mediaAlt ?: $title"
                     :sizes="$sizes"
                     loading="eager"
+                    fetchpriority="high"
                 />
             </div>
         @endif
