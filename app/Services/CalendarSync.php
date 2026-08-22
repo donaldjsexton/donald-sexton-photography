@@ -204,8 +204,8 @@ class CalendarSync
 
     private function upsertEvent(Event $event): void
     {
-        $summary = $event->getSummary() ?? '';
-        $description = $event->getDescription() ?? '';
+        $summary = $this->sanitizeUtf8($event->getSummary() ?? '');
+        $description = $this->sanitizeUtf8($event->getDescription() ?? '');
         $isCancelled = Str::startsWith(Str::lower($summary), 'cancelled') ||
             $event->getStatus() === 'cancelled';
 
@@ -221,8 +221,8 @@ class CalendarSync
                 'couple_names' => $coupleNames,
                 'event_date' => $this->parseEventDate($event),
                 'event_time' => $eventTime,
-                'location' => Str::limit($event->getLocation() ?? '', 255) ?: null,
-                'coordinator' => $coordinator,
+                'location' => Str::limit($this->sanitizeUtf8($event->getLocation() ?? ''), 255) ?: null,
+                'coordinator' => $coordinator !== null ? $this->sanitizeUtf8($coordinator) : null,
                 'ceremony_notes' => $ceremonyNotes,
                 'status' => $isCancelled ? 'cancelled' : 'confirmed',
                 'raw_description' => $description ?: null,
@@ -260,14 +260,28 @@ class CalendarSync
         return null;
     }
 
+    /**
+     * Drop invalid UTF-8 byte sequences so parsed values are safe to persist
+     * to Postgres (which rejects them) and safe for /u regexes (which bail on them).
+     */
+    private function sanitizeUtf8(string $value): string
+    {
+        if ($value === '' || mb_check_encoding($value, 'UTF-8')) {
+            return $value;
+        }
+
+        return mb_convert_encoding($value, 'UTF-8', 'UTF-8');
+    }
+
     private function parseCoupleNames(string $summary): ?string
     {
         // Remove common prefixes like "Cancelled:" or "CANCELLED -".
-        $cleaned = preg_replace('/^(?:cancelled|canceled)\s*[-:]\s*/i', '', $summary);
+        $cleaned = preg_replace('/^(?:cancelled|canceled)\s*[-:]\s*/iu', '', $this->sanitizeUtf8($summary));
 
-        // Remove trailing " Wedding", " Ceremony", etc.
-        $cleaned = preg_replace('/\s*[-—]\s*(wedding|ceremony|reception|rehearsal|elopement).*$/i', '', $cleaned);
-        $cleaned = preg_replace('/\s+(wedding|ceremony|reception|rehearsal|elopement).*$/i', '', $cleaned);
+        // Remove trailing " Wedding", " Ceremony", etc. The /u modifier is required so the
+        // multi-byte dashes are matched as whole characters instead of individual bytes.
+        $cleaned = preg_replace('/\s*[-–—]\s*(wedding|ceremony|reception|rehearsal|elopement).*$/iu', '', $cleaned);
+        $cleaned = preg_replace('/\s+(wedding|ceremony|reception|rehearsal|elopement).*$/iu', '', $cleaned);
 
         $cleaned = trim($cleaned);
 

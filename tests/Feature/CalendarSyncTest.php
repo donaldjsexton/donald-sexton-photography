@@ -200,6 +200,44 @@ class CalendarSyncTest extends TestCase
         ]);
     }
 
+    public function test_sync_keeps_em_dash_titles_intact(): void
+    {
+        $event = $this->makeEvent(
+            id: 'evt-emdash',
+            summary: 'Tyler Tallmadge — Wedding',
+            date: '2026-09-12',
+        );
+
+        $service = $this->buildSyncWithEvents([$event]);
+        $service->sync();
+
+        $job = BookedJob::where('google_event_id', 'evt-emdash')->firstOrFail();
+
+        $this->assertSame('Tyler Tallmadge', $job->couple_names);
+        $this->assertTrue(mb_check_encoding($job->couple_names, 'UTF-8'));
+    }
+
+    public function test_sync_strips_invalid_utf8_bytes(): void
+    {
+        $event = $this->makeEvent(
+            id: 'evt-badbytes',
+            summary: "Amy \xE2\x80 Bob Wedding",
+            date: '2026-10-05',
+            location: "Beach \xE2\x80 Club",
+            description: "Ceremony at 4:30 PM \xE2\x80 outside.",
+        );
+
+        $service = $this->buildSyncWithEvents([$event]);
+        $service->sync();
+
+        $job = BookedJob::where('google_event_id', 'evt-badbytes')->firstOrFail();
+
+        $this->assertTrue(mb_check_encoding($job->couple_names, 'UTF-8'));
+        $this->assertTrue(mb_check_encoding($job->summary, 'UTF-8'));
+        $this->assertTrue(mb_check_encoding((string) $job->location, 'UTF-8'));
+        $this->assertTrue(mb_check_encoding((string) $job->raw_description, 'UTF-8'));
+    }
+
     private function makeEvent(string $id, string $summary, string $date, string $location = '', string $description = ''): Event
     {
         $event = new Event;
