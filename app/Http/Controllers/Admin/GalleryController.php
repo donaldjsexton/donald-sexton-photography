@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Gallery;
 use App\Models\Photo;
+use App\Services\Galleries\PhotoFormat;
 use App\Services\Galleries\PhotoVariant;
 use App\Support\UploadRequestBudget;
 use App\Tenancy\CurrentSite;
@@ -120,14 +121,17 @@ class GalleryController extends Controller
      * disk (R2), so the admin grid cannot link to them directly — it would 404.
      * Falls back to the original when the thumb rendition was never generated.
      */
-    public function thumbnail(Gallery $gallery, Photo $photo): StreamedResponse
+    public function thumbnail(Request $request, Gallery $gallery, Photo $photo): StreamedResponse
     {
         abort_unless(
             $photo->albums()->where('albums.gallery_id', $gallery->id)->exists(),
             404,
         );
 
-        return Storage::disk($photo->disk ?? 's3')->response($photo->pathForVariant(PhotoVariant::Thumb));
+        $formats = PhotoFormat::negotiate($request->header('Accept'));
+
+        return Storage::disk($photo->disk ?? 's3')
+            ->response($photo->pathForVariant(PhotoVariant::Thumb, $formats), null, ['Vary' => 'Accept']);
     }
 
     public function setCover(Gallery $gallery, Photo $photo): RedirectResponse

@@ -7,6 +7,7 @@ use App\Models\Gallery;
 use App\Models\Photo;
 use App\Models\ShareToken;
 use App\Services\Galleries\GalleryArchive;
+use App\Services\Galleries\PhotoFormat;
 use App\Services\Galleries\PhotoVariant;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\RedirectResponse;
@@ -72,9 +73,9 @@ class GalleryShareController extends Controller
         $shareToken = $this->resolveUnlockedToken($request, $token);
         $model = $this->photoWithin($shareToken, $photo);
 
-        $path = $model->pathForVariant(PhotoVariant::Web);
+        $path = $model->pathForVariant(PhotoVariant::Web, PhotoFormat::negotiate($request->header('Accept')));
 
-        return Storage::disk($model->disk ?? 's3')->response($path);
+        return Storage::disk($model->disk ?? 's3')->response($path, null, ['Vary' => 'Accept']);
     }
 
     public function downloadPhoto(Request $request, string $token, string $photo): StreamedResponse

@@ -254,12 +254,140 @@ class PhotoIngestionService
     }
 
     /**
-     * Generate WebP renditions next to the original. Non-blocking: any failure
-     * is swallowed so the original stays the source of truth.
+     * Generate any renditions $photo is missing, without re-ingesting it.
+     *
+     * Written for backfilling formats added after a photo was ingested. The
+     * original is pulled to a temp file because it normally lives on a remote
+     * disk that GD cannot read in place. Existing renditions are left alone
+     * unless $force is set.
+     *
+     * @param  list<PhotoFormat>|null  $formats  defaults to every supported format
+     * @return array{written:int, skipped:int, failed:int}
+     */
+    public function backfillVariants(Photo $photo, ?array $formats = null, bool $force = false): array
+    {
+        $formats = array_values(array_filter(
+            $formats ?? $this->supportedFormats(),
+            fn (PhotoFormat $format): bool => $this->gd->supportsFormat($format->value),
+        ));
+
+        $originalPath = (string) $photo->path;
+        $summary = ['written' => 0, 'skipped' => 0, 'failed' => 0];
+
+        if ($formats === [] || $originalPath === '') {
+            return $summary;
+        }
+
+        $storage = Storage::disk($photo->disk ?? $this->diskName());
+
+        if (! $storage->exists($originalPath)) {
+            $summary['failed']++;
+
+            return $summary;
+        }
+
+        $pending = [];
+
+        foreach (PhotoVariant::cases() as $variant) {
+            foreach ($formats as $format) {
+                if (! $force && $storage->exists($variant->pathFor($originalPath, $format))) {
+                    $summary['skipped']++;
+
+                    continue;
+                }
+
+                $pending[] = [$variant, $format];
+            }
+        }
+
+        if ($pending === []) {
+            return $summary;
+        }
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'gallery-backfill-');
+
+        if ($tempPath === false) {
+            $summary['failed'] += count($pending);
+
+            return $summary;
+        }
+
+        try {
+            $stream = $storage->readStream($originalPath);
+
+            if ($stream === false || $stream === null) {
+                $summary['failed'] += count($pending);
+
+                return $summary;
+            }
+
+            $target = fopen($tempPath, 'wb');
+
+            if ($target === false) {
+                fclose($stream);
+                $summary['failed'] += count($pending);
+
+                return $summary;
+            }
+
+            try {
+                stream_copy_to_stream($stream, $target);
+            } finally {
+                fclose($target);
+                fclose($stream);
+            }
+
+            $imageInfo = @getimagesize($tempPath);
+            $mime = is_array($imageInfo) ? (string) ($imageInfo['mime'] ?? '') : '';
+
+            if (! in_array($mime, self::SUPPORTED_MIMES, true)) {
+                $summary['failed'] += count($pending);
+
+                return $summary;
+            }
+
+            $source = $this->gd->decode($tempPath, $mime);
+
+            if (! $source instanceof \GdImage) {
+                $summary['failed'] += count($pending);
+
+                return $summary;
+            }
+
+            try {
+                $source = $this->gd->applyExifOrientation($source, $tempPath, $mime);
+                $sourceWidth = imagesx($source);
+                $sourceHeight = imagesy($source);
+
+                foreach ($pending as [$variant, $format]) {
+                    try {
+                        $written = $this->writeVariant($source, $sourceWidth, $sourceHeight, $originalPath, $variant, $format);
+                    } catch (\Throwable) {
+                        $written = false;
+                    }
+
+                    $written ? $summary['written']++ : $summary['failed']++;
+                }
+            } finally {
+                imagedestroy($source);
+            }
+        } finally {
+            @unlink($tempPath);
+        }
+
+        return $summary;
+    }
+
+    /**
+     * Generate renditions next to the original, in every encoder-supported
+     * format. Non-blocking: any failure is swallowed so the original stays the
+     * source of truth.
      */
     private function generateVariants(string $sourcePath, string $mime, string $originalPath): void
     {
-        if (! $this->gd->supportsFormat('webp')) {
+        $formats = $this->supportedFormats();
+
+        if ($formats === []) {
             return;
         }
 
@@ -272,9 +400,12 @@ class PhotoIngestionService
         try {
             $source = $this->gd->applyExifOrientation($source, $sourcePath, $mime);
             $sourceWidth = imagesx($source);
+            $sourceHeight = imagesy($source);
 
             foreach (PhotoVariant::cases() as $variant) {
-                $this->writeVariant($source, $sourceWidth, imagesy($source), $originalPath, $variant);
+                foreach ($formats as $format) {
+                    $this->writeVariant($source, $sourceWidth, $sourceHeight, $originalPath, $variant, $format);
+                }
             }
         } catch (\Throwable) {
             // Swallow: variants are best-effort.
@@ -283,33 +414,57 @@ class PhotoIngestionService
         }
     }
 
-    private function writeVariant(\GdImage $source, int $sourceWidth, int $sourceHeight, string $originalPath, PhotoVariant $variant): void
+    /**
+     * Formats this PHP build can actually encode. A GD compiled without AVIF
+     * support silently drops that format rather than failing the ingest.
+     *
+     * @return list<PhotoFormat>
+     */
+    private function supportedFormats(): array
     {
+        return array_values(array_filter(
+            PhotoFormat::cases(),
+            fn (PhotoFormat $format): bool => $this->gd->supportsFormat($format->value),
+        ));
+    }
+
+    /**
+     * Encode and store one rendition. Returns whether the file actually landed
+     * on the disk, so callers can report honest counts.
+     */
+    private function writeVariant(
+        \GdImage $source,
+        int $sourceWidth,
+        int $sourceHeight,
+        string $originalPath,
+        PhotoVariant $variant,
+        PhotoFormat $format,
+    ): bool {
         $targetWidth = min($variant->maxWidth(), $sourceWidth);
         $targetHeight = max(1, (int) round($sourceHeight * ($targetWidth / $sourceWidth)));
 
-        $canvas = $this->gd->resample($source, 'image/webp', $targetWidth, $targetHeight);
+        $canvas = $this->gd->resample($source, $format->mimeType(), $targetWidth, $targetHeight);
 
         if (! $canvas instanceof \GdImage) {
-            return;
+            return false;
         }
 
         try {
             $tempPath = tempnam(sys_get_temp_dir(), 'gallery-variant-');
 
-            if ($tempPath === false || ! $this->gd->encode($canvas, $tempPath, 'webp', 82)) {
-                return;
+            if ($tempPath === false || ! $this->gd->encode($canvas, $tempPath, $format->value, $format->quality())) {
+                return false;
             }
 
             try {
                 $stream = fopen($tempPath, 'rb');
 
                 if ($stream === false) {
-                    return;
+                    return false;
                 }
 
                 try {
-                    $this->storage()->writeStream($this->variantPath($originalPath, $variant), $stream);
+                    return $this->storage()->writeStream($this->variantPath($originalPath, $variant, $format), $stream);
                 } finally {
                     fclose($stream);
                 }
@@ -321,8 +476,8 @@ class PhotoIngestionService
         }
     }
 
-    public function variantPath(string $originalPath, PhotoVariant $variant): string
+    public function variantPath(string $originalPath, PhotoVariant $variant, PhotoFormat $format = PhotoFormat::Webp): string
     {
-        return $variant->pathFor($originalPath);
+        return $variant->pathFor($originalPath, $format);
     }
 }

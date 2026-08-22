@@ -6,7 +6,9 @@ use App\Models\Gallery;
 use App\Models\JournalPost;
 use App\Models\Photo;
 use App\Models\WeddingStory;
+use App\Services\Galleries\PhotoFormat;
 use App\Services\Galleries\PhotoVariant;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -17,13 +19,20 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class GalleryEmbedController extends Controller
 {
-    public function photo(Gallery $gallery, string $photo): StreamedResponse
+    /**
+     * Stream a rendition in the best format the client advertises. The URL is
+     * format-agnostic, so the response must carry Vary: Accept or a shared
+     * cache can hand an AVIF body to a client that cannot decode it.
+     */
+    public function photo(Request $request, Gallery $gallery, string $photo): StreamedResponse
     {
         abort_unless($this->isPubliclyEmbeddable($gallery), 404);
 
         $model = $this->photoWithin($gallery, $photo);
+        $formats = PhotoFormat::negotiate($request->header('Accept'));
 
-        return Storage::disk($model->disk ?? 's3')->response($model->pathForVariant(PhotoVariant::Web));
+        return Storage::disk($model->disk ?? 's3')
+            ->response($model->pathForVariant(PhotoVariant::Web, $formats), null, ['Vary' => 'Accept']);
     }
 
     private function isPubliclyEmbeddable(Gallery $gallery): bool

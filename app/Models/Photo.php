@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToSite;
+use App\Services\Galleries\PhotoFormat;
 use App\Services\Galleries\PhotoVariant;
 use Database\Factories\PhotoFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -72,7 +73,9 @@ class Photo extends Model
         $disk->delete($this->path);
 
         foreach (PhotoVariant::cases() as $variant) {
-            $disk->delete($this->variantPath($variant));
+            foreach (PhotoFormat::cases() as $format) {
+                $disk->delete($this->variantPath($variant, $format));
+            }
         }
     }
 
@@ -95,21 +98,32 @@ class Photo extends Model
         return Storage::disk($this->disk ?? 's3')->url($this->path);
     }
 
-    public function variantPath(PhotoVariant $variant): string
+    public function variantPath(PhotoVariant $variant, PhotoFormat $format = PhotoFormat::Webp): string
     {
-        return $variant->pathFor((string) $this->path);
+        return $variant->pathFor((string) $this->path, $format);
     }
 
     /**
-     * Resolve the best available path for a rendition, falling back to the
-     * original when the variant was not generated.
+     * Resolve the best available path for a rendition, trying each format in
+     * preference order and falling back to the original when none of them was
+     * generated.
+     *
+     * Each miss costs one existence check, which is a HEAD request on the S3
+     * disk. Passing the client's preferred format first keeps that at a single
+     * call for photos whose renditions are fully backfilled.
+     *
+     * @param  list<PhotoFormat>  $formats
      */
-    public function pathForVariant(PhotoVariant $variant): string
+    public function pathForVariant(PhotoVariant $variant, array $formats = [PhotoFormat::Webp]): string
     {
-        $variantPath = $this->variantPath($variant);
+        $disk = Storage::disk($this->disk ?? 's3');
 
-        if (Storage::disk($this->disk ?? 's3')->exists($variantPath)) {
-            return $variantPath;
+        foreach ($formats as $format) {
+            $variantPath = $this->variantPath($variant, $format);
+
+            if ($disk->exists($variantPath)) {
+                return $variantPath;
+            }
         }
 
         return (string) $this->path;

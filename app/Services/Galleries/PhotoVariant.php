@@ -21,9 +21,12 @@ enum PhotoVariant: string
 
     /**
      * The rendition's storage path, derived from the original's path.
+     *
+     * The format defaults to WebP so callers predating AVIF support keep
+     * resolving the paths they always did.
      */
-    public function pathFor(string $originalPath): string
+    public function pathFor(string $originalPath, PhotoFormat $format = PhotoFormat::Webp): string
     {
-        return preg_replace('/\.[^.]+$/', '', $originalPath).'_'.$this->value.'.webp';
+        return preg_replace('/\.[^.]+$/', '', $originalPath).'_'.$this->value.'.'.$format->extension();
     }
 }

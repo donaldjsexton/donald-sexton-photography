@@ -9,6 +9,8 @@ use App\Models\Invoice;
 use App\Models\Photo;
 use App\Models\ShareToken;
 use App\Models\Site;
+use App\Services\Galleries\PhotoFormat;
+use App\Services\Galleries\PhotoVariant;
 use App\Tenancy\CurrentSite;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Collection;
@@ -149,6 +151,56 @@ class GalleryShareTest extends TestCase
      * @param  array<string, mixed>  $gallery
      * @return array{token: ShareToken, gallery: Gallery, album: Album, photos: Collection<int, Photo>}
      */
+    public function test_a_photo_is_served_as_avif_only_when_the_client_accepts_it(): void
+    {
+        ['token' => $token, 'photos' => $photos] = $this->makeSharedGallery(1);
+        $photo = $photos->first();
+
+        $disk = Storage::disk('s3');
+        $disk->put($photo->variantPath(PhotoVariant::Web), 'webp-bytes');
+        $disk->put($photo->variantPath(PhotoVariant::Web, PhotoFormat::Avif), 'avif-bytes');
+
+        $url = route('galleries.share.photo', ['token' => $token->token, 'photo' => $photo->uuid]);
+
+        $avifResponse = $this->get($url, ['Accept' => 'image/avif,image/webp,*/*']);
+        $avifResponse->assertOk();
+        $this->assertSame('avif-bytes', $avifResponse->streamedContent());
+
+        $webpResponse = $this->get($url, ['Accept' => 'image/webp,*/*']);
+        $webpResponse->assertOk();
+        $this->assertSame('webp-bytes', $webpResponse->streamedContent());
+    }
+
+    public function test_a_negotiated_photo_response_varies_on_accept(): void
+    {
+        ['token' => $token, 'photos' => $photos] = $this->makeSharedGallery(1);
+        $photo = $photos->first();
+
+        Storage::disk('s3')->put($photo->variantPath(PhotoVariant::Web), 'webp-bytes');
+
+        $this->get(
+            route('galleries.share.photo', ['token' => $token->token, 'photo' => $photo->uuid]),
+            ['Accept' => 'image/avif,image/webp,*/*'],
+        )->assertOk()->assertHeader('Vary', 'Accept');
+    }
+
+    public function test_a_photo_without_an_avif_rendition_falls_back_to_webp(): void
+    {
+        ['token' => $token, 'photos' => $photos] = $this->makeSharedGallery(1);
+        $photo = $photos->first();
+
+        // A photo ingested before AVIF support: WebP only.
+        Storage::disk('s3')->put($photo->variantPath(PhotoVariant::Web), 'webp-bytes');
+
+        $response = $this->get(
+            route('galleries.share.photo', ['token' => $token->token, 'photo' => $photo->uuid]),
+            ['Accept' => 'image/avif,image/webp,*/*'],
+        );
+
+        $response->assertOk();
+        $this->assertSame('webp-bytes', $response->streamedContent());
+    }
+
     private function makeSharedGallery(int $photoCount, ?string $password = null, array $gallery = []): array
     {
         $gallery = Gallery::factory()->create($gallery);

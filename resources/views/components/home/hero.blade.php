@@ -18,13 +18,26 @@
     $leadMedia = $leadStory?->heroMedia;
     $leadWebp = $leadMedia && method_exists($leadMedia, 'webpPublicUrl') ? $leadMedia->webpPublicUrl() : null;
     $leadWebpSrcset = $leadMedia && method_exists($leadMedia, 'webpSrcset') ? $leadMedia->webpSrcset() : null;
+    $leadAvif = $leadMedia && method_exists($leadMedia, 'avifPublicUrl') ? $leadMedia->avifPublicUrl() : null;
+    $leadAvifSrcset = $leadMedia && method_exists($leadMedia, 'avifSrcset') ? $leadMedia->avifSrcset() : null;
 
     $introCopy = $intro ?: ($content->settings()?->hero_heading ?? 'Calm wedding photos that feel like your real day.');
     $heroEyebrow = $eyebrow ?: 'Wedding Photography';
 @endphp
 
+{{--
+    Preload exactly one format, and it must be the one <picture> will pick:
+    x-editorial.media-frame offers AVIF ahead of WebP, so preloading WebP here
+    made AVIF-capable browsers fetch the LCP image twice. Emitting both typed
+    preloads would do the same on browsers that support both, so the order
+    below mirrors the media-frame source order and stops at the first hit.
+--}}
 @push('head_preload')
-    @if ($leadWebpSrcset)
+    @if ($leadAvifSrcset)
+        <link rel="preload" as="image" type="image/avif" imagesrcset="{{ $leadAvifSrcset }}" imagesizes="{{ $homeHeroSizes }}" fetchpriority="high">
+    @elseif ($leadAvif)
+        <link rel="preload" as="image" href="{{ $leadAvif }}" type="image/avif" fetchpriority="high">
+    @elseif ($leadWebpSrcset)
         <link rel="preload" as="image" type="image/webp" imagesrcset="{{ $leadWebpSrcset }}" imagesizes="{{ $homeHeroSizes }}" fetchpriority="high">
     @elseif ($leadWebp)
         <link rel="preload" as="image" href="{{ $leadWebp }}" type="image/webp" fetchpriority="high">
