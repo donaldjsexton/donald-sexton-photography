@@ -86,6 +86,18 @@ class ArtisanCommandRegistry
     ];
 
     /**
+     * Arguments the command's own signature marks optional but that it will
+     * prompt for interactively when omitted. A web request has no TTY, so the
+     * prompt fails deep inside laravel/prompts with a bare "Required." — we
+     * require them up front instead.
+     *
+     * @var array<string, list<string>>
+     */
+    private const PROMPTED_ARGUMENTS = [
+        'db:table' => ['table'],
+    ];
+
+    /**
      * @return array<string, list<array<string, mixed>>>
      */
     public function grouped(): array
@@ -120,6 +132,33 @@ class ArtisanCommandRegistry
     public function shouldAutoForce(string $name): bool
     {
         return in_array($name, self::AUTO_FORCE, true);
+    }
+
+    /**
+     * Names of arguments the command cannot run without, given the values supplied.
+     *
+     * @param  array<string, mixed>  $rawArguments
+     * @return list<string>
+     */
+    public function missingRequiredArguments(string $name, array $rawArguments): array
+    {
+        $meta = $this->describeByName($name);
+
+        if ($meta === null) {
+            return [];
+        }
+
+        $missing = [];
+
+        foreach ($meta['arguments'] as $argument) {
+            $value = $rawArguments[$argument['name']] ?? null;
+
+            if ($argument['required'] && ($value === null || $value === '' || $value === [])) {
+                $missing[] = $argument['name'];
+            }
+        }
+
+        return $missing;
     }
 
     /**
@@ -187,10 +226,16 @@ class ArtisanCommandRegistry
                 continue;
             }
 
+            $prompted = in_array(
+                $argument->getName(),
+                self::PROMPTED_ARGUMENTS[$name] ?? [],
+                true,
+            );
+
             $arguments[] = [
                 'name' => $argument->getName(),
                 'description' => $argument->getDescription(),
-                'required' => $argument->isRequired(),
+                'required' => $argument->isRequired() || $prompted,
                 'array' => $argument->isArray(),
                 'default' => $this->stringifyDefault($argument->getDefault()),
             ];

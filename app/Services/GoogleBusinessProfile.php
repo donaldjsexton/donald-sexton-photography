@@ -109,10 +109,12 @@ class GoogleBusinessProfile
             return null;
         }
 
+        $reviewsPath = $this->qualifiedLocationPath($accountName, $locationName);
+
         $cacheKey = 'google_business_profile_snapshot:'.md5($locationName);
 
-        return Cache::remember($cacheKey, now()->addHours(6), function () use ($token, $locationName, $settings) {
-            $fresh = $this->fetchSnapshot($token, $locationName);
+        return Cache::remember($cacheKey, now()->addHours(6), function () use ($token, $reviewsPath, $settings) {
+            $fresh = $this->fetchSnapshot($token, $reviewsPath);
 
             if ($fresh !== null) {
                 $settings->forceFill([
@@ -142,7 +144,12 @@ class GoogleBusinessProfile
                 ]);
 
             if ($reviewsResponse->failed()) {
-                Log::warning("GBP reviews fetch failed for {$locationName}: ".$reviewsResponse->body());
+                Log::warning('GBP reviews fetch failed', [
+                    'location' => $locationName,
+                    'endpoint' => "https://mybusiness.googleapis.com/v4/{$locationName}/reviews",
+                    'status' => $reviewsResponse->status(),
+                    'body' => str($reviewsResponse->body())->limit(500)->toString(),
+                ]);
 
                 return null;
             }
@@ -162,10 +169,29 @@ class GoogleBusinessProfile
                     ->all(),
             ];
         } catch (\Throwable $e) {
-            Log::warning('Google Business Profile API error: '.$e->getMessage());
+            Log::warning('Google Business Profile API error', [
+                'location' => $locationName,
+                'exception' => $e::class,
+                'error' => $e->getMessage(),
+            ]);
 
             return null;
         }
+    }
+
+    /**
+     * The v4 reviews endpoint only resolves against a fully qualified resource
+     * name (accounts/{account}/locations/{location}). Selections saved before
+     * that was enforced stored the bare "locations/{id}" form, which 404s, so
+     * re-attach the account prefix when it is missing.
+     */
+    private function qualifiedLocationPath(string $accountName, string $locationName): string
+    {
+        if (str_starts_with($locationName, 'accounts/')) {
+            return $locationName;
+        }
+
+        return trim($accountName, '/').'/'.ltrim($locationName, '/');
     }
 
     /**
