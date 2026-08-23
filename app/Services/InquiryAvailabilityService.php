@@ -10,8 +10,9 @@ class InquiryAvailabilityService
 {
     /**
      * Look up availability for a prospective event date based on the
-     * studio's confirmed bookings. Cancelled or completed jobs are
-     * considered open. When the date is unavailable, suggest nearby
+     * studio's bookings. Tentative and held dates count as taken — a date
+     * being worked toward is not a date to promise elsewhere — while
+     * cancelled or completed jobs are considered open. When the date is unavailable, suggest nearby
      * Saturdays within roughly four weeks.
      *
      * @return array{
@@ -60,6 +61,7 @@ class InquiryAvailabilityService
     private function isDateBooked(Carbon $date): bool
     {
         return BookedJob::query()
+            ->whereNotNull('event_date')
             ->whereDate('event_date', $date->toDateString())
             ->where('status', 'confirmed')
             ->exists();

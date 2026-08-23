@@ -25,7 +25,9 @@ class GoogleCalendar
             return CalendarSyncOutcome::NotConnected;
         }
 
-        if (! $inquiry->event_date) {
+        $effectiveDate = $inquiry->effectiveEventDate();
+
+        if (! $effectiveDate) {
             return CalendarSyncOutcome::MissingEventDate;
         }
 
@@ -44,7 +46,7 @@ class GoogleCalendar
                 $inquiry->message ? "\n".$inquiry->message : null,
             ])->filter()->join("\n");
 
-            $eventDate = $inquiry->event_date->toDateString();
+            $eventDate = $effectiveDate->toDateString();
 
             // Note: Google\Service\Calendar setters do not return $this, so set
             // these properties imperatively rather than chaining.

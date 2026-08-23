@@ -4,7 +4,10 @@ namespace Tests\Feature;
 
 use App\Models\BookedJob;
 use App\Models\Client;
+use App\Models\Contract;
 use App\Models\Inquiry;
+use App\Models\Invoice;
+use App\Models\InvoiceInstallment;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -28,12 +31,36 @@ class PortalDashboardBookingBadgeTest extends TestCase
             ->assertSee($job->summary);
     }
 
-    public function test_dashboard_shows_confirmed_badge_for_distant_booking(): void
+    public function test_dashboard_shows_tentative_badge_for_a_distant_booking_with_no_signed_contract(): void
     {
         [$client] = $this->makeClientWithBooking(
             eventDate: now()->addMonths(6),
             status: 'confirmed',
         );
+
+        $this->actingAs($client, 'client')
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertSee('Tentative');
+    }
+
+    public function test_dashboard_shows_confirmed_badge_once_contract_signed_and_retainer_paid(): void
+    {
+        [$client, $job] = $this->makeClientWithBooking(
+            eventDate: now()->addMonths(6),
+            status: 'confirmed',
+        );
+
+        Contract::factory()->signed()->create(['booked_job_id' => $job->id]);
+        $invoice = Invoice::factory()->create([
+            'booked_job_id' => $job->id,
+            'billable_type' => Client::class,
+            'billable_id' => $client->id,
+        ]);
+        InvoiceInstallment::factory()->paid()->create([
+            'invoice_id' => $invoice->id,
+            'sequence' => 1,
+        ]);
 
         $this->actingAs($client, 'client')
             ->get(route('portal.dashboard'))

@@ -82,7 +82,7 @@ class BookedJobSyncFromInquiryTest extends TestCase
         $this->assertSame('evt-from-pipeline', $inquiry->fresh()->calendar_event_id);
     }
 
-    public function test_booking_inquiry_without_event_date_does_not_create_booked_job(): void
+    public function test_booking_inquiry_without_event_date_creates_a_dateless_booked_job(): void
     {
         $googleClient = Mockery::mock(GoogleClient::class);
         $googleClient->shouldReceive('calendar')->andReturn(null);
@@ -97,7 +97,10 @@ class BookedJobSyncFromInquiryTest extends TestCase
         $this->actingAs($admin)
             ->put(route('admin.inquiries.update', $inquiry), ['status' => 'booked']);
 
-        $this->assertDatabaseMissing('booked_jobs', ['inquiry_id' => $inquiry->id]);
+        $job = BookedJob::query()->where('inquiry_id', $inquiry->id)->first();
+
+        $this->assertNotNull($job, 'A booking with no agreed date should still create a job for contracts and invoices to attach to.');
+        $this->assertNull($job->event_date);
     }
 
     public function test_re_booking_an_inquiry_updates_existing_booked_job_in_place(): void

@@ -50,8 +50,8 @@
         @forelse ($jobs->where('status', '!=', 'cancelled') as $job)
             <a href="{{ route('admin.booked-jobs.show', $job) }}" class="cal-list-item">
                 <div class="cal-list-item__date">
-                    <strong>{{ $job->event_date->format('M j') }}</strong>
-                    <span class="meta">{{ $job->event_date->format('D') }}</span>
+                    <strong>{{ $job->event_date?->format('M j') ?: 'TBD' }}</strong>
+                    <span class="meta">{{ $job->event_date?->format('D') }}</span>
                 </div>
                 <div class="cal-list-item__details">
                     <strong>{{ $job->couple_names ?: $job->summary }}</strong>
@@ -66,13 +66,29 @@
         @endforelse
     </section>
 
+    @if ($awaitingDate->isNotEmpty())
+        <section class="admin-card" style="margin-top: 2rem;">
+            <p class="eyebrow">Awaiting a Date</p>
+            <p class="meta">Booked work with no agreed date yet. These are not on the calendar.</p>
+            <x-admin.list>
+                @foreach ($awaitingDate as $job)
+                    <x-admin.list-item
+                        :title="$job->couple_names ?: $job->summary"
+                        :meta="$job->confirmationLabel()"
+                        :href="route('admin.booked-jobs.show', $job)"
+                    />
+                @endforeach
+            </x-admin.list>
+        </section>
+    @endif
+
     @if ($upcoming->isNotEmpty())
         <section class="admin-card" style="margin-top: 2rem;">
             <p class="eyebrow">Next Up</p>
             <x-admin.list>
                 @foreach ($upcoming as $job)
                     <x-admin.list-item
-                        :title="($job->couple_names ?: $job->summary).' · '.$job->event_date->format('M j, Y')"
+                        :title="($job->couple_names ?: $job->summary).' · '.($job->event_date?->format('M j, Y') ?: 'Date TBD')"
                         :meta="collect([$job->event_time, $job->location, $job->coordinator])->filter()->implode(' · ')"
                     />
                 @endforeach

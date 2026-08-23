@@ -142,6 +142,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/booked-jobs', [AdminBookedJobController::class, 'index'])->name('booked-jobs.index');
         Route::get('/booked-jobs/{bookedJob}', [AdminBookedJobController::class, 'show'])->name('booked-jobs.show');
         Route::put('/booked-jobs/{bookedJob}', [AdminBookedJobController::class, 'update'])->name('booked-jobs.update');
+        Route::put('/booked-jobs/{bookedJob}/reschedule', [AdminBookedJobController::class, 'reschedule'])->name('booked-jobs.reschedule');
 
         Route::get('/clients', [AdminClientController::class, 'index'])->name('clients.index');
         Route::get('/clients/create', [AdminClientController::class, 'create'])->name('clients.create');

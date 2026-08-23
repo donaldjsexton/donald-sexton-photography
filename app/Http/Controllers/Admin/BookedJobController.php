@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\BookedJob;
 use App\Services\CalendarSync;
+use App\Services\GoogleCalendar;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,7 +19,10 @@ class BookedJobController extends Controller
     /** Minimum seconds between on-demand syncs triggered by page loads. */
     private const SYNC_THROTTLE_SECONDS = 60;
 
-    public function __construct(private readonly CalendarSync $calendarSync) {}
+    public function __construct(
+        private readonly CalendarSync $calendarSync,
+        private readonly GoogleCalendar $googleCalendar,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -33,12 +37,14 @@ class BookedJobController extends Controller
             ->get();
 
         $upcoming = BookedJob::upcoming()->limit(5)->get();
+        $awaitingDate = BookedJob::awaitingDate()->latest('created_at')->get();
 
         return view('admin.booked-jobs.index', [
             'year' => $year,
             'month' => $month,
             'jobs' => $jobs,
             'upcoming' => $upcoming,
+            'awaitingDate' => $awaitingDate,
             'calendarDays' => $this->buildCalendarDays($year, $month, $jobs),
             'lastSyncedAt' => BookedJob::query()->latest('synced_at')->first()?->synced_at,
         ]);
@@ -74,6 +80,7 @@ class BookedJobController extends Controller
     {
         $validated = $request->validate([
             'couple_names' => ['nullable', 'string', 'max:255'],
+            'event_date' => ['nullable', 'date'],
             'event_time' => ['nullable', 'string', 'max:255'],
             'location' => ['nullable', 'string', 'max:255'],
             'coordinator' => ['nullable', 'string', 'max:255'],
@@ -81,11 +88,94 @@ class BookedJobController extends Controller
             'status' => ['required', 'string', 'in:confirmed,cancelled,completed'],
         ]);
 
+        $submittedDate = $this->normalizeDate($validated['event_date'] ?? null);
+        $dateChanged = $bookedJob->event_date?->toDateString() !== $submittedDate;
+
+        if ($dateChanged && $bookedJob->isDateLocked()) {
+            unset($validated['event_date']);
+
+            $bookedJob->update($validated);
+
+            return redirect()
+                ->route('admin.booked-jobs.show', $bookedJob)
+                ->with('status', 'Booked job updated. The date is locked by a signed contract — use Reschedule to move it.');
+        }
+
+        $validated['event_date'] = $submittedDate;
+
         $bookedJob->update($validated);
+
+        if ($dateChanged) {
+            $this->pushToCalendar($bookedJob);
+        }
 
         return redirect()
             ->route('admin.booked-jobs.show', $bookedJob)
             ->with('status', 'Booked job updated.');
+    }
+
+    /**
+     * Move a date that a signed contract already quotes. This is deliberately
+     * a separate action: it demands a reason, records what the date was, and
+     * surfaces the signed contracts that now need an amendment.
+     */
+    public function reschedule(Request $request, BookedJob $bookedJob): RedirectResponse
+    {
+        $validated = $request->validate([
+            'event_date' => ['required', 'date'],
+            'reschedule_reason' => ['required', 'string', 'max:2000'],
+        ]);
+
+        $newDate = $this->normalizeDate($validated['event_date']);
+
+        if ($newDate === $bookedJob->event_date?->toDateString()) {
+            return redirect()
+                ->route('admin.booked-jobs.show', $bookedJob)
+                ->with('status', 'That is already the booked date — nothing was changed.');
+        }
+
+        $bookedJob->update([
+            'previous_event_date' => $bookedJob->event_date?->toDateString(),
+            'event_date' => $newDate,
+            'rescheduled_at' => now(),
+            'reschedule_reason' => $validated['reschedule_reason'],
+        ]);
+
+        $this->pushToCalendar($bookedJob);
+
+        $affected = $bookedJob->contractsNeedingAmendment()->count();
+
+        $message = $affected > 0
+            ? 'Event date rescheduled. '.$affected.' signed '.str('contract')->plural($affected).' still '.($affected === 1 ? 'quotes' : 'quote').' the old date and need an amendment.'
+            : 'Event date rescheduled.';
+
+        return redirect()
+            ->route('admin.booked-jobs.show', $bookedJob)
+            ->with('status', $message);
+    }
+
+    private function normalizeDate(?string $date): ?string
+    {
+        return filled($date) ? Carbon::parse($date)->toDateString() : null;
+    }
+
+    /**
+     * Mirror a date change back to Google Calendar. Failures are swallowed —
+     * a Google outage must not block the studio from moving a date.
+     */
+    private function pushToCalendar(BookedJob $bookedJob): void
+    {
+        $inquiry = $bookedJob->inquiry;
+
+        if ($inquiry === null) {
+            return;
+        }
+
+        try {
+            $this->googleCalendar->upsertBookingEvent($inquiry);
+        } catch (\Throwable $e) {
+            Log::warning('Calendar push after date change failed: '.$e->getMessage());
+        }
     }
 
     /**
