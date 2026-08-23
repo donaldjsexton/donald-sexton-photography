@@ -45,7 +45,12 @@
             <div class="field-grid">
                 <label>
                     Event type
-                    <input type="text" name="event_type" value="{{ old('event_type', 'wedding') }}" required>
+                    <select name="event_type" required>
+                        <option value="">Select a type</option>
+                        @foreach (\App\Models\Inquiry::eventTypeOptions() as $value => $label)
+                            <option value="{{ $value }}" @selected(old('event_type') === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
                 </label>
                 <label>
                     Event date

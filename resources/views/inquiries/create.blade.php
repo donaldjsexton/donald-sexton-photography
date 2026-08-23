@@ -136,7 +136,12 @@
                         <div class="field-grid">
                             <label>
                                 What are you planning?
-                                <input type="text" name="event_type" id="event_type" value="{{ old('event_type', 'wedding') }}" required @error('event_type') aria-invalid="true" aria-describedby="event_type-error" @enderror>
+                                <select name="event_type" id="event_type" required @error('event_type') aria-invalid="true" aria-describedby="event_type-error" @enderror>
+                                    <option value="">Please choose…</option>
+                                    @foreach (\App\Models\Inquiry::eventTypeOptions() as $value => $label)
+                                        <option value="{{ $value }}" @selected(old('event_type') === $value)>{{ $label }}</option>
+                                    @endforeach
+                                </select>
                                 @error('event_type')
                                     <p class="field-error" id="event_type-error">{{ $message }}</p>
                                 @enderror

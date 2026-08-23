@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Mail\InquiryReply;
+use App\Models\BookedJob;
 use App\Models\Inquiry;
 use App\Models\Venue;
 use App\Models\WeddingQuestionnaire;
@@ -128,7 +129,7 @@ class InquiryController extends Controller
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:255'],
             'instagram_handle' => ['nullable', 'string', 'max:255'],
-            'event_type' => ['required', 'string', 'max:100'],
+            'event_type' => ['required', Rule::in(array_keys(Inquiry::eventTypeOptions()))],
             'event_date' => ['nullable', 'date'],
             'venue_name' => ['nullable', 'string', 'max:255'],
             'venue_id' => ['nullable', 'integer', 'exists:venues,id'],
@@ -152,6 +153,12 @@ class InquiryController extends Controller
 
     public function generateQuestionnaire(Inquiry $inquiry): RedirectResponse
     {
+        if (! $inquiry->isWedding()) {
+            return redirect()
+                ->route('admin.inquiries.edit', $inquiry)
+                ->with('status', 'The questionnaire asks about ceremonies, receptions and first looks, so it is only offered for weddings and elopements. Correct the event type first if this is a wedding.');
+        }
+
         $inquiry->ensureQuestionnaire();
 
         return redirect()
@@ -175,7 +182,15 @@ class InquiryController extends Controller
         $validated = $request->validate([
             'status' => ['required', Rule::in(array_keys(Inquiry::statusOptions()))],
             'event_date' => ['nullable', 'date'],
+            'event_type' => ['nullable', 'string', 'max:100'],
         ]);
+
+        if (blank($validated['event_type'] ?? null)) {
+            unset($validated['event_type']);
+        }
+
+        $typeChanged = array_key_exists('event_type', $validated)
+            && $inquiry->event_type !== $validated['event_type'];
 
         $submittedDate = filled($validated['event_date'] ?? null)
             ? Carbon::parse($validated['event_date'])->toDateString()
@@ -199,8 +214,15 @@ class InquiryController extends Controller
             }
         }
 
+        if ($typeChanged && $job) {
+            $job->update([
+                'event_type' => $inquiry->event_type,
+                'summary' => BookedJob::buildSummary($job->couple_names, $inquiry->event_type),
+            ]);
+        }
+
         if ($inquiry->status === 'booked') {
-            $outcome = $this->calendar->upsertBookingEvent($inquiry);
+            $outcome = $this->calendar->upsertBookingEvent($inquiry->fresh());
             $inquiry = $inquiry->refresh();
             $this->bookedJobSync->syncFromInquiry($inquiry);
             $this->clientSync->syncFromInquiry($inquiry);

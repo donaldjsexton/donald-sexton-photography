@@ -30,14 +30,13 @@ class BookedJobSync
             $inquiry->partner_name,
         ])));
 
-        $summary = $coupleNames.' — '.Str::headline((string) $inquiry->event_type);
-
         $job = BookedJob::firstOrNew(['inquiry_id' => $inquiry->id]);
 
         $job->fill([
             'google_event_id' => $inquiry->calendar_event_id,
-            'summary' => Str::limit($summary, 255),
+            'summary' => BookedJob::buildSummary($coupleNames, $inquiry->event_type),
             'couple_names' => $coupleNames !== '' ? Str::limit($coupleNames, 255) : null,
+            'event_type' => $inquiry->event_type,
             'location' => Str::limit($inquiry->venue_name ?? $inquiry->location_city ?? '', 255) ?: null,
             'status' => $job->exists ? $job->status : 'confirmed',
             'synced_at' => now(),

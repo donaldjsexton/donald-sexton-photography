@@ -267,6 +267,12 @@ class ClientController extends Controller
             $inquiry = $client->currentBookedJob()?->inquiry
                 ?? $client->inquiries()->latest('created_at')->first();
 
+            if ($inquiry !== null && ! $inquiry->isWedding()) {
+                return redirect()
+                    ->route('admin.clients.show', $client)
+                    ->with('error', 'The questionnaire asks about ceremonies, receptions and first looks, so it is only offered for weddings and elopements. This client\'s booking is a '.$inquiry->eventTypeLabel().' shoot.');
+            }
+
             $questionnaire = $inquiry
                 ? $inquiry->ensureQuestionnaire()
                 : $client->questionnaires()->create([]);
