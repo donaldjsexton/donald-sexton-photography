@@ -148,6 +148,9 @@
                 <dt>Google Event ID</dt>
                 <dd class="meta">{{ $job->google_event_id }}</dd>
 
+                <dt>Event Type</dt>
+                <dd class="meta">{{ $job->eventTypeLabel() }}</dd>
+
                 <dt>Calendar Summary</dt>
                 <dd>{{ $job->summary }}</dd>
 

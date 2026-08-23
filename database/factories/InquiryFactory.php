@@ -46,4 +46,9 @@ class InquiryFactory extends Factory
     {
         return $this->state(fn () => ['status' => 'archived']);
     }
+
+    public function family(): static
+    {
+        return $this->state(['event_type' => 'family']);
+    }
 }

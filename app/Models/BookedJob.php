@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 
 class BookedJob extends Model
 {
@@ -23,6 +24,7 @@ class BookedJob extends Model
         'google_event_id',
         'summary',
         'couple_names',
+        'event_type',
         'event_date',
         'previous_event_date',
         'rescheduled_at',
@@ -92,6 +94,32 @@ class BookedJob extends Model
     {
         return $query->whereYear('event_date', $year)
             ->whereMonth('event_date', $month);
+    }
+
+    /**
+     * The calendar summary for a job. Kept here so the initial sync and any
+     * later correction of the event type produce the same string.
+     */
+    public static function buildSummary(?string $coupleNames, ?string $eventType): string
+    {
+        $label = filled($eventType)
+            ? (Inquiry::eventTypeOptions()[$eventType] ?? Str::headline((string) $eventType))
+            : null;
+
+        $summary = trim(implode(' — ', array_filter([
+            filled($coupleNames) ? trim($coupleNames) : null,
+            $label,
+        ])));
+
+        return Str::limit($summary !== '' ? $summary : 'Booked Job', 255);
+    }
+
+    public function eventTypeLabel(): string
+    {
+        $type = (string) $this->event_type;
+
+        return Inquiry::eventTypeOptions()[$type]
+            ?? (Str::of($type)->replace('_', ' ')->headline()->toString() ?: 'Not specified');
     }
 
     /**

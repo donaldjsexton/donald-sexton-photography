@@ -61,7 +61,7 @@
             <div class="admin-detail-list">
                 <div class="admin-detail-list__item">
                     <strong>Event type</strong>
-                    <span class="meta">{{ str($inquiry->event_type)->replace('_', ' ')->headline() }}</span>
+                    <span class="meta">{{ $inquiry->eventTypeLabel() }}</span>
                 </div>
                 <div class="admin-detail-list__item">
                     <strong>Event date</strong>
@@ -110,6 +110,18 @@
                         @foreach ($statusOptions as $status => $label)
                             <option value="{{ $status }}" @selected(old('status', $inquiry->status) === $status)>{{ $label }}</option>
                         @endforeach
+                    </select>
+                </label>
+
+                <label style="margin-top:1rem;">
+                    Event type
+                    <select name="event_type">
+                        @foreach (\App\Models\Inquiry::eventTypeOptions() as $value => $label)
+                            <option value="{{ $value }}" @selected(old('event_type', $inquiry->event_type) === $value)>{{ $label }}</option>
+                        @endforeach
+                        @unless (array_key_exists((string) $inquiry->event_type, \App\Models\Inquiry::eventTypeOptions()))
+                            <option value="{{ $inquiry->event_type }}" selected>{{ $inquiry->eventTypeLabel() }} (as submitted)</option>
+                        @endunless
                     </select>
                 </label>
 
@@ -205,11 +217,15 @@
                 </div>
             @endif
         @else
-            <p class="meta">No questionnaire has been sent yet. Generate a link to share with the couple.</p>
-            <form method="POST" action="{{ route('admin.inquiries.questionnaire.generate', $inquiry) }}" class="admin-form" style="margin-top:1rem;">
-                @csrf
-                <button class="cta" type="submit" style="border:0; cursor:pointer;">Generate Questionnaire Link</button>
-            </form>
+            @if ($inquiry->isWedding())
+                <p class="meta">No questionnaire has been sent yet. Generate a link to share with the couple.</p>
+                <form method="POST" action="{{ route('admin.inquiries.questionnaire.generate', $inquiry) }}" class="admin-form" style="margin-top:1rem;">
+                    @csrf
+                    <button class="cta" type="submit" style="border:0; cursor:pointer;">Generate Questionnaire Link</button>
+                </form>
+            @else
+                <p class="meta">This questionnaire asks about ceremonies, receptions and first looks, so it is only offered for weddings and elopements. This inquiry is a {{ $inquiry->eventTypeLabel() }} shoot — correct the event type above if that is wrong.</p>
+            @endif
         @endif
     </section>
 

@@ -72,6 +72,48 @@ class Inquiry extends Model
         ];
     }
 
+    /**
+     * The kinds of work the studio takes. Kept as a plain string column
+     * rather than an enum so inquiries captured before this vocabulary
+     * existed keep whatever they were given.
+     *
+     * @return array<string, string>
+     */
+    public static function eventTypeOptions(): array
+    {
+        return [
+            'wedding' => 'Wedding',
+            'elopement' => 'Elopement',
+            'engagement' => 'Engagement',
+            'family' => 'Family',
+            'portrait' => 'Portrait',
+            'event' => 'Event',
+            'commercial' => 'Commercial',
+            'other' => 'Other',
+        ];
+    }
+
+    /**
+     * A human label for the stored type, falling back to a tidied version of
+     * whatever free text an older inquiry carries.
+     */
+    public function eventTypeLabel(): string
+    {
+        $type = (string) $this->event_type;
+
+        return self::eventTypeOptions()[$type]
+            ?? (Str::of($type)->replace('_', ' ')->headline()->toString() ?: 'Not provided');
+    }
+
+    /**
+     * Only weddings get the wedding questionnaire — its schema asks about
+     * ceremonies, receptions and first looks.
+     */
+    public function isWedding(): bool
+    {
+        return in_array((string) $this->event_type, ['wedding', 'elopement'], true);
+    }
+
     public function scopeAdminOrdered(Builder $query): Builder
     {
         return $query

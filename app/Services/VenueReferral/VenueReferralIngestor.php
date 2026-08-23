@@ -163,6 +163,9 @@ class VenueReferralIngestor
             'email' => $primaryEmail,
             'email_secondary' => $referral?->secondaryEmail,
             'phone' => $referral?->phone,
+            // Referrals reach us from wedding venues, so wedding is the working
+            // assumption rather than something the sender told us. Correct it on
+            // the inquiry if a venue sends a different kind of booking.
             'event_type' => 'wedding',
             'event_date' => $referral?->eventDate,
             'venue_id' => $venue->id,

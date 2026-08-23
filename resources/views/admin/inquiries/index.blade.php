@@ -90,7 +90,7 @@
                         </td>
                         <td class="inquiries-col--event">
                             <div class="admin-table__lead">
-                                <strong>{{ str($inquiry->event_type)->replace('_', ' ')->headline() }}</strong>
+                                <strong>{{ $inquiry->eventTypeLabel() }}</strong>
                                 <span class="meta">
                                     {{ $inquiry->event_date?->format('M j, Y') ?: 'Date not set' }}
                                     @if ($inquiry->venue?->name || $inquiry->venue_name)

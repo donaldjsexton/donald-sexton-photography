@@ -11,6 +11,7 @@ use App\Services\WebPushService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class InquiryController extends Controller
@@ -45,7 +46,7 @@ class InquiryController extends Controller
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:255'],
             'instagram_handle' => ['nullable', 'string', 'max:255'],
-            'event_type' => ['required', 'string', 'max:100'],
+            'event_type' => ['required', Rule::in(array_keys(Inquiry::eventTypeOptions()))],
             'event_date' => ['nullable', 'date'],
             'venue_name' => ['nullable', 'string', 'max:255'],
             'venue_id' => ['nullable', 'integer', 'exists:venues,id'],

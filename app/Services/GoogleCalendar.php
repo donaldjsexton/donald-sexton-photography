@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\BookedJob;
 use App\Models\Inquiry;
 use Google\Service\Calendar\Event;
 use Google\Service\Calendar\EventDateTime;
@@ -32,10 +33,13 @@ class GoogleCalendar
         }
 
         try {
-            $summary = trim(implode(' & ', array_filter([
-                $inquiry->primary_name,
-                $inquiry->partner_name,
-            ]))).' — '.str($inquiry->event_type)->headline();
+            $summary = BookedJob::buildSummary(
+                trim(implode(' & ', array_filter([
+                    $inquiry->primary_name,
+                    $inquiry->partner_name,
+                ]))),
+                $inquiry->bookedJob?->event_type ?? $inquiry->event_type,
+            );
 
             $description = collect([
                 'Email: '.$inquiry->email,
