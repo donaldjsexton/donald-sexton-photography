@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToSite;
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -112,6 +113,15 @@ class Inquiry extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * The date the studio actually works to: the booked job owns the agreed
+     * date, while the inquiry's own date stays as the prospect requested it.
+     */
+    public function effectiveEventDate(): ?CarbonInterface
+    {
+        return $this->bookedJob?->event_date ?? $this->event_date;
     }
 
     public function ensureQuestionnaire(): WeddingQuestionnaire

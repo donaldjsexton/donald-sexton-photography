@@ -15,6 +15,7 @@ use App\Services\VenueReferral\ReferralIntroDraft;
 use App\Services\VenueReferral\VenueReferralIngestor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -173,11 +174,30 @@ class InquiryController extends Controller
     {
         $validated = $request->validate([
             'status' => ['required', Rule::in(array_keys(Inquiry::statusOptions()))],
+            'event_date' => ['nullable', 'date'],
         ]);
+
+        $submittedDate = filled($validated['event_date'] ?? null)
+            ? Carbon::parse($validated['event_date'])->toDateString()
+            : null;
+
+        $dateChanged = $request->has('event_date')
+            && $inquiry->event_date?->toDateString() !== $submittedDate;
 
         $inquiry->update($validated);
 
         $redirect = redirect()->route('admin.inquiries.edit', $inquiry);
+
+        $job = $inquiry->bookedJob()->first();
+        $dateLocked = false;
+
+        if ($dateChanged && $job) {
+            if ($job->isDateLocked()) {
+                $dateLocked = true;
+            } else {
+                $job->update(['event_date' => $submittedDate]);
+            }
+        }
 
         if ($inquiry->status === 'booked') {
             $outcome = $this->calendar->upsertBookingEvent($inquiry);
@@ -185,10 +205,23 @@ class InquiryController extends Controller
             $this->bookedJobSync->syncFromInquiry($inquiry);
             $this->clientSync->syncFromInquiry($inquiry);
 
+            if ($dateLocked) {
+                return $redirect->with('status', $this->dateLockedMessage());
+            }
+
             return $redirect->with('status', $this->bookedFlashMessage($outcome));
         }
 
+        if ($dateLocked) {
+            return $redirect->with('status', $this->dateLockedMessage());
+        }
+
         return $redirect->with('status', 'Inquiry updated.');
+    }
+
+    private function dateLockedMessage(): string
+    {
+        return 'Inquiry updated. The booking date was not changed because a signed contract quotes it — use Reschedule on the booked job instead.';
     }
 
     private function bookedFlashMessage(CalendarSyncOutcome $outcome): string

@@ -65,7 +65,12 @@
                 </div>
                 <div class="admin-detail-list__item">
                     <strong>Event date</strong>
-                    <span class="meta">{{ $inquiry->event_date?->format('F j, Y') ?: 'Not provided' }}</span>
+                    <span class="meta">
+                        {{ $inquiry->effectiveEventDate()?->format('F j, Y') ?: 'To be decided' }}
+                        @if ($inquiry->bookedJob)
+                            &middot; {{ $inquiry->bookedJob->confirmationLabel() }}
+                        @endif
+                    </span>
                 </div>
                 <div class="admin-detail-list__item">
                     <strong>Venue</strong>
@@ -107,6 +112,17 @@
                         @endforeach
                     </select>
                 </label>
+
+                <label style="margin-top:1rem;">
+                    Event date
+                    <input type="date" name="event_date" value="{{ old('event_date', $inquiry->event_date?->toDateString()) }}" @disabled($inquiry->bookedJob?->isDateLocked())>
+                </label>
+
+                @if ($inquiry->bookedJob?->isDateLocked())
+                    <p class="meta">This date is locked by a signed contract. Use <a href="{{ route('admin.booked-jobs.show', $inquiry->bookedJob) }}">Reschedule on the booked job</a> to move it.</p>
+                @else
+                    <p class="meta">Leave blank if the date is still to be decided — booking still works, the job just will not hit the calendar yet.</p>
+                @endif
 
                 <p class="meta">Use the pipeline status to separate fresh inquiries from active conversations, follow-ups, and booked work.</p>
 
