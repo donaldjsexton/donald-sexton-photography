@@ -194,15 +194,24 @@
 
         if (!picker) { return; }
 
-        picker.addEventListener('change', function () {
-            var id = picker.value;
-            hidden.value = id || '';
-            if (!id) { return; }
+        // Title the server prefilled (or a title we applied). Anything else means
+        // the user typed their own and we leave it alone.
+        var appliedTitle = titleField ? titleField.value : '';
 
-            if (body.value.trim() && !confirm('Replace the current contract body with this template?')) {
-                picker.value = hidden.value;
+        picker.addEventListener('change', function () {
+            var previousId = hidden.value;
+            var id = picker.value;
+            if (!id) {
+                hidden.value = '';
                 return;
             }
+
+            if (body.value.trim() && !confirm('Replace the current contract body with this template?')) {
+                picker.value = previousId;
+                return;
+            }
+
+            hidden.value = id;
 
             var billableType = document.querySelector('input[name="billable_type"]:checked')?.value || '';
             var billableSelect = document.querySelector('select[data-billable-id="' + billableType + '"]');
@@ -227,8 +236,9 @@
             }).then(function (res) {
                 return res.json();
             }).then(function (data) {
-                if (data.title && titleField && !titleField.value.trim()) {
+                if (data.title && titleField && (!titleField.value.trim() || titleField.value === appliedTitle)) {
                     titleField.value = data.title;
+                    appliedTitle = data.title;
                 }
                 body.value = data.body || '';
             }).catch(function () {
