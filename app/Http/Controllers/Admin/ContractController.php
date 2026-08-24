@@ -142,6 +142,8 @@ class ContractController extends Controller
             'internal_notes' => $data['internal_notes'] ?? null,
         ]);
 
+        $contract->update(['body' => $this->variables->renderForContract($contract)]);
+
         return redirect()
             ->route('admin.contracts.show', $contract)
             ->with('status', 'Contract created.');
@@ -205,6 +207,9 @@ class ContractController extends Controller
             'expires_at' => $data['expires_at'] ?? null,
             'internal_notes' => $data['internal_notes'] ?? null,
         ]);
+
+        $contract->refresh();
+        $contract->update(['body' => $this->variables->renderForContract($contract)]);
 
         return redirect()
             ->route('admin.contracts.show', $contract)

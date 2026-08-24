@@ -92,7 +92,7 @@ class BookingProposalController extends Controller
             $this->composer->syncInstallments($invoice, $data['installments'] ?? []);
             $invoice->recalculateTotals();
 
-            return Contract::create([
+            $contract = Contract::create([
                 'billable_type' => Client::class,
                 'billable_id' => (int) $data['client_id'],
                 'booked_job_id' => $data['booked_job_id'] ?? null,
@@ -105,6 +105,10 @@ class BookingProposalController extends Controller
                 'expires_at' => $data['expires_at'] ?? null,
                 'internal_notes' => $data['internal_notes'] ?? null,
             ]);
+
+            $contract->update(['body' => $this->variables->renderForContract($contract)]);
+
+            return $contract;
         });
 
         return redirect()

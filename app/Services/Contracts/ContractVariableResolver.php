@@ -4,6 +4,7 @@ namespace App\Services\Contracts;
 
 use App\Models\BookedJob;
 use App\Models\Client;
+use App\Models\Contract;
 use App\Models\Invoice;
 use App\Models\Venue;
 use Illuminate\Database\Eloquent\Model;
@@ -83,6 +84,35 @@ class ContractVariableResolver
             'invoice_number' => (string) ($invoice?->number ?? ''),
             'invoice_total' => $invoiceTotal,
         ];
+    }
+
+    /**
+     * Build the merge variable map from a persisted contract, using its own
+     * number, dates, and linked job / invoice.
+     *
+     * @return array<string, string>
+     */
+    public function variablesForContract(Contract $contract): array
+    {
+        $contract->loadMissing(['billable', 'bookedJob', 'invoice']);
+
+        return $this->variablesFor(
+            billable: $contract->billable,
+            bookedJob: $contract->bookedJob,
+            invoice: $contract->invoice,
+            contractNumber: $contract->number,
+            contractTitle: $contract->title,
+            issueDate: $contract->issue_date?->format('F j, Y'),
+            expiresAt: $contract->expires_at?->format('F j, Y') ?? '',
+        );
+    }
+
+    /**
+     * Resolve any tokens still present in a saved contract body.
+     */
+    public function renderForContract(Contract $contract): string
+    {
+        return $this->render((string) $contract->body, $this->variablesForContract($contract));
     }
 
     /**

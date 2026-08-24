@@ -6,6 +6,7 @@ use App\Mail\ContractSent;
 use App\Models\Client;
 use App\Models\Contract;
 use App\Models\ContractTemplate;
+use App\Models\Invoice;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -75,6 +76,38 @@ class ContractAdminCrudTest extends TestCase
         $this->assertSame(Contract::STATUS_DRAFT, $contract->status);
         $this->assertNotEmpty($contract->uuid);
         $this->assertNotEmpty($contract->number);
+    }
+
+    public function test_store_resolves_merge_variables_using_saved_relations(): void
+    {
+        $admin = User::factory()->create();
+        $client = Client::factory()->create();
+        $invoice = Invoice::factory()->create([
+            'billable_type' => Client::class,
+            'billable_id' => $client->id,
+            'number' => 'INV-2026-0099',
+        ]);
+        $invoice->update(['total_cents' => 250000]);
+
+        $this->actingAs($admin)->post(route('admin.contracts.store'), [
+            'billable_type' => 'client',
+            'billable_id' => $client->id,
+            'invoice_id' => $invoice->id,
+            'issue_date' => '2026-05-01',
+            'expires_at' => '2026-06-01',
+            'title' => 'Wedding Agreement',
+            'body' => 'Client {{client_name}} owes {{invoice_total}} on {{invoice_number}}. '
+                .'Contract {{contract_number}} expires {{expires_at}}. Unknown {{nope}}.',
+        ]);
+
+        $contract = Contract::first();
+
+        $this->assertStringContainsString($client->displayName(), $contract->body);
+        $this->assertStringContainsString('$2,500.00', $contract->body);
+        $this->assertStringContainsString('INV-2026-0099', $contract->body);
+        $this->assertStringContainsString($contract->number, $contract->body);
+        $this->assertStringContainsString('June 1, 2026', $contract->body);
+        $this->assertStringContainsString('{{nope}}', $contract->body);
     }
 
     public function test_store_validates_required_fields(): void
