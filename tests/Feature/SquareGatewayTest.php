@@ -4,9 +4,12 @@ namespace Tests\Feature;
 
 use App\Models\Client;
 use App\Models\Invoice;
+use App\Models\SiteSetting;
 use App\Services\Payments\SquareGateway;
+use App\Services\Payments\SquareTokenRefresher;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
+use Square\Exceptions\SquareApiException;
 use Square\Payments\PaymentsClient;
 use Square\SquareClient;
 use Square\Types\CreatePaymentResponse;
@@ -144,6 +147,109 @@ class SquareGatewayTest extends TestCase
         $this->assertStringContainsString('FAILED', $result->failureReason);
     }
 
+    public function test_charge_refreshes_expired_token_and_retries_after_unauthorized(): void
+    {
+        $this->primeSandboxConfig();
+        $invoice = $this->makeInvoice(17500);
+
+        $payment = (new Payment)
+            ->setId('sq-pay-retry')
+            ->setStatus('COMPLETED')
+            ->setAmountMoney(new Money(['amount' => 17500, 'currency' => 'USD']));
+
+        $payments = Mockery::mock(PaymentsClient::class);
+        $payments->shouldReceive('create')
+            ->twice()
+            ->andReturnUsing(
+                fn () => throw $this->unauthorizedException(),
+                fn () => new CreatePaymentResponse(['payment' => $payment]),
+            );
+
+        $client = Mockery::mock(SquareClient::class);
+        $client->payments = $payments;
+
+        $refresher = Mockery::mock(SquareTokenRefresher::class);
+        $refresher->shouldReceive('refreshIfExpiring')->once()->andReturnFalse();
+        $refresher->shouldReceive('refresh')->once()->with(Mockery::type(SiteSetting::class))->andReturnTrue();
+
+        $result = (new SquareGateway($client, $refresher))->charge($invoice, 'cnon:abc');
+
+        $this->assertTrue($result->success);
+        $this->assertSame('sq-pay-retry', $result->gatewayPaymentId);
+    }
+
+    public function test_charge_hides_raw_error_when_credentials_are_rejected(): void
+    {
+        $this->primeSandboxConfig();
+        $invoice = $this->makeInvoice(17500);
+
+        $payments = Mockery::mock(PaymentsClient::class);
+        $payments->shouldReceive('create')->once()->andThrow($this->unauthorizedException());
+
+        $client = Mockery::mock(SquareClient::class);
+        $client->payments = $payments;
+
+        $refresher = Mockery::mock(SquareTokenRefresher::class);
+        $refresher->shouldReceive('refreshIfExpiring')->andReturnFalse();
+        $refresher->shouldReceive('refresh')->once()->andReturnFalse();
+
+        $result = (new SquareGateway($client, $refresher))->charge($invoice, 'cnon:abc');
+
+        $this->assertFalse($result->success);
+        $this->assertSame(SquareGateway::UNAVAILABLE_MESSAGE, $result->failureReason);
+        $this->assertStringNotContainsString('401', $result->failureReason);
+    }
+
+    public function test_charge_does_not_retry_more_than_once_after_unauthorized(): void
+    {
+        $this->primeSandboxConfig();
+        $invoice = $this->makeInvoice(17500);
+
+        $payments = Mockery::mock(PaymentsClient::class);
+        $payments->shouldReceive('create')->twice()->andThrow($this->unauthorizedException());
+
+        $client = Mockery::mock(SquareClient::class);
+        $client->payments = $payments;
+
+        $refresher = Mockery::mock(SquareTokenRefresher::class);
+        $refresher->shouldReceive('refreshIfExpiring')->andReturnFalse();
+        $refresher->shouldReceive('refresh')->once()->andReturnTrue();
+
+        $result = (new SquareGateway($client, $refresher))->charge($invoice, 'cnon:abc');
+
+        $this->assertFalse($result->success);
+        $this->assertSame(SquareGateway::UNAVAILABLE_MESSAGE, $result->failureReason);
+    }
+
+    public function test_charge_surfaces_card_error_detail_without_refreshing(): void
+    {
+        $this->primeSandboxConfig();
+        $invoice = $this->makeInvoice(17500);
+
+        $payments = Mockery::mock(PaymentsClient::class);
+        $payments->shouldReceive('create')->once()->andThrow(new SquareApiException(
+            message: 'API request failed',
+            statusCode: 400,
+            body: json_encode(['errors' => [[
+                'category' => 'PAYMENT_METHOD_ERROR',
+                'code' => 'GENERIC_DECLINE',
+                'detail' => 'Authorization error: GENERIC_DECLINE',
+            ]]]),
+        ));
+
+        $client = Mockery::mock(SquareClient::class);
+        $client->payments = $payments;
+
+        $refresher = Mockery::mock(SquareTokenRefresher::class);
+        $refresher->shouldReceive('refreshIfExpiring')->andReturnFalse();
+        $refresher->shouldNotReceive('refresh');
+
+        $result = (new SquareGateway($client, $refresher))->charge($invoice, 'cnon:abc');
+
+        $this->assertFalse($result->success);
+        $this->assertSame('Authorization error: GENERIC_DECLINE', $result->failureReason);
+    }
+
     public function test_verify_webhook_signature_returns_false_when_no_key_configured(): void
     {
         config([
@@ -199,6 +305,19 @@ class SquareGatewayTest extends TestCase
             'total_cents' => $amountDueCents,
             'amount_paid_cents' => 0,
         ]);
+    }
+
+    private function unauthorizedException(): SquareApiException
+    {
+        return new SquareApiException(
+            message: 'API request failed',
+            statusCode: 401,
+            body: json_encode(['errors' => [[
+                'category' => 'AUTHENTICATION_ERROR',
+                'code' => 'UNAUTHORIZED',
+                'detail' => 'This request could not be authorized.',
+            ]]]),
+        );
     }
 
     private function squareClientMockReturning(CreatePaymentResponse $response): SquareClient
