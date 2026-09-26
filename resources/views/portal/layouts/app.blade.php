@@ -55,6 +55,7 @@
         @media (max-width: 600px) {
             .field-grid, .field-grid--3 { grid-template-columns: 1fr; }
         }
+        .flash-error { margin: 0 0 16px; padding: 12px 16px; background: #fbe9e0; border: 1px solid #e2a48c; border-radius: 8px; font-size: 14px; color: #6e2d18; }
         .errors { margin: 0 0 16px; padding: 12px 16px; background: #fbe9e0; border: 1px solid #e2a48c; border-radius: 8px; font-size: 14px; color: #6e2d18; }
         .flash { margin: 0 0 16px; padding: 12px 16px; background: #e8f1e2; border: 1px solid #aac49a; border-radius: 8px; font-size: 14px; color: #355a26; }
         .auth-shell { display: flex; justify-content: center; padding: 48px 16px; min-height: 100vh; box-sizing: border-box; }
@@ -117,6 +118,10 @@
 
             @if (session('status'))
                 <div class="flash">{{ session('status') }}</div>
+            @endif
+
+            @if (session('status_error'))
+                <div class="flash-error" role="alert">{{ session('status_error') }}</div>
             @endif
 
             @if ($errors->any())

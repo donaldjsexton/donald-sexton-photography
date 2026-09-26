@@ -101,7 +101,7 @@ class PayPalPaymentController extends Controller
 
         return redirect()
             ->route('portal.invoices.show', ['invoice' => $invoice->uuid])
-            ->with('status', $message);
+            ->with($status === 200 ? 'status' : 'status_error', $message);
     }
 
     private function locate(string $uuid): Invoice

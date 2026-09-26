@@ -26,7 +26,7 @@ class SquarePaymentController extends Controller
         ]);
 
         if (! $gateway->isConfigured()) {
-            return back()->with('status', 'Online payments are not currently available. Please contact us to pay.');
+            return back()->with('status_error', 'Online payments are not currently available. Please contact us to pay.');
         }
 
         if ($invoiceModel->amountDueCents() <= 0) {
@@ -40,7 +40,9 @@ class SquarePaymentController extends Controller
         );
 
         if (! $result->success) {
-            return back()->with('status', 'Payment failed: '.$result->failureReason);
+            return back()->with('status_error', $result->failureReason === SquareGateway::UNAVAILABLE_MESSAGE
+                ? $result->failureReason
+                : 'Payment failed: '.$result->failureReason);
         }
 
         if (Payment::findByGatewayPaymentId(Payment::GATEWAY_SQUARE, $result->gatewayPaymentId)) {

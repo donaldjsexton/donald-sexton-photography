@@ -92,10 +92,46 @@ class SquarePaymentControllerTest extends TestCase
                 'source_id' => 'cnon:bad',
             ])
             ->assertRedirect(route('portal.invoices.show', ['invoice' => $invoice->uuid]))
-            ->assertSessionHas('status');
+            ->assertSessionHas('status_error', 'Payment failed: Card declined.')
+            ->assertSessionMissing('status');
 
         $this->assertSame(0, $invoice->fresh()->payments()->count());
         $this->assertSame(Invoice::STATUS_SENT, $invoice->fresh()->status);
+    }
+
+    public function test_credential_failure_shows_friendly_message_styled_as_error(): void
+    {
+        $client = Client::factory()->create();
+        $invoice = Invoice::factory()->sent()->create([
+            'billable_type' => Client::class, 'billable_id' => $client->id,
+            'total_cents' => 17500,
+        ]);
+
+        $this->bindGatewayMock(function ($mock) {
+            $mock->shouldReceive('isConfigured')->andReturnTrue();
+            $mock->shouldReceive('applicationId')->andReturn('app-id');
+            $mock->shouldReceive('locationId')->andReturn('loc-id');
+            $mock->shouldReceive('isLive')->andReturnFalse();
+            $mock->shouldReceive('mode')->andReturn('sandbox');
+            $mock->shouldReceive('charge')
+                ->once()
+                ->andReturn(PaymentResult::failed(SquareGateway::UNAVAILABLE_MESSAGE));
+        });
+
+        $this->actingAs($client, 'client')
+            ->from(route('portal.invoices.show', ['invoice' => $invoice->uuid]))
+            ->post(route('portal.invoices.pay.square', ['invoice' => $invoice->uuid]), [
+                'source_id' => 'cnon:abc',
+            ])
+            ->assertSessionHas('status_error', SquareGateway::UNAVAILABLE_MESSAGE);
+
+        $this->actingAs($client, 'client')
+            ->withSession(['status_error' => SquareGateway::UNAVAILABLE_MESSAGE])
+            ->get(route('portal.invoices.show', ['invoice' => $invoice->uuid]))
+            ->assertOk()
+            ->assertSee('<div class="flash-error" role="alert">', false)
+            ->assertSee(SquareGateway::UNAVAILABLE_MESSAGE)
+            ->assertDontSee('<div class="flash">', false);
     }
 
     public function test_charge_404s_for_other_clients_invoice(): void
@@ -125,7 +161,8 @@ class SquarePaymentControllerTest extends TestCase
             ->post(route('portal.invoices.pay.square', ['invoice' => $invoice->uuid]), [
                 'source_id' => 'cnon:abc',
             ])
-            ->assertRedirect(route('portal.invoices.show', ['invoice' => $invoice->uuid]));
+            ->assertRedirect(route('portal.invoices.show', ['invoice' => $invoice->uuid]))
+            ->assertSessionHas('status_error');
 
         $this->assertSame(0, $invoice->fresh()->payments()->count());
     }

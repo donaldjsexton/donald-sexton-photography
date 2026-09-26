@@ -11,6 +11,7 @@ use Square\Exceptions\SquareApiException;
 use Square\Exceptions\SquareException;
 use Square\Payments\Requests\CreatePaymentRequest;
 use Square\SquareClient;
+use Square\Types\CreatePaymentResponse;
 use Square\Types\Money;
 use Square\Utils\WebhooksHelper;
 use Throwable;
@@ -24,8 +25,15 @@ class SquareGateway
         'CAPTURED' => 'completed',
     ];
 
+    /**
+     * Shown to clients when Square rejects our credentials — the raw API
+     * error is logged instead, since it means nothing to the payer.
+     */
+    public const UNAVAILABLE_MESSAGE = 'Online payments are temporarily unavailable. Please contact us to complete your payment.';
+
     public function __construct(
         private readonly ?SquareClient $client = null,
+        private readonly ?SquareTokenRefresher $tokenRefresher = null,
     ) {}
 
     public function isConfigured(): bool
@@ -70,36 +78,27 @@ class SquareGateway
             return PaymentResult::failed('This invoice has no balance due.');
         }
 
+        $this->refresher()->refreshIfExpiring(SiteSetting::current());
+
         try {
-            $response = $this->squareClient()->payments->create(new CreatePaymentRequest([
-                'sourceId' => $sourceId,
-                'idempotencyKey' => (string) Str::uuid(),
-                'amountMoney' => new Money([
-                    'amount' => $amountCents,
-                    'currency' => $invoice->currency ?: 'USD',
-                ]),
-                'locationId' => $this->locationId(),
-                'referenceId' => $invoice->number,
-                'note' => 'Invoice '.$invoice->number,
-                'verificationToken' => $verificationToken,
-                'autocomplete' => true,
-                'buyerEmailAddress' => $invoice->client?->email,
-            ]));
+            $response = $this->createPayment($invoice, $amountCents, $sourceId, $verificationToken);
         } catch (SquareApiException $e) {
-            $reason = $this->extractErrorMessage($e);
-            Log::warning('Square payment API error', [
-                'invoice_id' => $invoice->id,
-                'reason' => $reason,
-            ]);
+            // An expired or revoked OAuth token surfaces as a 401; refresh it
+            // once and retry before giving up. The rejected attempt never
+            // reached the card, so the source token is still usable.
+            if (! $this->isAuthenticationFailure($e) || ! $this->refresher()->refresh(SiteSetting::current())) {
+                return $this->apiFailure($invoice, $e);
+            }
 
-            return PaymentResult::failed($reason, ['exception' => $e->getMessage()]);
+            try {
+                $response = $this->createPayment($invoice, $amountCents, $sourceId, $verificationToken);
+            } catch (SquareApiException $retryException) {
+                return $this->apiFailure($invoice, $retryException);
+            } catch (SquareException|Throwable $retryException) {
+                return $this->sdkFailure($invoice, $retryException);
+            }
         } catch (SquareException|Throwable $e) {
-            Log::error('Square payment SDK error', [
-                'invoice_id' => $invoice->id,
-                'message' => $e->getMessage(),
-            ]);
-
-            return PaymentResult::failed('Payment processor error. Please try again.', ['exception' => $e->getMessage()]);
+            return $this->sdkFailure($invoice, $e);
         }
 
         $payment = $response->getPayment();
@@ -146,6 +145,67 @@ class SquareGateway
         }
     }
 
+    private function createPayment(Invoice $invoice, int $amountCents, string $sourceId, ?string $verificationToken): CreatePaymentResponse
+    {
+        return $this->squareClient()->payments->create(new CreatePaymentRequest([
+            'sourceId' => $sourceId,
+            'idempotencyKey' => (string) Str::uuid(),
+            'amountMoney' => new Money([
+                'amount' => $amountCents,
+                'currency' => $invoice->currency ?: 'USD',
+            ]),
+            'locationId' => $this->locationId(),
+            'referenceId' => $invoice->number,
+            'note' => 'Invoice '.$invoice->number,
+            'verificationToken' => $verificationToken,
+            'autocomplete' => true,
+            'buyerEmailAddress' => $invoice->client?->email,
+        ]));
+    }
+
+    private function apiFailure(Invoice $invoice, SquareApiException $e): PaymentResult
+    {
+        $reason = $this->extractErrorMessage($e);
+
+        if ($this->isAuthenticationFailure($e)) {
+            Log::error('Square rejected the payment credentials', [
+                'invoice_id' => $invoice->id,
+                'status' => $e->getStatusCode(),
+                'reason' => $reason,
+                'mode' => $this->mode(),
+            ]);
+
+            return PaymentResult::failed(self::UNAVAILABLE_MESSAGE, ['exception' => $e->getMessage()]);
+        }
+
+        Log::warning('Square payment API error', [
+            'invoice_id' => $invoice->id,
+            'reason' => $reason,
+        ]);
+
+        return PaymentResult::failed($reason, ['exception' => $e->getMessage()]);
+    }
+
+    private function sdkFailure(Invoice $invoice, Throwable $e): PaymentResult
+    {
+        Log::error('Square payment SDK error', [
+            'invoice_id' => $invoice->id,
+            'message' => $e->getMessage(),
+        ]);
+
+        return PaymentResult::failed('Payment processor error. Please try again.', ['exception' => $e->getMessage()]);
+    }
+
+    private function isAuthenticationFailure(SquareApiException $e): bool
+    {
+        return in_array($e->getStatusCode(), [401, 403], true);
+    }
+
+    private function refresher(): SquareTokenRefresher
+    {
+        return $this->tokenRefresher ?? app(SquareTokenRefresher::class);
+    }
+
     private function squareClient(): SquareClient
     {
         if ($this->client) {
@@ -188,11 +248,12 @@ class SquareGateway
 
     private function extractErrorMessage(SquareApiException $e): string
     {
-        $body = $e->getBody();
-        if (is_array($body) && ! empty($body['errors'][0]['detail'])) {
-            return (string) $body['errors'][0]['detail'];
+        $detail = ($e->getErrors()[0] ?? null)?->getDetail();
+
+        if (filled($detail)) {
+            return $detail;
         }
 
-        return $e->getMessage() ?: 'Unknown payment error.';
+        return 'Unknown payment error.';
     }
 }

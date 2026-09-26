@@ -171,6 +171,27 @@ class PayPalPaymentControllerTest extends TestCase
         $this->assertSame(0, $invoice->fresh()->payments()->count());
     }
 
+    public function test_capture_flashes_failure_as_error_for_non_json_requests(): void
+    {
+        $client = Client::factory()->create();
+        $invoice = Invoice::factory()->sent()->create([
+            'billable_type' => Client::class, 'billable_id' => $client->id,
+            'total_cents' => 50000,
+        ]);
+
+        $this->bindGatewayMock(function ($mock) {
+            $mock->shouldReceive('captureOrder')->once()->andReturn(PaymentResult::failed('Card declined.'));
+        });
+
+        $this->actingAs($client, 'client')
+            ->post(route('portal.invoices.pay.paypal.capture', ['invoice' => $invoice->uuid]), [
+                'order_id' => 'PP-ORDER-FAIL',
+            ])
+            ->assertRedirect(route('portal.invoices.show', ['invoice' => $invoice->uuid]))
+            ->assertSessionHas('status_error', 'Payment failed: Card declined.')
+            ->assertSessionMissing('status');
+    }
+
     public function test_capture_validates_order_id(): void
     {
         $client = Client::factory()->create();
