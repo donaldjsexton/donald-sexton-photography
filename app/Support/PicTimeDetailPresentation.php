@@ -64,9 +64,23 @@ class PicTimeDetailPresentation
         return in_array($this->mode(), ['rich_local_gallery', 'gallery_first'], true);
     }
 
+    /**
+     * The imported gallery markup is a legacy copy of the same photos, so it
+     * only renders when no native gallery is showing them already.
+     */
     public function showImportedGallery(?string $galleryHtml): bool
     {
-        return filled($galleryHtml) && ($this->nativeGallery()->isEmpty() || ! $this->showNativeGallery());
+        if (blank($galleryHtml) || $this->hasClientGallery()) {
+            return false;
+        }
+
+        return $this->nativeGallery()->isEmpty() || ! $this->showNativeGallery();
+    }
+
+    private function hasClientGallery(): bool
+    {
+        return method_exists($this->record, 'hasClientGallery')
+            && $this->record->hasClientGallery();
     }
 
     public function narrativeBlocks(): array

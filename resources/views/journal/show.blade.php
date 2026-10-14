@@ -1,6 +1,7 @@
 @extends('layouts.app')
 
 @php
+    $presentation = $post->presentationContent();
     $bodyHtml = $post->detailBodyHtml();
     $pictime = \App\Support\PicTimeDetailPresentation::for($post, $bodyHtml, 'post');
     $showExternalFallback = $pictime->showExternalFallback();
@@ -8,6 +9,7 @@
     $hasNativeGallery = $pictime->showNativeGallery() && $nativeGalleryItems->isNotEmpty();
     $hasContent = filled($bodyHtml)
         || $hasNativeGallery
+        || $pictime->showImportedGallery($presentation['gallery_html'])
         || $pictime->showNarrativeSection()
         || $pictime->showEmbedSection()
         || $showExternalFallback;
@@ -76,6 +78,16 @@
             :alt-base="$post->title"
             :group="'post-'.$post->id"
         />
+    @endif
+
+    @if ($pictime->showImportedGallery($presentation['gallery_html']))
+        <section class="section">
+            <div class="page-shell--wide">
+                <div class="imported-story-gallery rich-text" data-reveal>
+                    {!! $presentation['gallery_html'] !!}
+                </div>
+            </div>
+        </section>
     @endif
 
     @if ($bodyHtml)
