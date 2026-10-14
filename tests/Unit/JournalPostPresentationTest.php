@@ -2,7 +2,10 @@
 
 namespace Tests\Unit;
 
+use App\Models\Gallery;
 use App\Models\JournalPost;
+use App\Models\Media;
+use App\Support\PicTimeDetailPresentation;
 use Tests\TestCase;
 
 class JournalPostPresentationTest extends TestCase
@@ -156,5 +159,107 @@ HTML,
                 rmdir($fixtureDir);
             }
         }
+    }
+
+    public function test_imported_gallery_is_split_out_of_the_reading_body(): void
+    {
+        $post = $this->importedPost();
+
+        $presentation = $post->presentationContent();
+
+        $this->assertNotNull($presentation['gallery_html']);
+        $this->assertStringContainsString('one.jpg', $presentation['gallery_html']);
+        $this->assertStringContainsString('two.jpg', $presentation['gallery_html']);
+        $this->assertStringContainsString('loading="lazy"', $presentation['gallery_html']);
+
+        $bodyHtml = (string) $post->detailBodyHtml();
+        $this->assertStringNotContainsString('one.jpg', $bodyHtml);
+        $this->assertStringNotContainsString('imported-gallery', $bodyHtml);
+        $this->assertStringContainsString('Lead paragraph', $bodyHtml);
+        $this->assertStringContainsString('closing paragraph', $bodyHtml);
+    }
+
+    public function test_every_imported_gallery_is_split_out_not_just_the_first(): void
+    {
+        $post = new JournalPost([
+            'body' => <<<'HTML'
+<figure class="imported-gallery"><figure class="imported-image"><img src="https://example.test/one.jpg" alt=""></figure></figure>
+<p>Between the galleries.</p>
+<figure class="imported-gallery"><figure class="imported-image"><img src="https://example.test/two.jpg" alt=""></figure></figure>
+HTML,
+            'original_wp_post_id' => 99,
+        ]);
+
+        $presentation = $post->presentationContent();
+
+        $this->assertStringContainsString('one.jpg', (string) $presentation['gallery_html']);
+        $this->assertStringContainsString('two.jpg', (string) $presentation['gallery_html']);
+        $this->assertSame('<p>Between the galleries.</p>', trim((string) $presentation['body_html']));
+    }
+
+    public function test_imported_gallery_is_hidden_when_a_native_gallery_shows_the_same_photos(): void
+    {
+        $post = $this->importedPost();
+        $post->setRelation('media', collect([
+            new Media(['disk' => 'public', 'path' => 'imports/one.jpg', 'filename' => 'one.jpg']),
+            new Media(['disk' => 'public', 'path' => 'imports/two.jpg', 'filename' => 'two.jpg']),
+        ]));
+
+        $pictime = PicTimeDetailPresentation::for($post, $post->detailBodyHtml(), 'post');
+
+        $this->assertTrue($pictime->showNativeGallery());
+        $this->assertFalse($pictime->showImportedGallery($post->presentationContent()['gallery_html']));
+    }
+
+    public function test_imported_gallery_renders_when_there_is_no_native_gallery(): void
+    {
+        $post = $this->importedPost();
+        $post->setRelation('media', collect());
+
+        $pictime = PicTimeDetailPresentation::for($post, $post->detailBodyHtml(), 'post');
+
+        $this->assertTrue($pictime->showImportedGallery($post->presentationContent()['gallery_html']));
+    }
+
+    public function test_imported_gallery_is_hidden_when_a_client_gallery_is_linked(): void
+    {
+        $post = $this->importedPost();
+        $post->gallery_id = 12;
+        $post->setRelation('media', collect());
+        $post->setRelation('clientGallery', new Gallery(['title' => 'Client Gallery']));
+
+        $pictime = PicTimeDetailPresentation::for($post, $post->detailBodyHtml(), 'post');
+
+        $this->assertFalse($pictime->showImportedGallery($post->presentationContent()['gallery_html']));
+    }
+
+    public function test_body_without_an_imported_gallery_is_left_untouched(): void
+    {
+        $post = new JournalPost([
+            'body' => '<p>Just prose.</p><p>More prose.</p>',
+            'original_wp_post_id' => 1234,
+        ]);
+
+        $presentation = $post->presentationContent();
+
+        $this->assertNull($presentation['gallery_html']);
+        $this->assertStringContainsString('Just prose.', (string) $presentation['body_html']);
+        $this->assertStringContainsString('More prose.', (string) $presentation['body_html']);
+    }
+
+    private function importedPost(): JournalPost
+    {
+        return new JournalPost([
+            'title' => 'Imported Post',
+            'body' => <<<'HTML'
+<p>Lead paragraph that stays in the reading section.</p>
+<figure class="imported-gallery">
+    <figure class="imported-image"><img src="https://example.test/one.jpg" alt=""></figure>
+    <figure class="imported-image"><img src="https://example.test/two.jpg" alt=""></figure>
+</figure>
+<p>This is the closing paragraph.</p>
+HTML,
+            'original_wp_post_id' => 40433,
+        ]);
     }
 }

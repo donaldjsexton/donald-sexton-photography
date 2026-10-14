@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Concerns\BelongsToSite;
 use App\Models\Concerns\HasBlocks;
 use App\Models\Concerns\InteractsWithPicTime;
+use App\Models\Concerns\PresentsImportedContent;
 use App\Support\PicTimeContent;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
@@ -21,6 +22,7 @@ class JournalPost extends Model
     use HasBlocks;
     use HasFactory;
     use InteractsWithPicTime;
+    use PresentsImportedContent;
 
     protected $fillable = [
         'site_id',
@@ -286,11 +288,25 @@ class JournalPost extends Model
         return $words ? Str::words($copy, $words) : $copy;
     }
 
+    /**
+     * @return array{hero_copy: ?string, gallery_html: ?string, body_html: ?string}
+     */
+    public function presentationContent(): array
+    {
+        return $this->importedPresentationContent(
+            trim((string) $this->sanitizedBody()),
+            $this->excerpt ?: PicTimeContent::excerpt($this->picTimeSourceMarkup()),
+            extractLead: false,
+        );
+    }
+
     public function detailBodyHtml(): ?string
     {
+        $presentation = $this->presentationContent();
+
         return $this->stripLeadingDuplicateParagraph(
-            $this->sanitizedBody(),
-            $this->excerpt ?: PicTimeContent::excerpt($this->picTimeSourceMarkup())
+            $presentation['body_html'] ?? null,
+            $presentation['hero_copy'] ?? $this->excerpt
         );
     }
 
