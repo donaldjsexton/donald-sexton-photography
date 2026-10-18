@@ -1273,6 +1273,7 @@ Artisan::command('pictime:attach-existing {--slug=*} {--include-archived} {--app
         'media_existing' => 0,
         'media_created' => 0,
         'files_attached' => 0,
+        'derivatives_skipped' => 0,
     ];
 
     foreach ($records as $record) {
@@ -1294,9 +1295,42 @@ Artisan::command('pictime:attach-existing {--slug=*} {--include-archived} {--app
             ->reject(fn (string $path) => Str::contains(
                 strtolower(pathinfo($path, PATHINFO_FILENAME)),
                 ['-thumb', '-thumbnail', '-640', '-1080', '-1600']
-            ))
+            ));
+
+        // Skip full-size encoded derivatives (e.g. `photo.webp` next to
+        // `photo.jpg`). The media optimizer generates these as <picture>
+        // sources served from the original's Media row; adopting them as
+        // their own rows renders every photo twice in the gallery.
+        $originalBasenames = $files
+            ->map(fn (string $path) => [
+                strtolower(pathinfo($path, PATHINFO_FILENAME)),
+                strtolower(pathinfo($path, PATHINFO_EXTENSION)),
+            ])
+            ->filter(fn (array $parts) => in_array($parts[1], ['jpg', 'jpeg', 'png'], true))
+            ->map(fn (array $parts) => $parts[0])
+            ->flip()
+            ->all();
+
+        $derivativeCount = 0;
+
+        $files = $files
+            ->reject(function (string $path) use ($originalBasenames, &$derivativeCount) {
+                if (! in_array(strtolower(pathinfo($path, PATHINFO_EXTENSION)), ['webp', 'avif'], true)) {
+                    return false;
+                }
+
+                $isDerivative = isset($originalBasenames[strtolower(pathinfo($path, PATHINFO_FILENAME))]);
+
+                if ($isDerivative) {
+                    $derivativeCount++;
+                }
+
+                return $isDerivative;
+            })
             ->sort()
             ->values();
+
+        $totals['derivatives_skipped'] += $derivativeCount;
 
         if ($files->isEmpty()) {
             $this->line('- '.class_basename($record)."/{$record->slug}: directory empty");
@@ -1378,6 +1412,85 @@ Artisan::command('pictime:attach-existing {--slug=*} {--include-archived} {--app
 
     return 0;
 })->purpose('Attach already-downloaded Pic-Time photos in storage/imports/pictime/{slug} to their posts');
+
+Artisan::command('media:detach-encoded-duplicates {--apply}', function () {
+    $apply = (bool) $this->option('apply');
+
+    if (! $apply) {
+        $this->components->info('Dry run — pass --apply to detach and delete.');
+    }
+
+    $originalExtensions = ['jpg', 'jpeg', 'png'];
+
+    $derivatives = Media::query()
+        ->where('disk', 'public')
+        ->where(fn ($query) => $query->where('path', 'like', '%.webp')->orWhere('path', 'like', '%.avif'))
+        ->get();
+
+    $totals = [
+        'derivatives_seen' => 0,
+        'detached' => 0,
+        'rows_deleted' => 0,
+        'skipped_no_original' => 0,
+        'skipped_hero' => 0,
+    ];
+
+    foreach ($derivatives as $media) {
+        $totals['derivatives_seen']++;
+
+        $directory = pathinfo($media->path, PATHINFO_DIRNAME);
+        $basename = pathinfo($media->path, PATHINFO_FILENAME);
+
+        $originalExists = Media::query()
+            ->where('disk', 'public')
+            ->where(function ($query) use ($directory, $basename, $originalExtensions) {
+                foreach ($originalExtensions as $extension) {
+                    $query->orWhere('path', "{$directory}/{$basename}.{$extension}");
+                }
+            })
+            ->exists();
+
+        if (! $originalExists) {
+            $totals['skipped_no_original']++;
+            $this->line("- #{$media->id} {$media->path}: no original sibling row, kept");
+
+            continue;
+        }
+
+        $isHero = WeddingStory::query()->where('hero_media_id', $media->id)->exists()
+            || JournalPost::query()->where('hero_media_id', $media->id)->exists();
+
+        if ($isHero) {
+            $totals['skipped_hero']++;
+            $this->line("- #{$media->id} {$media->path}: used as a hero image, kept");
+
+            continue;
+        }
+
+        $this->line("- #{$media->id} {$media->path}: detaching encoded duplicate");
+
+        if (! $apply) {
+            continue;
+        }
+
+        $media->pages()->detach();
+        $media->weddingStories()->detach();
+        $media->journalPosts()->detach();
+        $media->venues()->detach();
+        $media->delete();
+
+        $totals['detached']++;
+        $totals['rows_deleted']++;
+    }
+
+    $this->components->info($apply ? 'Detach complete.' : 'Dry run complete.');
+
+    foreach ($totals as $key => $value) {
+        $this->line("- {$key}: {$value}");
+    }
+
+    return 0;
+})->purpose('Detach Media rows that are encoded derivatives (photo.webp next to photo.jpg) so galleries stop rendering dupes');
 
 Artisan::command('pictime:audit {--include-archived} {--limit=0} {--deep}', function (PicTimeImporter $importer) {
     $includeArchived = (bool) $this->option('include-archived');
