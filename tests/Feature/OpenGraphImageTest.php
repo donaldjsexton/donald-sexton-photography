@@ -86,8 +86,9 @@ class OpenGraphImageTest extends TestCase
 
         $sessionCookie = (string) config('session.cookie');
 
-        // Control: a normal web route starts a session and sets its cookie.
-        $control = $this->get(route('weddings.show', $story->slug));
+        // Control: a route that needs a session (the inquiry form carries a CSRF
+        // token) starts one and sets its cookie. Public content pages no longer do.
+        $control = $this->get(route('inquiry.create'));
         $this->assertContains($sessionCookie, $this->responseCookieNames($control));
 
         // The OG route must not — otherwise every crawler hit (which never

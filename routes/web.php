@@ -64,6 +64,7 @@ use App\Http\Controllers\VenueController;
 use App\Http\Controllers\Webhooks\PayPalWebhookController;
 use App\Http\Controllers\Webhooks\SquareWebhookController;
 use App\Http\Controllers\WeddingStoryController;
+use App\Http\Middleware\CachePublicResponses;
 use App\Models\Site;
 use App\Models\SiteDomain;
 use App\Models\SiteSetting;
@@ -282,27 +283,27 @@ Route::prefix('admin')->name('admin.')->group(function () {
     });
 });
 
-Route::get('/', HomeController::class)->name('home');
+Route::get('/', HomeController::class)->name('home')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
 
 Route::get('/start', [OnboardingController::class, 'create'])->name('onboarding.create');
 Route::post('/start', [OnboardingController::class, 'store'])->name('onboarding.store');
 
-Route::get('/about', [PageController::class, 'about'])->name('pages.about');
-Route::get('/collections', [CollectionController::class, 'index'])->name('collections.index');
+Route::get('/about', [PageController::class, 'about'])->name('pages.about')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
+Route::get('/collections', [CollectionController::class, 'index'])->name('collections.index')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
 
-Route::get('/weddings', [WeddingStoryController::class, 'index'])->name('weddings.index');
-Route::get('/weddings/{slug}', [WeddingStoryController::class, 'show'])->name('weddings.show');
+Route::get('/weddings', [WeddingStoryController::class, 'index'])->name('weddings.index')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
+Route::get('/weddings/{slug}', [WeddingStoryController::class, 'show'])->name('weddings.show')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
 
-Route::get('/journal', [JournalController::class, 'index'])->name('journal.index');
+Route::get('/journal', [JournalController::class, 'index'])->name('journal.index')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
 Route::get('/journal/feed.atom', JournalFeedController::class)->name('journal.feed')->withoutMiddleware($statelessBotMiddleware);
-Route::get('/journal/category/{slug}', [JournalController::class, 'category'])->name('journal.category');
-Route::get('/journal/tag/{slug}', [JournalController::class, 'tag'])->name('journal.tag');
-Route::get('/journal/{slug}', [JournalController::class, 'show'])->name('journal.show');
+Route::get('/journal/category/{slug}', [JournalController::class, 'category'])->name('journal.category')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
+Route::get('/journal/tag/{slug}', [JournalController::class, 'tag'])->name('journal.tag')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
+Route::get('/journal/{slug}', [JournalController::class, 'show'])->name('journal.show')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
 
 Route::get('/venues/search', [VenueController::class, 'search'])->name('venues.search');
-Route::get('/venues', [VenueController::class, 'index'])->name('venues.index');
-Route::get('/venues/{slug}', [VenueController::class, 'show'])->name('venues.show');
-Route::get('/locations/{slug}', [PageController::class, 'location'])->name('pages.location');
+Route::get('/venues', [VenueController::class, 'index'])->name('venues.index')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
+Route::get('/venues/{slug}', [VenueController::class, 'show'])->name('venues.show')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
+Route::get('/locations/{slug}', [PageController::class, 'location'])->name('pages.location')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
 
 Route::withoutMiddleware($statelessBotMiddleware)->group(function () {
     Route::get('/og/wedding-stories/{slug}.png', [OpenGraphImageController::class, 'story'])->name('og.story');
@@ -310,8 +311,8 @@ Route::withoutMiddleware($statelessBotMiddleware)->group(function () {
     Route::get('/og/venues/{slug}.png', [OpenGraphImageController::class, 'venue'])->name('og.venue');
 });
 
-Route::get('/privacy-policy', [PageController::class, 'privacy'])->name('legal.privacy');
-Route::get('/terms-of-service', [PageController::class, 'terms'])->name('legal.terms');
+Route::get('/privacy-policy', [PageController::class, 'privacy'])->name('legal.privacy')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
+Route::get('/terms-of-service', [PageController::class, 'terms'])->name('legal.terms')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
 
 Route::get('/inquire', [InquiryController::class, 'create'])->name('inquiry.create');
 Route::post('/inquire', [InquiryController::class, 'store'])->name('inquiry.store');
@@ -469,4 +470,4 @@ Route::get('/robots.txt', function () {
     ]);
 })->name('robots')->withoutMiddleware($statelessBotMiddleware);
 
-Route::fallback(LegacyRedirectController::class);
+Route::fallback(LegacyRedirectController::class)->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
