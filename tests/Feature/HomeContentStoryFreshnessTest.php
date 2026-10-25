@@ -94,6 +94,36 @@ class HomeContentStoryFreshnessTest extends TestCase
         );
     }
 
+    public function test_stories_that_share_one_image_appear_once_and_the_pool_is_topped_up(): void
+    {
+        $twin = $this->createStory('Twin Story', now()->subHour());
+        WeddingStory::create([
+            'title' => 'Twin Story',
+            'slug' => 'twin-story-copy',
+            'status' => 'published',
+            'published_at' => now()->subHours(2),
+            'hero_media_id' => $twin->hero_media_id,
+        ]);
+        $distinct = collect(range(1, 5))
+            ->map(fn (int $index): WeddingStory => $this->createStory('Distinct Story '.$index, now()->subDays($index)));
+
+        $content = $this->homeContentWithFeaturedStories([]);
+
+        $imageUrls = $content->visualStoryPool()->map(fn (WeddingStory $story): ?string => $story->featuredImageUrl());
+
+        $this->assertSame($imageUrls->unique()->count(), $imageUrls->count(), 'No image may repeat in the visual pool.');
+        $this->assertSame(
+            [$twin->id, ...$distinct->take(4)->pluck('id')->all()],
+            $content->visualStoryPool()->modelKeys(),
+            'The pool keeps five distinct images by pulling in the next newest story.',
+        );
+        $this->assertNotSame(
+            $content->discoverLeftStory()?->featuredImageUrl(),
+            $content->discoverRightStory()?->featuredImageUrl(),
+            'The two discover photos must never be the same image.',
+        );
+    }
+
     /**
      * @param  array<int, int>  $featuredStoryIds
      */

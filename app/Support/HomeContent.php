@@ -21,6 +21,8 @@ class HomeContent
 
     private const HOME_STORY_POOL_LIMIT = 5;
 
+    private const VISUAL_POOL_TOP_UP_WINDOW = 30;
+
     /**
      * Homepage story slots handed to the most recently published wedding
      * stories before the admin's featured picks are used. Keeps newly
@@ -63,13 +65,38 @@ class HomeContent
         return $this->remember('featuredJournalPosts', fn (): EloquentCollection => $this->resolveJournalPosts($this->settings?->featured_journal_post_ids_json ?? []));
     }
 
+    /**
+     * Stories with a usable image, one per distinct image. Duplicate story rows
+     * can share a hero (imported twins), and the homepage must not show the
+     * same photo in two slots, so when duplicates shrink the pool it is topped
+     * back up from the newest published stories.
+     */
     public function visualStoryPool(): EloquentCollection
     {
-        return $this->remember('visualStoryPool', fn (): EloquentCollection => $this->homeStories()
-            ->concat($this->featuredStories())
-            ->unique('id')
-            ->filter(fn ($story) => filled($story?->featuredImageUrl()))
-            ->values());
+        return $this->remember('visualStoryPool', function (): EloquentCollection {
+            $pool = $this->homeStories()
+                ->concat($this->featuredStories())
+                ->unique('id')
+                ->filter(fn ($story) => filled($story?->featuredImageUrl()))
+                ->unique(fn ($story): string => (string) $story->featuredImageUrl())
+                ->values();
+
+            if ($pool->count() >= self::HOME_STORY_POOL_LIMIT) {
+                return $pool;
+            }
+
+            $usedImages = $pool->map(fn ($story): string => (string) $story->featuredImageUrl())->all();
+
+            $topUp = $this->recentStoriesQuery()
+                ->whereNotIn('id', $pool->modelKeys())
+                ->limit(self::VISUAL_POOL_TOP_UP_WINDOW)
+                ->get()
+                ->filter(fn ($story) => filled($story->featuredImageUrl()) && ! in_array((string) $story->featuredImageUrl(), $usedImages, true))
+                ->unique(fn ($story): string => (string) $story->featuredImageUrl())
+                ->take(self::HOME_STORY_POOL_LIMIT - $pool->count());
+
+            return $pool->concat($topUp)->values();
+        });
     }
 
     public function leadStory(): ?WeddingStory
