@@ -32,7 +32,7 @@
             @endif
 
             <div class="google-reviews__summary">
-                <span class="google-reviews__rating" aria-label="{{ $rating }} out of 5 stars">
+                <span class="google-reviews__rating" role="img" aria-label="{{ $rating }} out of 5 stars">
                     <span class="google-reviews__stars" aria-hidden="true">
                         @for ($i = 1; $i <= 5; $i++)
                             <span @class([
@@ -54,7 +54,7 @@
                 <ul class="google-reviews__list">
                     @foreach ($recent as $review)
                         <li class="google-reviews__card">
-                            <p class="google-reviews__card-stars" aria-label="{{ $review['rating'] }} out of 5 stars">
+                            <p class="google-reviews__card-stars" role="img" aria-label="{{ $review['rating'] }} out of 5 stars">
                                 @for ($i = 1; $i <= 5; $i++)
                                     <span @class([
                                         'google-reviews__star',
