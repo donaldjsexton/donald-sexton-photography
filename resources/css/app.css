@@ -3210,7 +3210,7 @@ textarea {
 .home-discover__copy {
     max-width: 28rem;
     margin: 2.5rem 0 0;
-    color: #8c8c8c;
+    color: var(--muted);
     font-size: 0.98rem;
 }
 
@@ -5370,14 +5370,14 @@ body.media-picker-modal-open {
     flex-wrap: wrap;
     justify-content: space-between;
     gap: 0.5rem;
-    color: #888;
+    color: #6b6b6b;
     font-size: 0.8rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
 }
 
 .google-reviews__card-date {
-    color: #aaa;
+    color: #767676;
 }
 
 @media (max-width: 768px) {
@@ -6893,7 +6893,7 @@ a.client-feed__link:hover {
 
 .home-hero__reassurance {
     margin: 0.75rem 0 0;
-    color: var(--muted);
+    color: #b5ada1;
     font-size: 0.9rem;
     letter-spacing: 0.02em;
 }
