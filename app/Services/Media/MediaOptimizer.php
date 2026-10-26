@@ -510,6 +510,18 @@ class MediaOptimizer
         $force = (bool) ($options['force'] ?? false);
         $dryRun = (bool) ($options['dry_run'] ?? false);
 
+        // Decoding a full-size photo is the expensive part of a run, so a re-run
+        // must not pay for images whose variants are already on disk.
+        $settled = $this->settledVariantResults($media, $format, $widths, $this->orientedWidth($absolutePath, $mime, $imageInfo), $storage, $force);
+
+        if ($settled !== null) {
+            return [
+                'status' => 'skipped',
+                'reason' => 'no_change',
+                'variants' => $settled,
+            ];
+        }
+
         $source = $this->gd->decode($absolutePath, $mime);
 
         if (! $source instanceof \GdImage) {
@@ -658,6 +670,65 @@ class MediaOptimizer
             'reason' => $changed ? null : 'no_change',
             'variants' => $results,
         ];
+    }
+
+    /**
+     * The per-width results when no width needs encoding (the variant file already
+     * exists, or the source is not wider than the target), or null when at least
+     * one variant still has to be generated and the source must be decoded.
+     *
+     * @param  array<int,int>  $widths
+     * @return array<int,array<string,mixed>>|null
+     */
+    private function settledVariantResults(Media $media, string $format, array $widths, int $sourceWidth, Filesystem $storage, bool $force): ?array
+    {
+        $results = [];
+
+        foreach ($widths as $width) {
+            if ($width >= $sourceWidth) {
+                $results[] = ['width' => $width, 'created' => false, 'updated' => false, 'bytes' => null, 'reason' => 'source_smaller_than_target'];
+
+                continue;
+            }
+
+            $variantPath = $format === 'avif' ? $media->avifVariantPath($width) : $media->webpVariantPath($width);
+
+            if ($variantPath === null) {
+                $results[] = ['width' => $width, 'created' => false, 'updated' => false, 'bytes' => null, 'reason' => 'unsupported_extension'];
+
+                continue;
+            }
+
+            if ($force || ! $storage->exists($variantPath)) {
+                return null;
+            }
+
+            $results[] = ['width' => $width, 'created' => false, 'updated' => false, 'bytes' => (int) $storage->size($variantPath), 'reason' => 'already_exists'];
+        }
+
+        return $results;
+    }
+
+    /**
+     * Pixel width after EXIF rotation, read from headers without decoding the image.
+     *
+     * @param  array<int|string,mixed>  $imageInfo
+     */
+    private function orientedWidth(string $absolutePath, string $mime, array $imageInfo): int
+    {
+        $width = (int) $imageInfo[0];
+
+        if ($mime !== 'image/jpeg' || ! function_exists('exif_read_data')) {
+            return $width;
+        }
+
+        try {
+            $orientation = (int) (@exif_read_data($absolutePath)['Orientation'] ?? 1);
+        } catch (\Throwable) {
+            return $width;
+        }
+
+        return in_array($orientation, [5, 6, 7, 8], true) ? (int) $imageInfo[1] : $width;
     }
 
     /**

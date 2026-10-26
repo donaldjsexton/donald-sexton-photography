@@ -262,12 +262,13 @@ Artisan::command('media:optimize {--disk=public} {--path-prefix=} {--from-id=0} 
     return $summary['errors'] === 0 ? 0 : 1;
 })->purpose('Resize and recompress media files, with optional WebP generation');
 
-Artisan::command('media:generate-variants {--disk=public} {--path-prefix=} {--from-id=0} {--to-id=0} {--limit=0} {--widths=640,1080} {--webp-quality=80} {--avif-quality=50} {--force} {--dry-run} {--summary-only}', function (MediaOptimizer $optimizer) {
+Artisan::command('media:generate-variants {--disk=public} {--path-prefix=} {--from-id=0} {--to-id=0} {--limit=0} {--widths=640,1080} {--webp-quality=80} {--avif-quality=50} {--sleep-ms=0} {--force} {--dry-run} {--summary-only}', function (MediaOptimizer $optimizer) {
     $disk = (string) $this->option('disk');
     $pathPrefix = trim((string) $this->option('path-prefix'));
     $fromId = max(0, (int) $this->option('from-id'));
     $toId = max(0, (int) $this->option('to-id'));
     $limit = max(0, (int) $this->option('limit'));
+    $sleepMs = max(0, (int) $this->option('sleep-ms'));
     $summaryOnly = (bool) $this->option('summary-only');
     $widths = collect(explode(',', (string) $this->option('widths')))
         ->map(fn ($value) => (int) trim((string) $value))
@@ -369,6 +370,10 @@ Artisan::command('media:generate-variants {--disk=public} {--path-prefix=} {--fr
 
         if ($changed) {
             $summary['files_changed']++;
+
+            if ($sleepMs > 0) {
+                usleep($sleepMs * 1000);
+            }
         }
 
         if (! $summaryOnly) {
