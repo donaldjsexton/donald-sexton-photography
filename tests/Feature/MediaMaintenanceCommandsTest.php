@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Media;
 use App\Models\User;
+use App\Services\Media\GdImageProcessor;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Artisan;
@@ -412,6 +413,105 @@ class MediaMaintenanceCommandsTest extends TestCase
         $this->assertNotNull($avifSrcset);
         $this->assertStringContainsString(' 640w', $avifSrcset);
         $this->assertStringContainsString(' 1080w', $avifSrcset);
+    }
+
+    public function test_generate_variants_rerun_does_not_decode_images_whose_variants_exist(): void
+    {
+        Storage::fake('public');
+
+        $decoder = $this->countingDecoder();
+        $this->app->instance(GdImageProcessor::class, $decoder);
+
+        $path = 'imports/pictime/rerun/source.jpg';
+        Storage::disk('public')->put($path, $this->makeJpegBytes(1600, 1066, 90));
+        $this->createMediaFor($path);
+
+        $arguments = ['--disk' => 'public', '--path-prefix' => 'imports/pictime/rerun', '--widths' => '640,1080'];
+
+        Artisan::call('media:generate-variants', $arguments);
+
+        $this->assertTrue(Storage::disk('public')->exists('imports/pictime/rerun/source-640.webp'));
+        $this->assertGreaterThan(0, $decoder->decodes, 'The first run has to decode the source.');
+
+        $decoder->decodes = 0;
+        Artisan::call('media:generate-variants', $arguments);
+
+        $this->assertSame(0, $decoder->decodes, 'A re-run must not decode images that already have every variant.');
+        $this->assertStringContainsString('variants created: 0', Artisan::output());
+    }
+
+    public function test_generate_variants_still_decodes_when_a_variant_is_missing_or_forced(): void
+    {
+        Storage::fake('public');
+
+        $decoder = $this->countingDecoder();
+        $this->app->instance(GdImageProcessor::class, $decoder);
+
+        $path = 'imports/pictime/partial/source.jpg';
+        Storage::disk('public')->put($path, $this->makeJpegBytes(1600, 1066, 90));
+        $this->createMediaFor($path);
+
+        $arguments = ['--disk' => 'public', '--path-prefix' => 'imports/pictime/partial', '--widths' => '640,1080'];
+
+        Artisan::call('media:generate-variants', $arguments);
+        Storage::disk('public')->delete('imports/pictime/partial/source-1080.webp');
+
+        $decoder->decodes = 0;
+        Artisan::call('media:generate-variants', $arguments);
+
+        $this->assertGreaterThan(0, $decoder->decodes);
+        $this->assertTrue(Storage::disk('public')->exists('imports/pictime/partial/source-1080.webp'));
+
+        $decoder->decodes = 0;
+        Artisan::call('media:generate-variants', $arguments + ['--force' => true]);
+
+        $this->assertGreaterThan(0, $decoder->decodes, '--force must regenerate even when files exist.');
+    }
+
+    public function test_generate_variants_accepts_a_throttle_between_files(): void
+    {
+        Storage::fake('public');
+
+        $path = 'imports/pictime/throttle/source.jpg';
+        Storage::disk('public')->put($path, $this->makeJpegBytes(1600, 1066, 90));
+        $this->createMediaFor($path);
+
+        $exitCode = Artisan::call('media:generate-variants', [
+            '--disk' => 'public',
+            '--path-prefix' => 'imports/pictime/throttle',
+            '--widths' => '640',
+            '--sleep-ms' => 5,
+        ]);
+
+        $this->assertSame(0, $exitCode);
+        $this->assertTrue(Storage::disk('public')->exists('imports/pictime/throttle/source-640.webp'));
+    }
+
+    private function countingDecoder(): GdImageProcessor
+    {
+        return new class extends GdImageProcessor
+        {
+            public int $decodes = 0;
+
+            public function decode(string $absolutePath, string $mime): ?\GdImage
+            {
+                $this->decodes++;
+
+                return parent::decode($absolutePath, $mime);
+            }
+        };
+    }
+
+    private function createMediaFor(string $path): Media
+    {
+        return Media::create([
+            'disk' => 'public',
+            'path' => $path,
+            'filename' => basename($path),
+            'mime_type' => 'image/jpeg',
+            'width' => 1600,
+            'height' => 1066,
+        ]);
     }
 
     private function makeJpegBytes(int $width, int $height, int $quality): string
