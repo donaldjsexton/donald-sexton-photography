@@ -43,6 +43,64 @@ class AiSearchVisibilityTest extends TestCase
         $this->assertSame(0, FloridaGeo::correctStoredSettings());
     }
 
+    public function test_blank_address_still_corrects_florida_magnitude_coordinates(): void
+    {
+        SiteSetting::create([
+            'business_latitude' => 27.95,
+            'business_longitude' => 82.787,
+            'business_street_address' => '1153 Lakeview Rd',
+            'business_postal_code' => '33756',
+            'business_locality' => null,
+            'business_region' => null,
+            'business_country' => null,
+        ]);
+
+        $response = $this->get('/');
+
+        $response->assertOk();
+        $this->assertValidJsonLd($response->getContent());
+        $response
+            ->assertSee('"addressLocality":"Clearwater"', false)
+            ->assertSee('"addressRegion":"FL"', false)
+            ->assertSee('"latitude":27.95', false)
+            ->assertSee('"longitude":-82.787', false)
+            ->assertDontSee('"longitude":82.787', false);
+
+        $this->assertSame(1, FloridaGeo::correctStoredSettings());
+        $this->assertEqualsWithDelta(-82.787, (float) SiteSetting::query()->first()->business_longitude, 0.00001);
+    }
+
+    public function test_dotted_florida_region_and_clearwater_locality_are_corrected(): void
+    {
+        SiteSetting::create([
+            'business_latitude' => 27.95,
+            'business_longitude' => 82.787,
+            'business_locality' => 'Clearwater Beach',
+            'business_region' => 'F.L.',
+            'business_country' => 'US',
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('"longitude":-82.787', false);
+    }
+
+    public function test_non_us_country_keeps_a_positive_eastern_longitude(): void
+    {
+        SiteSetting::create([
+            'business_latitude' => 27.95,
+            'business_longitude' => 82.787,
+            'business_locality' => null,
+            'business_region' => null,
+            'business_country' => 'IN',
+        ]);
+
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('"longitude":82.787', false)
+            ->assertDontSee('"longitude":-82.787', false);
+    }
+
     public function test_non_florida_positive_longitude_is_left_alone(): void
     {
         SiteSetting::create([

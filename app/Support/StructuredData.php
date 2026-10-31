@@ -187,11 +187,13 @@ class StructuredData
             $settings->business_latitude,
             $settings->business_region,
             $settings->business_locality,
+            $settings->business_country,
         );
         $lng = FloridaGeo::longitude(
             $settings->business_longitude,
             $settings->business_region,
             $settings->business_locality,
+            $settings->business_country,
         );
 
         if ($lat === null || $lng === null) {
