@@ -20,7 +20,7 @@ class LlmsTxtController extends Controller
             '',
             '> Calm, documentary wedding photography for Clearwater, Tampa, St. Petersburg, Sarasota, and the rest of Florida.',
             '',
-            'Donald Sexton photographs weddings, engagements, and elopements with a quiet, story-first approach. Coverage is built on hours, with collections that scale from six-hour days to full multi-day events. Inquiries are answered personally, usually within a couple of business days.',
+            'Donald Sexton photographs weddings, engagements, and elopements with a quiet, story-first approach. Coverage is built on hours, with collections that scale from six-hour days to full multi-day events. Inquiries are answered personally, usually within 24 hours.',
             '',
             '## Key pages',
             '',
@@ -29,6 +29,8 @@ class LlmsTxtController extends Controller
             '- [Collections]('.route('collections.index').'): Coverage tiers, hours, starting prices, and add-ons.',
             '- [Journal]('.route('journal.index').'): Recent posts covering real weddings, engagements, planning advice, and venue notes.',
             '- [Venues]('.route('venues.index').'): Florida wedding venues with notes from photographing them.',
+            '- [Honeymoon Island elopements]('.route('venues.show', 'romantic-honeymoon-island-weddings').'): Elopements and small weddings on Honeymoon Island in Dunedin, with the Lauren and Jonathan engagement session.',
+            '- [Hilton Clearwater Beach weddings]('.route('venues.show', 'hilton-clearwater-beach-resort-and-spa').'): The Krysinsky wedding at Hilton Clearwater Beach Resort & Spa.',
             '- [Check Availability]('.route('inquiry.create').'): Inquiry form for date and venue. Includes FAQ on travel, pricing, and style.',
         ];
 
@@ -40,6 +42,8 @@ class LlmsTxtController extends Controller
             ->limit(self::RECENT_LIMIT)
             ->get();
 
+        $seenUrls = [];
+
         if ($stories->isNotEmpty()) {
             $lines[] = '';
             $lines[] = '## Recent wedding stories';
@@ -47,10 +51,13 @@ class LlmsTxtController extends Controller
 
             foreach ($stories as $story) {
                 $lines[] = self::storyEntry($story);
+                $seenUrls[route('weddings.show', $story->slug)] = true;
             }
         }
 
         $posts = JournalPost::published()
+            ->withoutArchivedSlugDuplicates()
+            ->with('venues')
             ->whereNotIn('slug', WeddingStory::published()->select('slug'))
             ->orderByRaw('CASE WHEN published_at IS NULL THEN 1 ELSE 0 END')
             ->orderByDesc('published_at')
@@ -58,13 +65,26 @@ class LlmsTxtController extends Controller
             ->limit(self::RECENT_LIMIT)
             ->get();
 
-        if ($posts->isNotEmpty()) {
+        $journalLines = [];
+
+        foreach ($posts as $post) {
+            $url = $post->listingUrl();
+
+            if (isset($seenUrls[$url])) {
+                continue;
+            }
+
+            $seenUrls[$url] = true;
+            $journalLines[] = self::postEntry($post);
+        }
+
+        if ($journalLines !== []) {
             $lines[] = '';
             $lines[] = '## Recent journal posts';
             $lines[] = '';
 
-            foreach ($posts as $post) {
-                $lines[] = self::postEntry($post);
+            foreach ($journalLines as $journalLine) {
+                $lines[] = $journalLine;
             }
         }
 
@@ -111,7 +131,7 @@ class LlmsTxtController extends Controller
 
     private static function storyEntry(WeddingStory $story): string
     {
-        $url = $story->canonical_url ?: route('weddings.show', $story->slug);
+        $url = route('weddings.show', $story->slug);
         $summary = self::oneLineSummary(
             $story->seo_description ?: $story->summaryText(40)
         );
@@ -135,12 +155,15 @@ class LlmsTxtController extends Controller
 
     private static function postEntry(JournalPost $post): string
     {
-        $url = $post->canonical_url ?: route('journal.show', $post->slug);
+        $url = $post->listingUrl();
+        $keptOriginalTitle = $post->listingTitle() === trim((string) $post->title);
         $summary = self::oneLineSummary(
-            $post->seo_description ?: $post->excerpt ?: $post->summaryText(40)
+            $keptOriginalTitle
+                ? ($post->seo_description ?: $post->excerpt ?: $post->summaryText(40))
+                : ($post->excerpt ?: $post->summaryText(40))
         );
 
-        $line = '- ['.$post->title.']('.$url.')';
+        $line = '- ['.$post->listingTitle().']('.$url.')';
 
         if ($summary !== '') {
             $line .= ': '.$summary;

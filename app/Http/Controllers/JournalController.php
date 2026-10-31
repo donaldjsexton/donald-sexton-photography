@@ -53,6 +53,10 @@ class JournalController extends Controller
 
     public function show(string $slug): View|RedirectResponse
     {
+        if ($redirect = $this->redirectArchivedDuplicate($slug)) {
+            return $redirect;
+        }
+
         if (WeddingStory::published()->where('slug', $slug)->exists()) {
             return redirect()->route('weddings.show', $slug, 301);
         }
@@ -71,6 +75,7 @@ class JournalController extends Controller
                 'post' => $post,
                 'relatedPosts' => JournalPost::relatedTo($post, 3),
                 'relatedStories' => JournalPost::relatedStoriesTo($post, 3),
+                'noindex' => $post->isArchivedSlugDuplicate(),
             ]);
         }
 
@@ -88,6 +93,7 @@ class JournalController extends Controller
     private function basePostQuery(): Builder
     {
         return JournalPost::published()
+            ->withoutArchivedSlugDuplicates()
             ->whereNotIn('slug', WeddingStory::published()->select('slug'))
             ->where(function ($query) {
                 $query->whereNull('canonical_url')
@@ -103,23 +109,40 @@ class JournalController extends Controller
 
     private function matchingWeddingStory(JournalPost $post): ?WeddingStory
     {
-        if (filled($post->canonical_url)) {
-            $match = WeddingStory::published()
-                ->where('canonical_url', $post->canonical_url)
-                ->first();
+        return $post->supersedingWeddingStory();
+    }
 
-            if ($match) {
-                return $match;
-            }
+    /**
+     * `-archived-{id}` slugs are leftover copies of a published post. Send them
+     * to that post, or straight to the wedding story it already redirects to,
+     * so the duplicate is not a second indexable URL.
+     */
+    private function redirectArchivedDuplicate(string $slug): ?RedirectResponse
+    {
+        if (preg_match('/^(?P<base>.+)-archived-\d+$/', $slug, $matches) !== 1) {
+            return null;
         }
 
-        if (filled($post->original_wp_url)) {
-            return WeddingStory::published()
-                ->where(function ($query) use ($post) {
-                    $query->where('canonical_url', $post->original_wp_url)
-                        ->orWhere('original_wp_url', $post->original_wp_url);
-                })
-                ->first();
+        $base = $matches['base'];
+
+        if (WeddingStory::published()->where('slug', $base)->exists()) {
+            return redirect()->route('weddings.show', $base, 301);
+        }
+
+        $canonicalPost = JournalPost::published()->where('slug', $base)->first();
+
+        if ($canonicalPost) {
+            if ($story = $canonicalPost->supersedingWeddingStory()) {
+                return redirect()->route('weddings.show', $story->slug, 301);
+            }
+
+            return redirect()->route('journal.show', $canonicalPost->slug, 301);
+        }
+
+        $archivedPost = JournalPost::published()->where('slug', $slug)->first();
+
+        if ($archivedPost && ($story = $archivedPost->supersedingWeddingStory())) {
+            return redirect()->route('weddings.show', $story->slug, 301);
         }
 
         return null;

@@ -42,13 +42,18 @@
             'publisher' => ['@id' => \App\Support\StructuredData::organizationId()],
         ];
         $businessSchema = \App\Support\StructuredData::organization();
+        $robots = trim(htmlspecialchars_decode(trim($__env->yieldContent('robots')), ENT_QUOTES | ENT_HTML5));
+
+        if ($robots === '') {
+            $robots = 'index,follow,max-image-preview:large';
+        }
     @endphp
     <title>{!! $metaTitle !!}</title>
     <meta name="description" content="{!! $metaDescription !!}">
     @if ($canonicalUrl !== '')
         <link rel="canonical" href="{!! $canonicalUrl !!}">
     @endif
-    <meta name="robots" content="index,follow,max-image-preview:large">
+    <meta name="robots" content="{{ $robots }}">
     <meta name="author" content="Donald Sexton Photography">
     @foreach (($siteSettings?->verificationMetas() ?? []) as $name => $content)
         <meta name="{{ $name }}" content="{{ $content }}">

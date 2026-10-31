@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Venue;
+use App\Support\VenueLandingCopy;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -47,20 +48,37 @@ class VenueController extends Controller
         $venue = Venue::query()
             ->with('heroMedia')
             ->where('slug', $slug)
-            ->firstOrFail();
+            ->first();
+
+        if (! $venue) {
+            $venue = VenueLandingCopy::make($slug);
+        }
+
+        if (! $venue) {
+            abort(404);
+        }
+
+        VenueLandingCopy::applyFallbacks($venue);
+
+        $stories = ($venue->exists
+            ? $venue->weddingStories()->published()->with('heroMedia')->latest('published_at')->get()
+            : new Collection)
+            ->concat(VenueLandingCopy::relatedStories($venue))
+            ->unique('id')
+            ->values();
+
+        $posts = ($venue->exists
+            ? $venue->journalPosts()->published()->with('heroMedia')->latest('published_at')->get()
+            : new Collection)
+            ->concat(VenueLandingCopy::relatedPosts($venue))
+            ->unique('id')
+            ->filter(fn ($post) => ! $post->isArchivedSlugDuplicate())
+            ->values();
 
         return view('venues.show', [
             'venue' => $venue,
-            'stories' => $venue->weddingStories()
-                ->published()
-                ->with('heroMedia')
-                ->latest('published_at')
-                ->get(),
-            'posts' => $venue->journalPosts()
-                ->published()
-                ->with('heroMedia')
-                ->latest('published_at')
-                ->get(),
+            'stories' => $stories,
+            'posts' => $posts,
             'nearbyVenues' => $this->nearbyVenues($venue),
         ]);
     }
@@ -73,7 +91,7 @@ class VenueController extends Controller
     {
         $query = Venue::query()
             ->with('heroMedia')
-            ->where('id', '!=', $venue->id)
+            ->when($venue->exists, fn ($inner) => $inner->where('id', '!=', $venue->id))
             ->where(function ($q) use ($venue): void {
                 if ($venue->city) {
                     $q->orWhere('city', $venue->city);

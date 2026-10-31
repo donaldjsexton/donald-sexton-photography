@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Redirect;
 use App\Models\WeddingStory;
+use App\Support\VenueLandingCopy;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\View\View;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
@@ -44,6 +45,7 @@ class WeddingStoryController extends Controller
             'story' => $story,
             'relatedStories' => WeddingStory::similarTo($story, 3),
             'relatedPosts' => WeddingStory::relatedPostsTo($story, 3),
+            'venueNote' => VenueLandingCopy::storyVenueNote($story),
         ]);
     }
 }

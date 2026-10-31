@@ -183,15 +183,20 @@ class StructuredData
      */
     private static function geoCoordinates(SiteSetting $settings): ?array
     {
-        $lat = $settings->business_latitude;
-        $lng = $settings->business_longitude;
+        $lat = FloridaGeo::latitude(
+            $settings->business_latitude,
+            $settings->business_region,
+            $settings->business_locality,
+        );
+        $lng = FloridaGeo::longitude(
+            $settings->business_longitude,
+            $settings->business_region,
+            $settings->business_locality,
+        );
 
         if ($lat === null || $lng === null) {
             return null;
         }
-
-        $lat = (float) $lat;
-        $lng = (float) $lng;
 
         if ($lat === 0.0 && $lng === 0.0) {
             return null;
@@ -277,7 +282,7 @@ class StructuredData
      */
     public static function journalPost(JournalPost $post): array
     {
-        $canonical = $post->canonical_url ?: route('journal.show', $post->slug);
+        $canonical = $post->seoCanonicalUrl() ?: route('journal.show', $post->slug);
         $featuredImage = method_exists($post, 'featuredImageUrl') ? $post->featuredImageUrl() : null;
 
         $author = filled($post->author_name)
@@ -499,7 +504,7 @@ class StructuredData
      */
     public static function weddingStory(WeddingStory $story, Collection $galleryMedia): array
     {
-        $canonical = $story->canonical_url ?: route('weddings.show', $story->slug);
+        $canonical = $story->seoCanonicalUrl() ?: route('weddings.show', $story->slug);
         $featuredImage = $story->featuredImageUrl();
 
         $images = $galleryMedia
