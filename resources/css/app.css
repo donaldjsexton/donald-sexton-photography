@@ -7074,3 +7074,6 @@ a.client-feed__link:hover {
     border: 1px dashed rgba(20, 14, 8, 0.22);
     border-radius: 0.75rem;
 }
+
+form:tool-form-active { outline: 2px solid currentColor; outline-offset: 6px; }
+button:tool-submit-active { box-shadow: 0 0 0 3px rgba(0,0,0,.25); }

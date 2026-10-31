@@ -1323,6 +1323,17 @@ if (multistepForm) {
             }
         });
 
+        if (document.modelContext && typeof document.modelContext.addEventListener === 'function') {
+            document.modelContext.addEventListener('toolactivated', ({ toolName }) => {
+                if (toolName !== multistepForm.getAttribute('toolname')) {
+                    return;
+                }
+
+                currentStep = steps.length;
+                showStep(currentStep);
+            });
+        }
+
         showStep(currentStep);
     }
 }
