@@ -13,7 +13,7 @@
         || $pictime->showNarrativeSection()
         || $pictime->showEmbedSection()
         || $showExternalFallback;
-    $canonicalForSchema = $post->canonical_url ?: url()->current();
+    $canonicalForSchema = $post->seoCanonicalUrl() ?: url()->current();
     $featuredImageForSchema = method_exists($post, 'featuredImageUrl') ? $post->featuredImageUrl() : null;
     $articleSchema = \App\Support\StructuredData::journalPost($post);
     $breadcrumbSchema = \App\Support\StructuredData::breadcrumbList([
@@ -32,6 +32,9 @@
 @section('og_article_published_time', $post->published_at?->toIso8601String() ?: '')
 @section('og_article_modified_time', $post->updated_at?->toIso8601String() ?: '')
 @section('og_article_author', $post->author_name ?: '')
+@if (! empty($noindex))
+    @section('robots', 'noindex, follow')
+@endif
 
 @push('json_ld')
     <script type="application/ld+json">{!! json_encode($articleSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>

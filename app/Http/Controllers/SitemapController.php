@@ -8,6 +8,7 @@ use App\Models\Media;
 use App\Models\Page;
 use App\Models\Venue;
 use App\Models\WeddingStory;
+use App\Support\VenueLandingCopy;
 use Illuminate\Http\Response;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
@@ -108,6 +109,7 @@ class SitemapController extends Controller
             });
 
         JournalPost::published()
+            ->withoutArchivedSlugDuplicates()
             ->select(['id', 'slug', 'title', 'hero_media_id', 'updated_at', 'published_at'])
             ->with(['heroMedia' => $heroMedia, 'media' => $gallery])
             ->chunkById(self::CHUNK_SIZE, function ($posts) use ($entries): void {
@@ -132,6 +134,10 @@ class SitemapController extends Controller
                     ));
                 }
             });
+
+        foreach (VenueLandingCopy::slugs() as $slug) {
+            $entries->push($this->entry(route('venues.show', $slug)));
+        }
 
         return $entries
             ->unique('loc')

@@ -217,6 +217,7 @@ class HomeContent
         $selectedIds = $this->sanitizeIds($ids);
 
         $posts = JournalPost::published()
+            ->withoutArchivedSlugDuplicates()
             ->with('heroMedia')
             ->when($selectedIds !== [], fn ($query) => $query->whereIn('id', $selectedIds))
             ->orderByRaw('CASE WHEN published_at IS NULL THEN 1 ELSE 0 END')
@@ -227,6 +228,7 @@ class HomeContent
         return $this->fillRemainingItems(
             $posts,
             JournalPost::published()
+                ->withoutArchivedSlugDuplicates()
                 ->with('heroMedia')
                 ->orderByRaw('CASE WHEN published_at IS NULL THEN 1 ELSE 0 END')
                 ->orderByDesc('published_at')

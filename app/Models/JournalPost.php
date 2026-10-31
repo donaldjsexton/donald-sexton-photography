@@ -106,6 +106,21 @@ class JournalPost extends Model
     }
 
     /**
+     * Imported duplicates keep the original slug plus an `-archived-{id}`
+     * suffix and were left published. They should not be listed, sitemapped,
+     * or offered to crawlers as their own URL.
+     */
+    public function scopeWithoutArchivedSlugDuplicates(Builder $query): Builder
+    {
+        return $query->where('slug', 'not like', '%-archived-%');
+    }
+
+    public function isArchivedSlugDuplicate(): bool
+    {
+        return preg_match('/-archived-\d+$/', (string) $this->slug) === 1;
+    }
+
+    /**
      * Order posts newest first, falling back to the creation date when a post
      * has no explicit publish date so recent entries are never buried under
      * older imported archives.
@@ -355,5 +370,137 @@ class JournalPost extends Model
     public function picTimeNarrativeBlocks(): array
     {
         return PicTimeContent::narrativeBlocks($this->picTimeSourceMarkup());
+    }
+
+    /**
+     * The on-site URL llms.txt and other crawlers should cite. Pic-Time
+     * canonicals are import keys, and a journal row that duplicates a wedding
+     * story should point at that story.
+     */
+    public function listingUrl(): string
+    {
+        $story = $this->supersedingWeddingStory();
+
+        if ($story) {
+            return route('weddings.show', $story->slug);
+        }
+
+        return route('journal.show', $this->slug);
+    }
+
+    /**
+     * Surname-only import titles ("Clipp", "D'Elia") become couple, venue,
+     * and type when that detail is already on the post or its wedding story.
+     */
+    public function listingTitle(): string
+    {
+        $title = trim((string) $this->title);
+
+        if (! $this->titleIsBareName($title)) {
+            return $title;
+        }
+
+        $storyTitle = trim((string) ($this->supersedingWeddingStory()?->title ?? ''));
+
+        if ($storyTitle !== '' && ! $this->titleIsBareName($storyTitle)) {
+            return $storyTitle;
+        }
+
+        $seoTitle = $this->descriptiveSeoTitle();
+
+        if ($seoTitle !== null) {
+            return $seoTitle;
+        }
+
+        return $this->titleWithVenue($title);
+    }
+
+    /**
+     * Wedding story that already owns this journal post, matched the same way
+     * the journal page redirects.
+     */
+    public function supersedingWeddingStory(): ?WeddingStory
+    {
+        if ($this->supersedingResolved) {
+            return $this->supersedingStory;
+        }
+
+        $this->supersedingResolved = true;
+
+        $bySlug = WeddingStory::published()->where('slug', $this->slug)->first();
+
+        if ($bySlug) {
+            return $this->supersedingStory = $bySlug;
+        }
+
+        if (filled($this->canonical_url)) {
+            $match = WeddingStory::published()
+                ->where('canonical_url', $this->canonical_url)
+                ->first();
+
+            if ($match) {
+                return $this->supersedingStory = $match;
+            }
+        }
+
+        if (filled($this->original_wp_url)) {
+            $match = WeddingStory::published()
+                ->where(function (Builder $query): void {
+                    $query->where('canonical_url', $this->original_wp_url)
+                        ->orWhere('original_wp_url', $this->original_wp_url);
+                })
+                ->first();
+
+            if ($match) {
+                return $this->supersedingStory = $match;
+            }
+        }
+
+        return $this->supersedingStory = null;
+    }
+
+    private bool $supersedingResolved = false;
+
+    private ?WeddingStory $supersedingStory = null;
+
+    private function titleIsBareName(string $title): bool
+    {
+        $title = trim($title);
+
+        if ($title === '' || mb_strlen($title) > 40) {
+            return false;
+        }
+
+        return preg_match("/^[\p{L}]+(?:['’-][\p{L}]+)?$/u", $title) === 1;
+    }
+
+    private function descriptiveSeoTitle(): ?string
+    {
+        $seoTitle = trim((string) $this->seo_title);
+
+        if ($seoTitle === '' || $this->titleIsBareName($seoTitle) || mb_strlen($seoTitle) > 110) {
+            return null;
+        }
+
+        if (preg_match('/\+|&| at |wedding|engagement|elopement/i', $seoTitle) !== 1) {
+            return null;
+        }
+
+        return $seoTitle;
+    }
+
+    private function titleWithVenue(string $title): string
+    {
+        $venueName = trim((string) ($this->venues->first()?->name ?? ''));
+
+        if ($venueName === '') {
+            return $title;
+        }
+
+        if (filled($this->post_type)) {
+            return $title.' — '.$this->post_type_label.' at '.$venueName;
+        }
+
+        return $title.' at '.$venueName;
     }
 }

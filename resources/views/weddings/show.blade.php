@@ -27,7 +27,7 @@
         $breadcrumbSchema = \App\Support\StructuredData::breadcrumbList([
             ['name' => 'Home', 'url' => route('home')],
             ['name' => 'Weddings', 'url' => route('weddings.index')],
-            ['name' => $story->title, 'url' => $story->canonical_url ?: route('weddings.show', $story->slug)],
+            ['name' => $story->title, 'url' => $story->seoCanonicalUrl() ?: route('weddings.show', $story->slug)],
         ]);
     @endphp
     <script type="application/ld+json">{!! json_encode(\App\Support\StructuredData::weddingStory($story, $schemaGalleryMedia), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
@@ -59,6 +59,18 @@
         :src="$story->featuredImageUrl()"
         ratio="portrait"
     />
+
+    @if (! empty($venueNote['html'] ?? null))
+        <section class="section">
+            <div class="page-shell--tight page-stack">
+                <x-editorial.section-heading
+                    eyebrow="Venue"
+                    :title="$venueNote['title']"
+                />
+                <div class="section-copy rich-text">{!! $venueNote['html'] !!}</div>
+            </div>
+        </section>
+    @endif
 
     @if ($story->hasClientGallery())
         <x-editorial.client-gallery

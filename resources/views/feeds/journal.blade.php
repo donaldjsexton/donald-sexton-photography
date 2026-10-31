@@ -12,7 +12,7 @@
     </author>
     @foreach ($posts as $post)
         @php
-            $entryUrl = $post->canonical_url ?: route('journal.show', $post->slug);
+            $entryUrl = $post->seoCanonicalUrl() ?: route('journal.show', $post->slug);
             $entryUpdated = ($post->updated_at ?? $post->published_at)?->toAtomString();
             $entryPublished = $post->published_at?->toAtomString();
             $summary = \App\Http\Controllers\JournalFeedController::summarize($post);

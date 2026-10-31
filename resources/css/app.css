@@ -3168,6 +3168,49 @@ textarea {
     text-transform: uppercase;
 }
 
+.home-about {
+    padding: 0 0 5.5rem;
+    background: #f9f7f4;
+}
+
+.home-about__inner {
+    display: grid;
+    gap: 1.25rem;
+}
+
+.home-about .section-title {
+    max-width: 12ch;
+}
+
+.home-about__copy {
+    display: grid;
+    gap: 1.1rem;
+    max-width: 40rem;
+}
+
+.home-about__copy p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 1.05rem;
+    line-height: 1.7;
+}
+
+.home-about__copy a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+}
+
+@media (max-width: 840px) {
+    .home-about {
+        padding-bottom: 3.5rem;
+    }
+
+    .home-about .section-title {
+        max-width: 14ch;
+    }
+}
+
 .home-discover {
     padding: 0 0 4.5rem;
     background: #f9f7f4;

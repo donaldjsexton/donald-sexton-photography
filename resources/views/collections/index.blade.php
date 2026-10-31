@@ -30,7 +30,9 @@
             ],
             [
                 'question' => 'Do you offer elopement and small wedding packages?',
-                'answer' => 'Yes. Elopements and small weddings in Clearwater, on Clearwater Beach and Honeymoon Island, and around Tampa Bay are welcome — the shorter coverage options are built for exactly that.',
+                'answer' => 'Yes. Elopements and small weddings in Clearwater, on Clearwater Beach and Honeymoon Island, and around Tampa Bay are welcome — the shorter coverage options are built for exactly that. Collections start at '.$collectionsFromLabel.'. See Honeymoon Island elopements and Hilton Clearwater Beach weddings.',
+                'answer_html' => e('Yes. Elopements and small weddings in Clearwater, on Clearwater Beach and Honeymoon Island, and around Tampa Bay are welcome — the shorter coverage options are built for exactly that. Collections start at '.$collectionsFromLabel.'. See ')
+                    .'<a href="'.e(route('venues.show', 'romantic-honeymoon-island-weddings')).'">Honeymoon Island elopements</a> and <a href="'.e(route('venues.show', 'hilton-clearwater-beach-resort-and-spa')).'">Hilton Clearwater Beach weddings</a>.',
             ],
         ];
     @endphp
@@ -178,7 +180,13 @@
                 @foreach ($collectionsFaqs as $faq)
                     <div class="venue-faqs__item">
                         <dt class="venue-faqs__question">{{ $faq['question'] }}</dt>
-                        <dd class="venue-faqs__answer">{{ $faq['answer'] }}</dd>
+                        <dd class="venue-faqs__answer">
+                            @if (! empty($faq['answer_html']))
+                                {!! $faq['answer_html'] !!}
+                            @else
+                                {{ $faq['answer'] }}
+                            @endif
+                        </dd>
                     </div>
                 @endforeach
             </dl>

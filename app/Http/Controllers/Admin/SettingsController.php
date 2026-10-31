@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ImportRun;
 use App\Models\SiteSetting;
 use App\Services\GoogleBusinessProfile;
+use App\Support\FloridaGeo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -193,7 +194,10 @@ class SettingsController extends Controller
         foreach (['business_latitude', 'business_longitude'] as $field) {
             if ($request->has($field)) {
                 $value = $validated[$field] ?? null;
-                $siteSettings->{$field} = ($value === null || $value === '') ? null : (float) $value;
+                $normalized = $field === 'business_latitude'
+                    ? FloridaGeo::latitude($value, $siteSettings->business_region, $siteSettings->business_locality)
+                    : FloridaGeo::longitude($value, $siteSettings->business_region, $siteSettings->business_locality);
+                $siteSettings->{$field} = ($value === null || $value === '') ? null : $normalized;
             }
         }
 

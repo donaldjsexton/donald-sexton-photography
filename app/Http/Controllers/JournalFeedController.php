@@ -14,6 +14,7 @@ class JournalFeedController extends Controller
     public function __invoke(): Response
     {
         $posts = JournalPost::published()
+            ->withoutArchivedSlugDuplicates()
             ->with('heroMedia')
             ->whereNotIn('slug', WeddingStory::published()->select('slug'))
             ->recentFirst()
