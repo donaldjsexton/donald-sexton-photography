@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Schema;
  * the prime meridian. A positive longitude or a negative latitude inside
  * Florida's range is a sign typo. The live site stored +82.787, which places
  * the studio in western China.
+ *
+ * The public schema prints Clearwater / FL / US when those columns are empty.
+ * The sign correction has to use that same default, or a blank address keeps
+ * the positive longitude.
  */
 class FloridaGeo
 {
@@ -21,15 +25,19 @@ class FloridaGeo
 
     private const LONGITUDE_MAX = 87.7;
 
-    public static function latitude(mixed $latitude, ?string $region, ?string $locality): ?float
-    {
+    public static function latitude(
+        mixed $latitude,
+        ?string $region,
+        ?string $locality,
+        ?string $country = null,
+    ): ?float {
         if ($latitude === null || $latitude === '') {
             return null;
         }
 
         $lat = (float) $latitude;
 
-        if (! self::appliesToFlorida($region, $locality)) {
+        if (! self::shouldNormalize($region, $country, $locality)) {
             return $lat;
         }
 
@@ -42,15 +50,19 @@ class FloridaGeo
         return $lat;
     }
 
-    public static function longitude(mixed $longitude, ?string $region, ?string $locality): ?float
-    {
+    public static function longitude(
+        mixed $longitude,
+        ?string $region,
+        ?string $locality,
+        ?string $country = null,
+    ): ?float {
         if ($longitude === null || $longitude === '') {
             return null;
         }
 
         $lng = (float) $longitude;
 
-        if (! self::appliesToFlorida($region, $locality)) {
+        if (! self::shouldNormalize($region, $country, $locality)) {
             return $lng;
         }
 
@@ -76,12 +88,12 @@ class FloridaGeo
         $updated = 0;
 
         $rows = DB::table('site_settings')
-            ->select(['id', 'business_latitude', 'business_longitude', 'business_region', 'business_locality'])
+            ->select(['id', 'business_latitude', 'business_longitude', 'business_region', 'business_locality', 'business_country'])
             ->get();
 
         foreach ($rows as $row) {
-            $latitude = self::latitude($row->business_latitude, $row->business_region, $row->business_locality);
-            $longitude = self::longitude($row->business_longitude, $row->business_region, $row->business_locality);
+            $latitude = self::latitude($row->business_latitude, $row->business_region, $row->business_locality, $row->business_country);
+            $longitude = self::longitude($row->business_longitude, $row->business_region, $row->business_locality, $row->business_country);
             $currentLatitude = $row->business_latitude === null ? null : round((float) $row->business_latitude, 6);
             $currentLongitude = $row->business_longitude === null ? null : round((float) $row->business_longitude, 6);
             $nextLatitude = $latitude === null ? null : round($latitude, 6);
@@ -102,11 +114,39 @@ class FloridaGeo
         return $updated;
     }
 
-    private static function appliesToFlorida(?string $region, ?string $locality): bool
+    /**
+     * Blank city/state/country is the schema's Clearwater, FL, US address.
+     * An explicit other region or a non-US country is left alone.
+     *
+     * Locality is accepted so a Clearwater label still qualifies when the
+     * state was saved as something other than "FL", such as "Florida." or "F.L.".
+     */
+    private static function shouldNormalize(?string $region, ?string $country, ?string $locality = null): bool
     {
-        $region = strtoupper(trim((string) $region));
-        $locality = strtolower(trim((string) $locality));
+        $country = strtoupper(preg_replace('/[^A-Za-z]/', '', (string) $country) ?? '');
 
-        return $region === 'FL' || $region === 'FLORIDA' || $locality === 'clearwater';
+        if ($country !== '' && ! in_array($country, ['US', 'USA'], true)) {
+            return false;
+        }
+
+        if (self::regionNamesFlorida($region) || self::localityIsClearwater($locality)) {
+            return true;
+        }
+
+        return trim((string) $region) === '';
+    }
+
+    private static function regionNamesFlorida(?string $region): bool
+    {
+        $compact = strtoupper(preg_replace('/[^A-Za-z]/', '', (string) $region) ?? '');
+
+        return $compact === 'FL' || str_starts_with($compact, 'FLORIDA');
+    }
+
+    private static function localityIsClearwater(?string $locality): bool
+    {
+        $compact = strtolower(preg_replace('/[^A-Za-z]/', '', (string) $locality) ?? '');
+
+        return str_contains($compact, 'clearwater');
     }
 }

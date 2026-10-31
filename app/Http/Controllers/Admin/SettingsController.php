@@ -195,8 +195,8 @@ class SettingsController extends Controller
             if ($request->has($field)) {
                 $value = $validated[$field] ?? null;
                 $normalized = $field === 'business_latitude'
-                    ? FloridaGeo::latitude($value, $siteSettings->business_region, $siteSettings->business_locality)
-                    : FloridaGeo::longitude($value, $siteSettings->business_region, $siteSettings->business_locality);
+                    ? FloridaGeo::latitude($value, $siteSettings->business_region, $siteSettings->business_locality, $siteSettings->business_country)
+                    : FloridaGeo::longitude($value, $siteSettings->business_region, $siteSettings->business_locality, $siteSettings->business_country);
                 $siteSettings->{$field} = ($value === null || $value === '') ? null : $normalized;
             }
         }
