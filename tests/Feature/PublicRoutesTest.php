@@ -1094,6 +1094,24 @@ HTML,
         $response->assertSee('method="GET"', false);
     }
 
+    public function test_inquiry_form_exposes_declarative_webmcp_tool(): void
+    {
+        $this->get('/inquire')
+            ->assertOk()
+            ->assertSee('toolname="send_photography_inquiry"', false)
+            ->assertSee('tooldescription=', false)
+            ->assertSee('toolparamdescription="Spam trap. Always leave this field empty."', false)
+            ->assertDontSee('toolautosubmit', false);
+    }
+
+    public function test_homepage_inline_inquiry_exposes_declarative_webmcp_tool(): void
+    {
+        $this->get('/')
+            ->assertOk()
+            ->assertSee('toolname="start_photography_inquiry"', false)
+            ->assertDontSee('toolautosubmit', false);
+    }
+
     public function test_sitemap_lists_key_public_routes_with_lastmod_metadata(): void
     {
         Page::create([

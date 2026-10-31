@@ -82,7 +82,9 @@
                     <li class="form-stepper__step" data-step-indicator="3"><span>3</span> A short note</li>
                 </ol>
 
-                <form method="POST" action="{{ route('inquiry.store') }}" data-multistep-form novalidate>
+                <form method="POST" action="{{ route('inquiry.store') }}" data-multistep-form novalidate
+                      toolname="send_photography_inquiry"
+                      tooldescription="Ask about availability and pricing for wedding, elopement, engagement or portrait photography in Clearwater, Tampa Bay and the rest of Florida. The person reviews the filled-in form and presses Send Inquiry themselves; a real reply comes by email within 24 hours.">
                     @csrf
                     <input type="hidden" name="utm_source" value="{{ old('utm_source', request('utm_source')) }}">
                     <input type="hidden" name="utm_medium" value="{{ old('utm_medium', request('utm_medium')) }}">
@@ -91,7 +93,7 @@
                     <div aria-hidden="true" style="position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden;">
                         <label>
                             Website
-                            <input type="text" name="website" value="" tabindex="-1" autocomplete="off">
+                            <input type="text" name="website" value="" tabindex="-1" autocomplete="off" toolparamdescription="Spam trap. Always leave this field empty.">
                         </label>
                     </div>
 
@@ -103,14 +105,14 @@
                         <div class="field-grid">
                             <label>
                                 Your name
-                                <input type="text" name="primary_name" id="primary_name" value="{{ old('primary_name', $prefill['primary_name']) }}" required autocomplete="name" @error('primary_name') aria-invalid="true" aria-describedby="primary_name-error" @enderror>
+                                <input type="text" name="primary_name" id="primary_name" value="{{ old('primary_name', $prefill['primary_name']) }}" required autocomplete="name" toolparamdescription="Name of the person (or couple) asking about photography." @error('primary_name') aria-invalid="true" aria-describedby="primary_name-error" @enderror>
                                 @error('primary_name')
                                     <p class="field-error" id="primary_name-error">{{ $message }}</p>
                                 @enderror
                             </label>
                             <label>
                                 Email
-                                <input type="email" name="email" id="email" value="{{ old('email', $prefill['email']) }}" required autocomplete="email" @error('email') aria-invalid="true" aria-describedby="email-error" @enderror>
+                                <input type="email" name="email" id="email" value="{{ old('email', $prefill['email']) }}" required autocomplete="email" toolparamdescription="Email address where the reply should go." @error('email') aria-invalid="true" aria-describedby="email-error" @enderror>
                                 @error('email')
                                     <p class="field-error" id="email-error">{{ $message }}</p>
                                 @enderror
@@ -120,7 +122,7 @@
                         <div class="field-grid">
                             <label>
                                 Date <span class="meta">(or your best guess)</span>
-                                <input type="date" name="event_date" id="event_date" value="{{ old('event_date', $prefill['event_date']) }}" @error('event_date') aria-invalid="true" aria-describedby="event_date-error" @enderror>
+                                <input type="date" name="event_date" id="event_date" value="{{ old('event_date', $prefill['event_date']) }}" toolparamdescription="Date of the wedding or session in YYYY-MM-DD format. A best guess is fine; leave empty if unknown." @error('event_date') aria-invalid="true" aria-describedby="event_date-error" @enderror>
                                 @error('event_date')
                                     <p class="field-error" id="event_date-error">{{ $message }}</p>
                                 @enderror
@@ -136,7 +138,7 @@
                         <div class="field-grid">
                             <label>
                                 What are you planning?
-                                <select name="event_type" id="event_type" required @error('event_type') aria-invalid="true" aria-describedby="event_type-error" @enderror>
+                                <select name="event_type" id="event_type" required toolparamdescription="What kind of photography is needed." @error('event_type') aria-invalid="true" aria-describedby="event_type-error" @enderror>
                                     <option value="">Please choose…</option>
                                     @foreach (\App\Models\Inquiry::eventTypeOptions() as $value => $label)
                                         <option value="{{ $value }}" @selected(old('event_type') === $value)>{{ $label }}</option>
@@ -148,7 +150,7 @@
                             </label>
                             <label>
                                 Phone <span class="meta">(optional)</span>
-                                <input type="text" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel" @error('phone') aria-invalid="true" aria-describedby="phone-error" @enderror>
+                                <input type="text" name="phone" id="phone" value="{{ old('phone') }}" autocomplete="tel" toolparamdescription="Optional phone number, only if the person wants a call or text back." @error('phone') aria-invalid="true" aria-describedby="phone-error" @enderror>
                                 @error('phone')
                                     <p class="field-error" id="phone-error">{{ $message }}</p>
                                 @enderror
@@ -167,6 +169,7 @@
                                         placeholder="Start typing a venue name"
                                         autocomplete="off"
                                         data-venue-input
+                                        toolparamdescription="Venue name if one is booked or being considered, for example Hilton Clearwater Beach Resort and Spa. Leave empty if none."
                                         @if ($errors->has('venue_name') || $errors->has('venue_id')) aria-invalid="true" aria-describedby="venue_name-error" @endif
                                     >
                                     <input type="hidden" name="venue_id" value="{{ old('venue_id') }}" data-venue-id>
@@ -186,7 +189,7 @@
 
                         <label>
                             Message <span class="meta">(optional)</span>
-                            <textarea name="message" id="message" rows="6" placeholder="What matters most about the photos? How did you find me? Anything else I should know?" @error('message') aria-invalid="true" aria-describedby="message-error" @enderror>{{ old('message') }}</textarea>
+                            <textarea name="message" id="message" rows="6" placeholder="What matters most about the photos? How did you find me? Anything else I should know?" toolparamdescription="Optional note: what matters most about the photos, guest count, how they found the studio, anything else." @error('message') aria-invalid="true" aria-describedby="message-error" @enderror>{{ old('message') }}</textarea>
                             @error('message')
                                 <p class="field-error" id="message-error">{{ $message }}</p>
                             @enderror
@@ -197,7 +200,7 @@
 
                             <label class="checkbox-label">
                                 <input type="hidden" name="sms_opt_in_transactional" value="0">
-                                <input type="checkbox" name="sms_opt_in_transactional" value="1" {{ old('sms_opt_in_transactional') ? 'checked' : '' }}>
+                                <input type="checkbox" name="sms_opt_in_transactional" value="1" toolparamdescription="Consent to receive text messages. Only check this if the person has explicitly said they agree to text messages; otherwise leave it unchecked." {{ old('sms_opt_in_transactional') ? 'checked' : '' }}>
                                 <span>I agree to receive appointment reminders, booking confirmations, and session details from Donald Sexton Photography via text message. Message frequency varies. Msg &amp; data rates may apply. Reply STOP to opt out, HELP for help.</span>
                             </label>
 
