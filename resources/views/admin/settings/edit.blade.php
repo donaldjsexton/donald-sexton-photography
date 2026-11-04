@@ -94,7 +94,7 @@
                     @if ($googleConnected)
                         <p class="eyebrow">Services</p>
                         <h3 class="feature-title">What Google can do for this site</h3>
-                        <p class="section-copy">Signed in as <strong>{{ $siteSettings->google_connected_email }}</strong>. If you need another service, disconnect and connect again so Google can ask for it.</p>
+                        <p class="section-copy">Signed in as <strong>{{ $siteSettings->google_connected_email }}</strong>. Check Availability reads free/busy time on this login's primary calendar, the same calendar booking sync uses. If you need another service, disconnect and connect again so Google can ask for it.</p>
 
                         <div class="admin-services-grid">
                             @foreach ($googleScopes as $entry)

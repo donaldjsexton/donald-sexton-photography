@@ -2,6 +2,7 @@
 
 namespace App\Services\Availability;
 
+use App\Models\BookedJob;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 
@@ -15,8 +16,7 @@ class AvailabilityCalendar
             return true;
         }
 
-        return $this->freeBusy->configured()
-            && ($this->calendarIds() !== [] || $this->holdCalendarId() !== null);
+        return $this->freeBusy->configured();
     }
 
     /**
@@ -77,29 +77,56 @@ class AvailabilityCalendar
             return [$mock['busy'], $mock['holds']];
         }
 
-        $holdId = $this->holdCalendarId();
-        $busyIds = array_values(array_filter(
-            $this->calendarIds(),
-            fn (string $id): bool => $id !== $holdId,
-        ));
-        $queryIds = array_values(array_unique([
-            ...$busyIds,
-            ...($holdId !== null ? [$holdId] : []),
-        ]));
+        $end = $start->addMonth();
+        $busy = $this->freeBusy->busyRanges($start, $end);
+        [$jobBusy, $holds] = $this->bookedJobIntervals($start, $end);
 
-        $ranges = $queryIds === []
-            ? []
-            : $this->freeBusy->busyRanges($start, $start->addMonth(), $queryIds);
+        return [array_merge($busy, $jobBusy), $holds];
+    }
+
+    /**
+     * Studio jobs supply booked and held days without sending their names,
+     * venues, or notes. Confirmed and completed jobs cover the local day.
+     * A job that is only penciled in is a hold, unless free/busy time already
+     * marks the day booked.
+     *
+     * @return array{0: list<BusyInterval>, 1: list<BusyInterval>}
+     */
+    private function bookedJobIntervals(CarbonImmutable $start, CarbonImmutable $end): array
+    {
+        $jobs = BookedJob::query()
+            ->whereNotNull('event_date')
+            ->where('status', '!=', 'cancelled')
+            ->whereDate('event_date', '>=', $start->toDateString())
+            ->whereDate('event_date', '<', $end->toDateString())
+            ->with(['contracts', 'invoices.installments'])
+            ->get();
 
         $busy = [];
+        $holds = [];
 
-        foreach ($busyIds as $id) {
-            foreach ($ranges[$id] ?? [] as $interval) {
-                $busy[] = $interval;
+        foreach ($jobs as $job) {
+            $day = CarbonImmutable::parse($job->event_date->toDateString(), $this->timezone())->startOfDay();
+            if ($job->status === 'completed') {
+                $busy[] = new BusyInterval($day, $day->addDay());
+
+                continue;
+            }
+
+            $stage = $job->confirmationStage();
+
+            if ($stage === 'confirmed') {
+                $busy[] = new BusyInterval($day, $day->addDay());
+
+                continue;
+            }
+
+            if ($stage === 'held' || $stage === 'tentative') {
+                $holds[] = new BusyInterval($day->setTime(12, 0), $day->setTime(13, 0));
             }
         }
 
-        return [$busy, $holdId !== null ? ($ranges[$holdId] ?? []) : []];
+        return [$busy, $holds];
     }
 
     private function assertInsideWindow(CarbonImmutable $start): void
@@ -159,53 +186,11 @@ class AvailabilityCalendar
         return $timezone;
     }
 
-    /**
-     * @return list<string>
-     */
-    private function calendarIds(): array
-    {
-        $ids = config('availability.calendar_ids', []);
-
-        if (! is_array($ids)) {
-            return [];
-        }
-
-        $clean = [];
-
-        foreach ($ids as $id) {
-            if (! is_string($id)) {
-                continue;
-            }
-
-            $id = trim($id);
-
-            if ($id !== '') {
-                $clean[] = $id;
-            }
-        }
-
-        return array_values(array_unique($clean));
-    }
-
-    private function holdCalendarId(): ?string
-    {
-        $id = config('availability.hold_calendar_id');
-
-        if (! is_string($id)) {
-            return null;
-        }
-
-        $id = trim($id);
-
-        return $id === '' ? null : $id;
-    }
-
     private function cacheKey(string $month): string
     {
         $fingerprint = hash('sha256', (string) json_encode([
             'mock' => $this->usesMock(),
-            'ids' => $this->calendarIds(),
-            'hold' => $this->holdCalendarId(),
+            'calendar' => GoogleFreeBusyGateway::CALENDAR_ID,
             'lead' => (int) config('availability.lead_time_days', 14),
             'booked' => (float) config('availability.booked_hours', 6),
             'limited' => (float) config('availability.limited_hours', 2),

@@ -5,7 +5,7 @@ namespace App\Services\Availability;
 use Carbon\CarbonImmutable;
 
 /**
- * Sample busy time for previewing the calendar without a Google credential.
+ * Sample busy time for previewing the calendar without the connected Google account.
  * The day-of-month pattern repeats every month. Lead time still applies, so
  * early dates in the current month stay unavailable.
  *
