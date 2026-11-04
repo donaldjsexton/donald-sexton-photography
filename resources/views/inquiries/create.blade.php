@@ -76,6 +76,8 @@
                     </div>
                 @endif
 
+                <x-availability-calendar :calendar="$availabilityCalendar" />
+
                 <ol class="form-stepper" data-form-stepper aria-label="Inquiry progress" hidden>
                     <li class="form-stepper__step" data-step-indicator="1"><span>1</span> Your day</li>
                     <li class="form-stepper__step" data-step-indicator="2"><span>2</span> Your event</li>

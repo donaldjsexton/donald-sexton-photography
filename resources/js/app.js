@@ -1,4 +1,5 @@
 import './bootstrap';
+import './availability-calendar';
 import './gallery-uploader';
 import { openMediaLibrary, uploadMediaFiles } from './media-library';
 
