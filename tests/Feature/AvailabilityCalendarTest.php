@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\BookedJob;
 use App\Services\GoogleClient;
 use Google\Service\Calendar as CalendarService;
+use Google\Service\Calendar\Error as FreeBusyError;
 use Google\Service\Calendar\FreeBusyCalendar;
 use Google\Service\Calendar\FreeBusyRequest;
 use Google\Service\Calendar\FreeBusyResponse;
@@ -12,6 +13,7 @@ use Google\Service\Calendar\Resource\Freebusy;
 use Google\Service\Calendar\TimePeriod;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Cache;
 use Mockery;
 use Tests\TestCase;
 
@@ -24,6 +26,7 @@ class AvailabilityCalendarTest extends TestCase
         parent::setUp();
 
         Carbon::setTestNow(Carbon::parse('2026-11-04 15:00:00', 'America/New_York'));
+        Cache::flush();
 
         config([
             'availability.mock' => false,
@@ -184,8 +187,11 @@ class AvailabilityCalendarTest extends TestCase
 
     public function test_a_free_busy_error_does_not_publish_open_days(): void
     {
+        $error = new FreeBusyError;
+        $error->setReason('notFound');
+
         $entry = new FreeBusyCalendar;
-        $entry->setErrors([(object) ['reason' => 'notFound']]);
+        $entry->setErrors([$error]);
 
         $response = new FreeBusyResponse;
         $response->setCalendars(['primary' => $entry]);
