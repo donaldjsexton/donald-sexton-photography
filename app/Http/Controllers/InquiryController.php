@@ -6,6 +6,7 @@ use App\Mail\InquiryAcknowledgment;
 use App\Mail\InquiryReceived;
 use App\Models\Inquiry;
 use App\Models\Testimonial;
+use App\Services\Availability\AvailabilityCalendar;
 use App\Services\InquiryAvailabilityService;
 use App\Services\WebPushService;
 use Illuminate\Http\RedirectResponse;
@@ -16,7 +17,7 @@ use Illuminate\View\View;
 
 class InquiryController extends Controller
 {
-    public function create(Request $request): View
+    public function create(Request $request, AvailabilityCalendar $availability): View
     {
         $featuredTestimonials = Testimonial::query()
             ->where('is_featured', true)
@@ -31,6 +32,7 @@ class InquiryController extends Controller
                 'event_date' => trim((string) $request->query('event_date', '')),
             ],
             'featuredTestimonials' => $featuredTestimonials,
+            'availabilityCalendar' => $availability->presentation(),
         ]);
     }
 

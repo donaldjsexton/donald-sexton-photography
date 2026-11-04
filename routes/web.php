@@ -32,6 +32,7 @@ use App\Http\Controllers\Admin\SquareOAuthController as AdminSquareOAuthControll
 use App\Http\Controllers\Admin\VenueController as AdminVenueController;
 use App\Http\Controllers\Admin\WeddingStoryController as AdminWeddingStoryController;
 use App\Http\Controllers\Admin\WordPressImportController as AdminWordPressImportController;
+use App\Http\Controllers\AvailabilityController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\ContractPublicController;
 use App\Http\Controllers\GalleryEmbedController;
@@ -313,6 +314,11 @@ Route::withoutMiddleware($statelessBotMiddleware)->group(function () {
 
 Route::get('/privacy-policy', [PageController::class, 'privacy'])->name('legal.privacy')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
 Route::get('/terms-of-service', [PageController::class, 'terms'])->name('legal.terms')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
+
+Route::get('/api/availability', AvailabilityController::class)
+    ->name('availability.show')
+    ->withoutMiddleware($statelessBotMiddleware)
+    ->middleware('throttle:60,1');
 
 Route::get('/inquire', [InquiryController::class, 'create'])->name('inquiry.create');
 Route::post('/inquire', [InquiryController::class, 'store'])->name('inquiry.store');
