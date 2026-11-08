@@ -130,6 +130,7 @@
         <label>
             Body
             <textarea name="body" rows="14">{{ old('body', $story->body) }}</textarea>
+            <span class="meta">Saved as HTML. Separate paragraphs with <code>&lt;p&gt;</code> tags. A link is <code>&lt;a href="https://…"&gt;label&lt;/a&gt;</code>. Markdown is not rendered.</span>
         </label>
 
         <label>
