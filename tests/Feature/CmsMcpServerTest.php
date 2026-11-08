@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\CmsMcpCredential;
 use App\Models\Media;
+use App\Models\Site;
 use App\Models\WeddingStory;
+use App\Tenancy\CurrentSite;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Storage;
@@ -66,11 +68,11 @@ class CmsMcpServerTest extends TestCase
     {
         $issued = CmsMcpCredential::issue('reader', [CmsMcpCredential::READ]);
 
-        $this->withHeaders([
+        $this->postJson('/mcp/cms', $this->rpc('initialize', []), [
             'Authorization' => 'Bearer '.$issued['token'],
             'Accept' => 'application/json, text/event-stream',
             'Origin' => 'https://evil.example',
-        ])->postJson('/mcp/cms', $this->rpc('initialize', []))->assertForbidden();
+        ])->assertForbidden();
     }
 
     public function test_draft_tools_do_not_publish_and_readback_keeps_body_alt_order_and_hero(): void
@@ -80,7 +82,7 @@ class CmsMcpServerTest extends TestCase
 
         $this->tool($reader['token'], 'create_draft_story', [
             'title' => 'Should not exist',
-        ])->assertJsonPath('result.isError', true);
+        ])->assertJsonPath('error.code', -32602);
 
         $this->assertSame(0, WeddingStory::query()->count());
 
@@ -142,7 +144,7 @@ class CmsMcpServerTest extends TestCase
 
         $this->tool($draft['token'], 'publish_story', [
             'story_id' => $storyId,
-        ])->assertJsonPath('result.isError', true);
+        ])->assertJsonPath('error.code', -32602);
 
         $this->assertSame('draft', WeddingStory::query()->find($storyId)->status);
     }
@@ -210,7 +212,7 @@ class CmsMcpServerTest extends TestCase
         $this->tool($publisher['token'], 'update_draft_story', [
             'story_id' => $story->id,
             'body' => '<p>Should not save.</p>',
-        ])->assertJsonPath('result.isError', true);
+        ])->assertJsonPath('error.code', -32602);
 
         $published = $this->tool($publisher['token'], 'publish_story', [
             'story_id' => $story->id,
@@ -248,6 +250,162 @@ class CmsMcpServerTest extends TestCase
         $this->assertSame('<p>Live body.</p>', $live->fresh()->body);
     }
 
+    public function test_expired_tokens_and_other_sites_cannot_read_stories(): void
+    {
+        $expired = CmsMcpCredential::issue('expired', [CmsMcpCredential::READ], now()->subMinute());
+
+        $this->mcp($expired['token'], 'tools/list')->assertUnauthorized();
+
+        $secret = 'SITE-A-SECRET-BODY';
+        $siteA = Site::query()->where('is_default', true)->first()
+            ?? Site::factory()->default()->create();
+        $siteB = Site::factory()->create([
+            'primary_domain' => 'cms-mcp-other.test',
+            'is_default' => false,
+            'status' => 'active',
+        ]);
+        app(CurrentSite::class)->set($siteA);
+        WeddingStory::query()->create([
+            'title' => 'Site A story',
+            'slug' => 'site-a-story',
+            'status' => 'draft',
+            'body' => $secret,
+        ]);
+        $siteAToken = CmsMcpCredential::issue('site-a', [CmsMcpCredential::READ]);
+
+        $response = $this->postJson('http://cms-mcp-other.test/mcp/cms', $this->rpc('tools/call', [
+            'name' => 'lookup_story',
+            'arguments' => ['slug' => 'site-a-story'],
+        ]), [
+            'Authorization' => 'Bearer '.$siteAToken['token'],
+            'Accept' => 'application/json, text/event-stream',
+        ]);
+
+        $response->assertUnauthorized();
+        $this->assertStringNotContainsString($secret, $response->getContent());
+        $this->assertNotSame($siteA->id, $siteB->id);
+    }
+
+    public function test_protocol_framing_auth_and_publish_visibility_rules(): void
+    {
+        $reader = CmsMcpCredential::issue('reader', [CmsMcpCredential::READ]);
+        $headers = [
+            'Authorization' => 'Bearer '.$reader['token'],
+            'Accept' => 'application/json, text/event-stream',
+        ];
+
+        $names = $this->mcp($reader['token'], 'tools/list')
+            ->assertOk()
+            ->json('result.tools');
+        $this->assertSame(['lookup_story'], array_column($names, 'name'));
+
+        $this->postJson('/mcp/cms', [
+            'jsonrpc' => '2.0',
+            'method' => 'notifications/initialized',
+        ], $headers)->assertStatus(202);
+
+        $this->call('POST', '/mcp/cms', [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_ACCEPT' => 'application/json, text/event-stream',
+            'HTTP_AUTHORIZATION' => 'Bearer '.$reader['token'],
+        ], '{')->assertOk()->assertJsonPath('error.code', -32700);
+
+        $this->mcp($reader['token'], 'unknown/method')->assertOk()->assertJsonPath('error.code', -32601);
+
+        $this->postJson('/mcp/cms', $this->rpc('ping'), [
+            'Authorization' => 'Bearer '.$reader['token'],
+            'Accept' => 'application/json',
+        ])->assertStatus(406);
+
+        $this->call('POST', '/mcp/cms', [], [], [], [
+            'CONTENT_TYPE' => 'text/plain',
+            'HTTP_ACCEPT' => 'application/json, text/event-stream',
+            'HTTP_AUTHORIZATION' => 'Bearer '.$reader['token'],
+        ], '{}')->assertStatus(415);
+
+        $this->postJson('/mcp/cms', $this->rpc('ping'), [
+            ...$headers,
+            'MCP-Protocol-Version' => '1999-01-01',
+        ])->assertStatus(400);
+
+        $this->get('/mcp/cms', ['Accept' => 'text/event-stream'])->assertStatus(405);
+        $this->delete('/mcp/cms')->assertStatus(405);
+
+        $editor = CmsMcpCredential::issue('editor', [CmsMcpCredential::DRAFT]);
+        $archived = WeddingStory::query()->create([
+            'title' => 'Archived',
+            'slug' => 'archived-story',
+            'status' => 'archived',
+            'body' => '<p>Archived body.</p>',
+        ]);
+        $this->tool($editor['token'], 'update_draft_story', [
+            'story_id' => $archived->id,
+            'body' => '<p>Replaced.</p>',
+        ])->assertJsonPath('result.isError', true);
+        $this->assertSame('<p>Archived body.</p>', $archived->fresh()->body);
+
+        $publisher = CmsMcpCredential::issue('publisher', [CmsMcpCredential::PUBLISH]);
+        $scheduled = WeddingStory::query()->create([
+            'title' => 'Scheduled',
+            'slug' => 'scheduled-story',
+            'status' => 'draft',
+            'body' => '<p>Scheduled body.</p>',
+            'published_at' => now()->addWeek(),
+        ]);
+        $this->tool($publisher['token'], 'publish_story', [
+            'story_id' => $scheduled->id,
+        ])->assertJsonPath('result.structuredContent.story.status', 'published');
+        $scheduled->refresh();
+        $this->assertTrue($scheduled->published_at->lessThanOrEqualTo(now()));
+        $this->assertSame('<p>Scheduled body.</p>', $scheduled->body);
+
+        $published = WeddingStory::query()->create([
+            'title' => 'Public gallery',
+            'slug' => 'public-gallery',
+            'status' => 'published',
+            'body' => '<p>Public body.</p>',
+            'published_at' => now(),
+        ]);
+        $this->tool($editor['token'], 'update_draft_story', [
+            'story_id' => $published->id,
+            'gallery' => [],
+            'hero_media_id' => null,
+            'body' => '<p>Changed.</p>',
+        ])->assertJsonPath('result.isError', true);
+        $this->assertSame('<p>Public body.</p>', $published->fresh()->body);
+    }
+
+    public function test_whitespace_in_base64_retries_the_same_image(): void
+    {
+        $issued = CmsMcpCredential::issue('uploader', [CmsMcpCredential::UPLOAD]);
+        $wrapped = chunk_split(self::PNG, 20, "\n");
+
+        $first = $this->tool($issued['token'], 'upload_media', [
+            'content_base64' => self::PNG,
+            'idempotency_key' => 'wrap-key-0001',
+            'alt_text' => 'Wrapped alt',
+        ]);
+        $second = $this->tool($issued['token'], 'upload_media', [
+            'content_base64' => $wrapped,
+            'idempotency_key' => 'wrap-key-0001',
+            'alt_text' => 'Other alt',
+        ]);
+
+        $this->assertSame(
+            $first->json('result.structuredContent.media.id'),
+            $second->json('result.structuredContent.media.id'),
+        );
+        $this->assertTrue($second->json('result.structuredContent.replayed'));
+        $this->assertSame(1, Media::query()->count());
+
+        config()->set('cms-mcp.max_upload_bytes', 8);
+        $this->tool($issued['token'], 'upload_media', [
+            'content_base64' => str_repeat('A', 80),
+            'idempotency_key' => 'huge-key-0001',
+        ])->assertJsonPath('result.isError', true);
+        $this->assertSame(1, Media::query()->count());
+    }
+
     public function test_issue_command_stores_only_a_hash_and_omits_publish_by_default(): void
     {
         Artisan::call('cms-mcp:issue', ['name' => 'Grok Bot']);
@@ -267,12 +425,12 @@ class CmsMcpServerTest extends TestCase
     /**
      * @param  array<string, mixed>  $params
      */
-    private function mcp(string $token, string $method, array $params): TestResponse
+    private function mcp(string $token, string $method, array $params = []): TestResponse
     {
-        return $this->withHeaders([
+        return $this->postJson('/mcp/cms', $this->rpc($method, $params), [
             'Authorization' => 'Bearer '.$token,
             'Accept' => 'application/json, text/event-stream',
-        ])->postJson('/mcp/cms', $this->rpc($method, $params));
+        ]);
     }
 
     /**
@@ -290,7 +448,7 @@ class CmsMcpServerTest extends TestCase
      * @param  array<string, mixed>  $params
      * @return array<string, mixed>
      */
-    private function rpc(string $method, array $params): array
+    private function rpc(string $method, array $params = []): array
     {
         return [
             'jsonrpc' => '2.0',

@@ -46,18 +46,22 @@ A missing, wrong, expired, or revoked token gets HTTP 401. A valid token without
 
 ## Grok Bot
 
-Grok Bot's documented remote connector is HTTPS Streamable HTTP. A pre-issued bearer token is a documented connector header (`Authorization: Bearer ...`). In the bot chat, add a custom remote MCP server:
+Grok Bot's `AddMcpServer` schema accepts a remote URL and a `headers` object. A static bearer token fits that schema:
 
 - Name: `photography-cms`
 - URL: `https://donaldsextonphotography.com/mcp/cms`
 - Header name: `Authorization`
 - Header value: `Bearer dsp_mcp_...`
 
-The token is a bot secret. Do not put it in the URL.
+That is a supported configuration shape. It is not a tested end-to-end connection from Grok Bot to this application. This repository has not added the server to a Grok Bot account, has not opened a tunnel, and has not deployed `/mcp/cms`. OAuth is optional in that schema and is not a deployment blocker. This app does not implement the OAuth connect-card flow.
 
-Interactive OAuth 2.1 with dynamic client registration is also described for Grok Bot. This app does not install Laravel Passport, does not publish OAuth metadata, and does not implement that connect-card flow. Whether a Grok Bot build that ignores a configured Authorization header and demands OAuth will connect is unverified. Do not assume that path works.
+The protocol test that does run here uses the official `@modelcontextprotocol/sdk` Streamable HTTP client against `php artisan serve` on `127.0.0.1`, with a disposable sqlite file and a disposable credential. That client sends `initialize`, `notifications/initialized`, `tools/list`, and `tools/call`, including `Accept: application/json, text/event-stream` and `Content-Type: application/json`. It is not Grok Bot.
 
-If the connector sends an `Origin` header, the host must match `APP_URL`. A request with no `Origin`, which is the normal server-side connector, is accepted. A browser origin for another host is rejected.
+If the connector sends an `Origin` header, the host must match `APP_URL`. A request with no `Origin` is accepted. A browser origin for another host is rejected.
+
+`tools/list` returns only the tools the credential's abilities allow. A direct call to a hidden tool does not write data.
+
+Initialize returns `MCP-Session-Id`. The server does not store that session, so the header is not an access boundary and later calls work without it. The bearer token is the access boundary. `GET` and `DELETE` answer `405`; there is no SSE listen channel and no session-termination method.
 
 ## Uploads
 
@@ -69,7 +73,8 @@ No new paid service is required. The route is part of this Laravel app. Producti
 
 ## Review before use
 
-- Confirm the Grok Bot build you have accepts a bearer header on a Streamable HTTP POST endpoint that answers JSON rather than holding an SSE stream.
-- Confirm it does not require the OAuth connect card. That flow is not implemented.
+- A Grok Bot account connection is still a manual check after a later approved deploy. The static `headers` field is supported by the AddMcpServer schema; that live connection has not been run.
 - Issue a credential without `stories:publish` until a person has reviewed a draft.
 - Revoke a token that was shown in a chat transcript.
+- Do not run the public host with `APP_DEBUG=true`. This application does not log the bearer token, but a debug error page can include request headers.
+- Uploads use standard base64, not a URL. Two retries with the same key are serialized by a unique `(credential, idempotency key)` row. The losing write rolls back its media row and deletes the file it stored.

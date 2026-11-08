@@ -4,6 +4,7 @@ namespace App\Mcp\Tools;
 
 use App\Mcp\CmsMcpGate;
 use App\Mcp\MediaUploadService;
+use App\Mcp\Tools\Concerns\RegistersForAbility;
 use App\Models\CmsMcpCredential;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -15,6 +16,8 @@ use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 #[IsIdempotent]
 class UploadMediaTool extends Tool
 {
+    use RegistersForAbility;
+
     protected string $name = 'upload_media';
 
     protected string $description = 'Upload one JPEG, PNG, WebP, or GIF as base64. Retries with the same idempotency key return the original media row. Uploading does not publish a story or attach the image.';
@@ -23,6 +26,11 @@ class UploadMediaTool extends Tool
         private readonly CmsMcpGate $gate,
         private readonly MediaUploadService $uploads,
     ) {}
+
+    public function shouldRegister(): bool
+    {
+        return $this->credentialAllows(CmsMcpCredential::UPLOAD);
+    }
 
     public function handle(Request $request): ResponseFactory
     {

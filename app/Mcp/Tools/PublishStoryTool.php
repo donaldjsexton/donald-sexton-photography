@@ -4,6 +4,7 @@ namespace App\Mcp\Tools;
 
 use App\Mcp\CmsMcpGate;
 use App\Mcp\DraftStoryService;
+use App\Mcp\Tools\Concerns\RegistersForAbility;
 use App\Models\CmsMcpCredential;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -15,6 +16,8 @@ use Laravel\Mcp\Server\Tools\Annotations\IsIdempotent;
 #[IsIdempotent]
 class PublishStoryTool extends Tool
 {
+    use RegistersForAbility;
+
     protected string $name = 'publish_story';
 
     protected string $description = 'Publish a draft wedding story. This is the only operation that makes a story public. Repeating it does not change the saved body, gallery, hero, or alt text.';
@@ -23,6 +26,11 @@ class PublishStoryTool extends Tool
         private readonly CmsMcpGate $gate,
         private readonly DraftStoryService $stories,
     ) {}
+
+    public function shouldRegister(): bool
+    {
+        return $this->credentialAllows(CmsMcpCredential::PUBLISH);
+    }
 
     public function handle(Request $request): ResponseFactory
     {

@@ -22,19 +22,29 @@ class MediaUploadService
      */
     public function store(CmsMcpCredential $credential, array $input): array
     {
-        $binary = base64_decode($input['content_base64'], true);
+        $maxBytes = (int) config('cms-mcp.max_upload_bytes');
+        $encoded = preg_replace('/\s+/', '', $input['content_base64']) ?? '';
 
-        if ($binary === false) {
+        if ($encoded === '' || strlen($encoded) % 4 !== 0 || preg_match('/^[A-Za-z0-9+\/]+={0,2}$/', $encoded) !== 1) {
             throw ValidationException::withMessages([
                 'content_base64' => 'Image content must be valid base64.',
             ]);
         }
 
-        $maxBytes = (int) config('cms-mcp.max_upload_bytes');
+        $padding = str_ends_with($encoded, '==') ? 2 : (str_ends_with($encoded, '=') ? 1 : 0);
+        $estimatedBytes = intdiv(strlen($encoded), 4) * 3 - $padding;
 
-        if (strlen($binary) === 0 || strlen($binary) > $maxBytes) {
+        if ($estimatedBytes < 1 || $estimatedBytes > $maxBytes) {
             throw ValidationException::withMessages([
                 'content_base64' => 'Image content must be between 1 and '.$maxBytes.' bytes after decoding.',
+            ]);
+        }
+
+        $binary = base64_decode($encoded, true);
+
+        if ($binary === false || strlen($binary) !== $estimatedBytes) {
+            throw ValidationException::withMessages([
+                'content_base64' => 'Image content must be valid base64.',
             ]);
         }
 
@@ -48,51 +58,79 @@ class MediaUploadService
         }
 
         $sha = hash('sha256', $binary);
+        $orphan = null;
 
-        return DB::transaction(function () use ($credential, $input, $binary, $mime, $sha): array {
-            $existing = CmsMcpUploadReceipt::query()
-                ->where('cms_mcp_credential_id', $credential->id)
-                ->where('idempotency_key', $input['idempotency_key'])
-                ->lockForUpdate()
-                ->first();
+        try {
+            return DB::transaction(function () use ($credential, $input, $binary, $mime, $sha, &$orphan): array {
+                $this->waitForSqliteLock();
 
-            if ($existing instanceof CmsMcpUploadReceipt) {
-                return $this->replay($existing, $sha);
-            }
+                $existing = CmsMcpUploadReceipt::query()
+                    ->where('cms_mcp_credential_id', $credential->id)
+                    ->where('idempotency_key', $input['idempotency_key'])
+                    ->lockForUpdate()
+                    ->first();
 
-            $media = $this->persistFile($binary, $mime, $input);
+                if ($existing instanceof CmsMcpUploadReceipt) {
+                    return $this->replay($existing, $sha);
+                }
 
-            try {
+                $media = $this->persistFile($binary, $mime, $input);
+                $orphan = [
+                    'disk' => $media->disk ?? 'public',
+                    'path' => $media->path,
+                ];
+
                 CmsMcpUploadReceipt::query()->create([
                     'cms_mcp_credential_id' => $credential->id,
                     'idempotency_key' => $input['idempotency_key'],
                     'content_sha256' => $sha,
                     'media_id' => $media->id,
                 ]);
-            } catch (UniqueConstraintViolationException) {
-                $disk = $media->disk ?? 'public';
-                $path = $media->path;
-                $media->delete();
+                $orphan = null;
 
-                if (filled($path)) {
-                    Storage::disk($disk)->delete($path);
-                }
-                $existing = CmsMcpUploadReceipt::query()
-                    ->where('cms_mcp_credential_id', $credential->id)
-                    ->where('idempotency_key', $input['idempotency_key'])
-                    ->first();
+                return $this->present($media, false);
+            });
+        } catch (UniqueConstraintViolationException) {
+            $this->deleteStoredFile($orphan);
 
-                if (! $existing instanceof CmsMcpUploadReceipt) {
-                    throw ValidationException::withMessages([
-                        'idempotency_key' => 'This upload could not be completed. Retry it.',
-                    ]);
-                }
+            $existing = CmsMcpUploadReceipt::query()
+                ->where('cms_mcp_credential_id', $credential->id)
+                ->where('idempotency_key', $input['idempotency_key'])
+                ->first();
 
-                return $this->replay($existing, $sha);
+            if (! $existing instanceof CmsMcpUploadReceipt) {
+                throw ValidationException::withMessages([
+                    'idempotency_key' => 'This upload could not be completed. Retry it.',
+                ]);
             }
 
-            return $this->present($media, false);
-        });
+            return $this->replay($existing, $sha);
+        } catch (\Throwable $throwable) {
+            $this->deleteStoredFile($orphan);
+
+            throw $throwable;
+        }
+    }
+
+    private function waitForSqliteLock(): void
+    {
+        if (DB::connection()->getDriverName() !== 'sqlite') {
+            return;
+        }
+
+        DB::statement('PRAGMA busy_timeout = 5000');
+    }
+
+    /**
+     * @param  array{disk: string, path: ?string}|null  $orphan
+     */
+    private function deleteStoredFile(?array $orphan): void
+    {
+        if ($orphan === null || ! filled($orphan['path'] ?? null)) {
+            return;
+        }
+
+        Storage::disk($orphan['disk'])->delete($orphan['path']);
     }
 
     /**

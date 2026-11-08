@@ -4,6 +4,7 @@ namespace App\Mcp\Tools;
 
 use App\Mcp\CmsMcpGate;
 use App\Mcp\DraftStoryService;
+use App\Mcp\Tools\Concerns\RegistersForAbility;
 use App\Models\CmsMcpCredential;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -15,6 +16,8 @@ use Laravel\Mcp\Server\Tools\Annotations\IsReadOnly;
 #[IsReadOnly]
 class LookupStoryTool extends Tool
 {
+    use RegistersForAbility;
+
     protected string $name = 'lookup_story';
 
     protected string $description = 'Read one wedding story, including its saved body, SEO fields, hero alt text, and gallery order. Does not publish or change anything.';
@@ -23,6 +26,11 @@ class LookupStoryTool extends Tool
         private readonly CmsMcpGate $gate,
         private readonly DraftStoryService $stories,
     ) {}
+
+    public function shouldRegister(): bool
+    {
+        return $this->credentialAllows(CmsMcpCredential::READ);
+    }
 
     public function handle(Request $request): ResponseFactory
     {

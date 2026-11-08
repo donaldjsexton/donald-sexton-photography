@@ -84,7 +84,11 @@ class DraftStoryService
         $this->ensureDraft($story);
 
         $story->status = 'published';
-        $story->published_at = $story->published_at ?? now();
+
+        if ($story->published_at === null || $story->published_at->isFuture()) {
+            $story->published_at = now();
+        }
+
         $story->save();
 
         return $this->payload->__invoke($story->fresh());

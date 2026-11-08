@@ -4,6 +4,7 @@ namespace App\Mcp\Tools;
 
 use App\Mcp\CmsMcpGate;
 use App\Mcp\DraftStoryService;
+use App\Mcp\Tools\Concerns\RegistersForAbility;
 use App\Models\CmsMcpCredential;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Laravel\Mcp\Request;
@@ -13,6 +14,8 @@ use Laravel\Mcp\Server\Tool;
 
 class CreateDraftStoryTool extends Tool
 {
+    use RegistersForAbility;
+
     protected string $name = 'create_draft_story';
 
     protected string $description = 'Create a wedding story draft. The story stays unpublished even if a status is supplied. Publishing is a separate tool.';
@@ -21,6 +24,11 @@ class CreateDraftStoryTool extends Tool
         private readonly CmsMcpGate $gate,
         private readonly DraftStoryService $stories,
     ) {}
+
+    public function shouldRegister(): bool
+    {
+        return $this->credentialAllows(CmsMcpCredential::DRAFT);
+    }
 
     public function handle(Request $request): ResponseFactory
     {
