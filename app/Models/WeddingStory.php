@@ -281,7 +281,7 @@ class WeddingStory extends Model
     {
         $presentation = $this->presentationContent();
 
-        return $this->stripLeadingDuplicateParagraph(
+        return $this->readingBodyHtml(
             $presentation['body_html'] ?? null,
             $presentation['hero_copy'] ?? $this->excerpt
         );
@@ -332,7 +332,16 @@ class WeddingStory extends Model
         $body = preg_replace('/<script\b[^>]*>.*?<\/script>/is', '', $body) ?? $body;
         $body = preg_replace('/<template\b[^>]*>.*?<\/template>/is', '', $body) ?? $body;
 
+        if ($this->bodyIsPlainText($body)) {
+            $body = $this->plainParagraphsHtml($body);
+        }
+
         return $this->sanitizeImportedHtml($body);
+    }
+
+    private function bodyIsPlainText(string $body): bool
+    {
+        return preg_match('/<\/?[a-z][\w:-]*\b/i', $body) !== 1;
     }
 
     private function rawPicTimeEmbedMarkup(): ?string
@@ -374,5 +383,196 @@ class WeddingStory extends Model
     public function picTimeSourceMarkup(): ?string
     {
         return $this->rawPicTimeEmbedMarkup();
+    }
+
+    /**
+     * Safe HTML for the public reading section.
+     *
+     * Saved stories are rich text (paragraphs, emphasis, breaks, sometimes one
+     * wrapper element) or plain paragraphs. An opening block that only repeats
+     * the hero excerpt stays in the hero. Later paragraphs keep their
+     * formatting. A story with no body leaves the excerpt as the hero fallback.
+     */
+    private function readingBodyHtml(?string $html, ?string $heroCopy): ?string
+    {
+        $html = trim((string) $html);
+
+        if ($html === '') {
+            return null;
+        }
+
+        if (preg_match('/<[a-z][\w:-]*\b/i', $html) !== 1) {
+            $html = $this->plainParagraphsHtml($html);
+        }
+
+        $html = trim($this->renderReadingHtml($html, $heroCopy));
+
+        return $html !== '' ? $html : null;
+    }
+
+    private function plainParagraphsHtml(string $text): string
+    {
+        $text = str_replace(["\r\n", "\r"], "\n", $text);
+        $paragraphs = preg_split("/\n{2,}/", trim($text)) ?: [];
+
+        return collect($paragraphs)
+            ->map(function (string $paragraph): ?string {
+                $paragraph = trim($paragraph);
+
+                if ($paragraph === '') {
+                    return null;
+                }
+
+                return '<p>'.nl2br(e($paragraph), false).'</p>';
+            })
+            ->filter()
+            ->implode("\n");
+    }
+
+    private function renderReadingHtml(string $html, ?string $heroCopy): string
+    {
+        $previousState = libxml_use_internal_errors(true);
+
+        try {
+            $dom = new \DOMDocument('1.0', 'UTF-8');
+            $loaded = $dom->loadHTML(
+                '<?xml encoding="utf-8" ?><div id="story-reading-root">'.$html.'</div>',
+                LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD
+            );
+
+            if (! $loaded) {
+                return $html;
+            }
+
+            $root = $dom->getElementById('story-reading-root');
+
+            if (! $root instanceof \DOMElement) {
+                return $html;
+            }
+
+            $this->hoistReadingWrappers($root);
+            $this->stripUnsafeReadingAttributes($root);
+            $this->omitDuplicateOpeningBlock($root, $heroCopy);
+
+            return trim(collect(iterator_to_array($root->childNodes))
+                ->map(fn (\DOMNode $node): string => $dom->saveHTML($node) ?: '')
+                ->implode(''));
+        } finally {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousState);
+        }
+    }
+
+    private function hoistReadingWrappers(\DOMElement $root): void
+    {
+        for ($guard = 0; $guard < 8; $guard++) {
+            $nodes = $this->readingChildNodes($root);
+
+            if (count($nodes) !== 1 || ! $nodes[0] instanceof \DOMElement) {
+                return;
+            }
+
+            $wrapper = $nodes[0];
+            $tag = strtolower($wrapper->tagName);
+
+            if (! in_array($tag, ['div', 'section', 'article'], true) || $this->wrapperLooksLikeGallery($wrapper)) {
+                return;
+            }
+
+            while ($wrapper->firstChild !== null) {
+                $root->insertBefore($wrapper->firstChild, $wrapper);
+            }
+
+            $root->removeChild($wrapper);
+        }
+    }
+
+    private function wrapperLooksLikeGallery(\DOMElement $wrapper): bool
+    {
+        $class = ' '.strtolower($wrapper->getAttribute('class')).' ';
+
+        return str_contains($class, ' imported-gallery ')
+            || str_contains($class, ' wp-import-gallery ');
+    }
+
+    private function stripUnsafeReadingAttributes(\DOMElement $root): void
+    {
+        foreach (iterator_to_array($root->getElementsByTagName('*')) as $element) {
+            if (! $element instanceof \DOMElement) {
+                continue;
+            }
+
+            $remove = [];
+
+            foreach (iterator_to_array($element->attributes) as $attribute) {
+                if (! $attribute instanceof \DOMAttr) {
+                    continue;
+                }
+
+                $name = strtolower($attribute->name);
+                $value = trim($attribute->value);
+
+                if (str_starts_with($name, 'on')) {
+                    $remove[] = $attribute->name;
+
+                    continue;
+                }
+
+                if (in_array($name, ['href', 'src'], true) && preg_match('/^\s*javascript:/i', $value) === 1) {
+                    $remove[] = $attribute->name;
+                }
+            }
+
+            foreach ($remove as $name) {
+                $element->removeAttribute($name);
+            }
+        }
+    }
+
+    private function omitDuplicateOpeningBlock(\DOMElement $root, ?string $heroCopy): void
+    {
+        $lead = $this->normalizeReadingText((string) $heroCopy);
+
+        if ($lead === '') {
+            return;
+        }
+
+        $nodes = $this->readingChildNodes($root);
+        $first = $nodes[0] ?? null;
+
+        if (! $first instanceof \DOMElement || strtolower($first->tagName) === 'figure') {
+            return;
+        }
+
+        if ($this->normalizeReadingText($first->textContent) !== $lead) {
+            return;
+        }
+
+        $root->removeChild($first);
+    }
+
+    /**
+     * @return array<int, \DOMNode>
+     */
+    private function readingChildNodes(\DOMElement $root): array
+    {
+        $nodes = [];
+
+        foreach ($root->childNodes as $child) {
+            if ($child instanceof \DOMText && trim($child->textContent) === '') {
+                continue;
+            }
+
+            $nodes[] = $child;
+        }
+
+        return $nodes;
+    }
+
+    private function normalizeReadingText(string $value): string
+    {
+        $value = html_entity_decode(strip_tags($value), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+
+        return Str::of($value)->squish()->lower()->toString();
     }
 }

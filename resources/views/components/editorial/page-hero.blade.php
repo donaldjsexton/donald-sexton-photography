@@ -91,7 +91,7 @@
                     :media="$media"
                     :src="$src"
                     :ratio="$ratio"
-                    :alt="$mediaAlt ?: $title"
+                    :alt="$mediaAlt ?: ($media?->alt_text ?: $title)"
                     :sizes="$sizes"
                     loading="eager"
                     fetchpriority="high"
