@@ -2,13 +2,16 @@ name: Issue one CMS MCP token
 
 on:
   workflow_dispatch:
+  workflow_run:
+    workflows: ["Deploy over SSH"]
+    types: [completed]
 
 permissions:
   contents: read
 
 jobs:
   issue-token:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     concurrency:
