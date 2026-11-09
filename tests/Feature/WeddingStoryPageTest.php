@@ -96,6 +96,60 @@ HTML,
             ->assertSee('Another paragraph follows.', false);
     }
 
+    public function test_rich_html_paragraphs_and_native_links_stay_separate_and_safe(): void
+    {
+        $story = WeddingStory::create([
+            'title' => 'Formatted Story',
+            'slug' => 'formatted-story',
+            'status' => 'published',
+            'excerpt' => 'A different excerpt.',
+            'body' => <<<'HTML'
+<p>First paragraph with <strong>emphasis</strong>.</p>
+<p>Second paragraph stays separate.</p>
+<p>Planning a beach wedding? <a href="https://donaldsextonphotography.com/inquire">Tell me about your date</a>.</p>
+<p>Do not follow <a href="javascript:alert(1)">this</a>.</p>
+HTML,
+            'published_at' => now(),
+        ]);
+
+        $content = $this->get(route('weddings.show', $story->slug))
+            ->assertOk()
+            ->assertSee('<p>First paragraph with <strong>emphasis</strong>.</p>', false)
+            ->assertSee('<p>Second paragraph stays separate.</p>', false)
+            ->assertSee('<a href="https://donaldsextonphotography.com/inquire">Tell me about your date</a>', false)
+            ->assertDontSee('javascript:', false)
+            ->getContent();
+
+        $this->assertSame(1, preg_match_all('/<div class="detail-shell rich-text">[\s\S]*?<\/div>/', $content, $sections));
+        $this->assertGreaterThanOrEqual(4, substr_count($sections[0][0], '<p>'));
+    }
+
+    public function test_markdown_link_syntax_is_left_as_text(): void
+    {
+        $markdown = 'Planning a beach wedding? [Tell me about your date](https://donaldsextonphotography.com/inquire).';
+
+        $story = WeddingStory::create([
+            'title' => 'Markdown CTA',
+            'slug' => 'markdown-cta',
+            'status' => 'published',
+            'excerpt' => 'Excerpt.',
+            'body' => '<p>First saved paragraph.</p><p>'.$markdown.'</p>',
+            'published_at' => now(),
+        ]);
+
+        $content = $this->get(route('weddings.show', $story->slug))
+            ->assertOk()
+            ->assertSee('<p>First saved paragraph.</p>', false)
+            ->assertSee($markdown, false)
+            ->getContent();
+
+        $this->assertMatchesRegularExpression('/<div class="detail-shell rich-text">[\s\S]*'.preg_quote($markdown, '/').'/', $content);
+        $this->assertDoesNotMatchRegularExpression(
+            '/<div class="detail-shell rich-text">[\s\S]*<a href="https:\/\/donaldsextonphotography.com\/inquire">Tell me about your date<\/a>/',
+            $content
+        );
+    }
+
     public function test_a_story_with_no_body_keeps_the_excerpt_and_skips_the_reading_section(): void
     {
         $story = WeddingStory::create([

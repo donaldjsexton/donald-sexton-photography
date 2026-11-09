@@ -2662,6 +2662,16 @@ img {
     list-style: none;
 }
 
+.detail-shell.rich-text > p {
+    margin: 1.15rem 0;
+}
+
+.rich-text a {
+    color: inherit;
+    text-decoration: underline;
+    text-underline-offset: 0.18em;
+}
+
 .rich-text p:first-child {
     margin-top: 0;
 }
