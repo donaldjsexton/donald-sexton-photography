@@ -1,6 +1,6 @@
 # CMS MCP interface
 
-Remote clients can manage wedding-story drafts through the Model Context Protocol server already provided by `laravel/mcp`. This document is the setup guide. It does not deploy the server or create a live credential.
+Remote clients can manage wedding-story drafts through the Model Context Protocol server provided by `laravel/mcp`. That package is a production dependency in `composer.json` `require`, so `composer install --no-dev` installs it and its service provider can register `routes/ai.php`. A route cache built without the package omits `/mcp/cms`. This document is the setup guide. It does not deploy the server or create a live credential.
 
 ## Transport
 
