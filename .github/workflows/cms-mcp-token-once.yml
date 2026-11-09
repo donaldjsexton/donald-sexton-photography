@@ -1,0 +1,164 @@
+name: Issue one CMS MCP token
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  issue-token:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency:
+      group: cms-mcp-token-once
+      cancel-in-progress: false
+    environment:
+      name: production
+    env:
+      SSH_HOST: ${{ vars.PRODUCTION_SSH_HOST }}
+      SSH_PORT: ${{ vars.PRODUCTION_SSH_PORT || '22' }}
+      SSH_USER: ${{ vars.PRODUCTION_SSH_USER }}
+      APP_DIR: ${{ vars.PRODUCTION_APP_DIR }}
+      PHP_BIN: ${{ vars.PRODUCTION_PHP_BIN || 'php' }}
+    steps:
+      - name: Validate deploy configuration
+        run: |
+          test -n "$SSH_HOST" || { echo "Missing PRODUCTION_SSH_HOST"; exit 1; }
+          test -n "$SSH_USER" || { echo "Missing PRODUCTION_SSH_USER"; exit 1; }
+          test -n "$APP_DIR" || { echo "Missing PRODUCTION_APP_DIR"; exit 1; }
+
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+
+      - name: Configure known hosts
+        env:
+          SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+
+          if [ -n "$SSH_KNOWN_HOSTS" ]; then
+            printf '%s\n' "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
+          else
+            ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          fi
+
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Issue one token and check the live endpoints
+        run: |
+          set +x
+          set -euo pipefail
+          pubkey="$(mktemp)"
+          cat > "$pubkey" << 'PEM'
+          -----BEGIN PUBLIC KEY-----
+          MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEApYjQDCUVJynP6W515EcY
+          7Ind8VzTIKrKf54EFKWUayzqsORA+vQxoqFMfm9D1GU/izlBOZEGhGUMe1dbRhMz
+          vw8Nsr0DJ8fPEMP4Kb6Cbw3mJbNOMeBtraZLzryBkwIKXPFDcKdRyUco0MV7JgQp
+          RSX5Ckvp7AHWkNMidQqtyg1qvUwFySSeBmgHv52JFCPovXRv2MYJNDwG1ybErkbB
+          apiG9YtJJVmQp7cGh+/SfOhJ0xB65C3FKDf47sWp8aka9OvesL0nuM4LqGDW4z5D
+          1/IsyiZKJCrcQNFyL/9SMW4hE5FrMKL0/uRJqRzwNHSKs73ZVdu17pH9fTRX81Ae
+          00B/L7grdIzXN+4KTkZc9haEHgtUdjRFnNfUZsSrFlQbdq/uvVOzcb0rne9NqoqF
+          BUhTxXcxiIvKkuqLPVQ3M5nfK14AHkMYywSNiJgJINbd6ZdumMDclMezAzsdawdO
+          mviFELV0+KhaIdtCLAd1Dpi63k3ko1a6uPJ3xhBCBmcLS4MEZnXIQLuZz79Kiw3G
+          Jm5pIAteshOdSYoQrHAJsSwqr+2jSyqHunvwugRWOy8YcRdF2jP/2GQQ5bfxzHEA
+          doNYalXXJkR1/7K42Qxjr/bj4x1uYra1YuDDbAlhhQ9r9Yrys4AL/ruLmyb1IHrY
+          5DcgL8YHo1D/5ZdQxc/TArcCAwEAAQ==
+          -----END PUBLIC KEY-----
+          PEM
+          sed -i 's/^[[:space:]]*//' "$pubkey"
+          scp -P "$SSH_PORT" "$pubkey" "$SSH_USER@$SSH_HOST:/tmp/cms-mcp-pubkey.pem"
+          rm -f "$pubkey"
+          ssh -p "$SSH_PORT" "$SSH_USER@$SSH_HOST" "PHP_BIN='$PHP_BIN' APP_DIR='$APP_DIR' bash -s" << 'REMOTE'
+          set +x
+          set -euo pipefail
+
+          if [[ -f "$APP_DIR/artisan" ]]; then
+            cd "$APP_DIR"
+          elif [[ -f "$APP_DIR/current/artisan" ]]; then
+            cd "$APP_DIR/current"
+          else
+            echo "artisan not found" >&2
+            exit 1
+          fi
+
+          command -v openssl >/dev/null
+          command -v curl >/dev/null
+          test -f /tmp/cms-mcp-pubkey.pem
+          printf 'probe' | openssl pkeyutl -encrypt -pubin -inkey /tmp/cms-mcp-pubkey.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 >/dev/null
+
+          debug_raw=$("$PHP_BIN" artisan tinker --execute='echo config("app.debug") ? "true" : "false";' --no-ansi)
+          debug=$(printf '%s' "$debug_raw" | tr -cd 'a-z')
+          unset debug_raw
+          case "$debug" in
+            true|false) printf 'APP_DEBUG=%s\n' "$debug" ;;
+            *) printf 'APP_DEBUG=unparsed\n' ;;
+          esac
+          unset debug
+
+          exists_raw=$("$PHP_BIN" artisan tinker --execute='echo App\Models\CmsMcpCredential::query()->where("name", "Grok Bot CMS connector")->exists() ? "exists" : "missing";' --no-ansi)
+          exists=$(printf '%s' "$exists_raw" | tr -cd 'a-z')
+          unset exists_raw
+
+          if [[ "$exists" == *exists* && "$exists" != *missing* ]]; then
+            echo "CMS_MCP_TOKEN_ALREADY_ISSUED"
+          elif [[ "$exists" == missing ]]; then
+            errfile=$(mktemp)
+            set +e
+            output=$("$PHP_BIN" artisan cms-mcp:issue "Grok Bot CMS connector" --publish --no-interaction --no-ansi 2>"$errfile")
+            issue_status=$?
+            set -e
+            rm -f "$errfile"
+            if [[ "$issue_status" -ne 0 ]]; then
+              unset output
+              echo "cms-mcp:issue failed" >&2
+              exit "$issue_status"
+            fi
+            token=$(printf '%s\n' "$output" | awk 'NF { line=$0 } END { print line }')
+            unset output
+            case "$token" in
+              dsp_mcp_*) ;;
+              *)
+                unset token
+                echo "issue output was not a token" >&2
+                exit 1
+                ;;
+            esac
+            ciphertext=$(printf '%s' "$token" | openssl pkeyutl -encrypt -pubin -inkey /tmp/cms-mcp-pubkey.pem -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 | base64 -w0)
+            unset token
+            printf '%s\n' 'CMS_MCP_TOKEN_CIPHERTEXT_BEGIN'
+            printf '%s\n' "$ciphertext"
+            printf '%s\n' 'CMS_MCP_TOKEN_CIPHERTEXT_END'
+            unset ciphertext
+          else
+            echo "could not read credential state" >&2
+            exit 1
+          fi
+
+          rm -f /tmp/cms-mcp-pubkey.pem
+
+          code_for() {
+            curl -sS -o /dev/null -w '%{http_code}' --max-time 25 "$@" || printf '000'
+          }
+
+          base="https://donaldsextonphotography.com"
+          resolve=(--resolve donaldsextonphotography.com:443:127.0.0.1)
+          home_code=$(code_for "${resolve[@]}" "$base/")
+          if [[ "$home_code" == "000" ]]; then
+            home_code=$(code_for "$base/")
+            resolve=()
+          fi
+          story_code=$(code_for "${resolve[@]}" "$base/weddings/dailani-aaron-beach-wedding")
+          get_code=$(code_for "${resolve[@]}" "$base/mcp/cms")
+          post_none=$(code_for "${resolve[@]}" -X POST -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' --data '{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}' "$base/mcp/cms")
+          post_bad=$(code_for "${resolve[@]}" -X POST -H 'Content-Type: application/json' -H 'Accept: application/json, text/event-stream' -H 'Authorization: Bearer invalid-not-a-real-token' --data '{"jsonrpc":"2.0","id":1,"method":"ping","params":{}}' "$base/mcp/cms")
+          printf 'HOME=%s\n' "$home_code"
+          printf 'STORY=%s\n' "$story_code"
+          printf 'MCP_GET=%s\n' "$get_code"
+          printf 'MCP_POST_NO_TOKEN=%s\n' "$post_none"
+          printf 'MCP_POST_BAD_TOKEN=%s\n' "$post_bad"
+          REMOTE
