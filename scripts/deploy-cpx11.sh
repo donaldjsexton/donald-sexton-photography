@@ -117,8 +117,32 @@ normalize_shared_storage_permissions() {
     find "$storage_dir" -type d -exec chmod g+s {} + 2>/dev/null || true
 }
 
+# Release deploys replace storage with the shared directory, so files shipped
+# in the repo under storage/app/public would otherwise never reach the server.
+# Copy them into shared storage first. Existing editor uploads are left in
+# place; a shipped file with the same relative path is updated.
+seed_shipped_public_media() {
+    local source="$RELEASE_DIR/storage/app/public/media"
+    local dest="$DEPLOY_ROOT/shared/storage/app/public/media"
+
+    if [[ ! -d "$source" ]]; then
+        return
+    fi
+
+    mkdir -p "$dest"
+    cp -a "$source/." "$dest/"
+    # Only the shipped site/ directory. Leave the rest of the media library alone.
+    if [[ -d "$dest/site" ]]; then
+        find "$dest/site" -type d -exec chmod 0755 {} +
+        find "$dest/site" -type f -exec chmod 0644 {} +
+    fi
+    log "Seeded shipped public media into shared storage"
+}
+
 link_shared_paths() {
     [[ -f "$DEPLOY_ROOT/shared/.env" ]] || fail "Missing shared env file: $DEPLOY_ROOT/shared/.env"
+
+    seed_shipped_public_media
 
     ln -sfn "$DEPLOY_ROOT/shared/.env" "$RELEASE_DIR/.env"
 

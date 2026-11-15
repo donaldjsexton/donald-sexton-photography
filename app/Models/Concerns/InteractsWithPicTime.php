@@ -3,6 +3,7 @@
 namespace App\Models\Concerns;
 
 use App\Support\PicTimeContent;
+use App\Support\ShareImage;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Str;
@@ -310,7 +311,8 @@ trait InteractsWithPicTime
                 $legacyPath = (string) preg_replace('#^/[^/]+#', '', $legacyPath);
             }
 
-            return $this->hasLocalPublicAsset($legacyPath);
+            return ShareImage::replacementFor($legacyPath) !== null
+                || $this->hasLocalPublicAsset($legacyPath);
         }
 
         if (Str::startsWith($url, '/storage/')) {
@@ -358,6 +360,11 @@ trait InteractsWithPicTime
         }
 
         $path = '/'.ltrim($rawPath, '/');
+        $replacement = ShareImage::replacementFor($path);
+
+        if ($replacement !== null) {
+            return $replacement;
+        }
 
         if (! $this->hasLocalPublicAsset($path)) {
             return null;

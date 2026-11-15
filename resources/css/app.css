@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './fonts.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -23,8 +24,8 @@
     --accent-soft: #8d7a68;
     --shadow-soft: 0 28px 60px rgba(50, 31, 19, 0.08);
     --shadow-large: 0 45px 100px rgba(44, 28, 17, 0.12);
-    --font-body: 'Jost', 'Avenir Next', 'Helvetica Neue', sans-serif;
-    --font-display: 'Cormorant Garamond', 'Times New Roman', serif;
+    --font-body: 'Jost', 'Jost Fallback', 'Avenir Next', 'Helvetica Neue', sans-serif;
+    --font-display: 'Cormorant Garamond', 'Cormorant Garamond Fallback', 'Times New Roman', serif;
 }
 
 * {
@@ -3109,6 +3110,7 @@ textarea {
     margin: 0;
     font-family: var(--font-display);
     font-size: clamp(1.8rem, 3vw, 2.8rem);
+    font-weight: 400;
     line-height: 1.06;
 }
 

@@ -20,15 +20,19 @@
         $canonicalUrl = trim($__env->yieldContent('canonical_url', url()->current()));
         $siteUrl = rtrim(config('app.url', url('/')), '/');
         $ogType = trim($__env->yieldContent('og_type', 'website')) ?: 'website';
-        $rawOgImage = trim($__env->yieldContent('og_image', (string) config('seo.default_og_image', '')));
+        // An explicit empty section means "no page image", so fall through to
+        // the configured default. Legacy WordPress share paths are rewritten
+        // to the copy on the public media disk before the URL is absolutized.
+        $yieldedOgImage = trim($__env->yieldContent('og_image'));
+        $decodedOgImage = $yieldedOgImage === ''
+            ? ''
+            : htmlspecialchars_decode($yieldedOgImage, ENT_QUOTES | ENT_HTML5);
+        $rawOgImage = \App\Support\ShareImage::resolve($decodedOgImage);
         $ogImage = '';
         if ($rawOgImage !== '') {
-            // yieldContent escapes via e(), so decode before url() so a relative
-            // path is treated as a path and not as already-escaped HTML.
-            $decodedOgImage = htmlspecialchars_decode($rawOgImage, ENT_QUOTES | ENT_HTML5);
-            $ogImage = e(preg_match('#^https?://#i', $decodedOgImage)
-                ? $decodedOgImage
-                : url($decodedOgImage));
+            $ogImage = e(preg_match('#^https?://#i', $rawOgImage)
+                ? $rawOgImage
+                : url($rawOgImage));
         }
         $ogImageAlt = trim($__env->yieldContent('og_image_alt', $siteName));
         $ogArticlePublishedTime = trim($__env->yieldContent('og_article_published_time'));
@@ -92,22 +96,26 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{!! $metaTitle !!}">
     <link rel="alternate" type="application/atom+xml" title="{{ $siteName }} — Journal" href="{{ route('journal.feed') }}">
+    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    <link rel="icon" type="image/png" sizes="192x192" href="{{ asset('icon-192.png') }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ asset('icon-512.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('icon-192.png') }}">
+    <link rel="manifest" href="{{ asset('manifest.json') }}">
     @stack('head_preload')
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    @php
-        $fontStylesheet = 'https://fonts.bunny.net/css?family=cormorant-garamond:400,500,600,700|jost:300,400,500,600&display=swap';
-    @endphp
-    {{-- Load the font CSS without blocking first paint: fetch as a low-priority
-         stylesheet, then promote it to a real stylesheet once it arrives. --}}
-    <link rel="preload" as="style" href="{{ $fontStylesheet }}" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="{{ $fontStylesheet }}"></noscript>
+    {{-- Hero and header are Cormorant. Preload the latin files so the swap
+         happens against the metric-adjusted fallback instead of after first paint. --}}
+    <link rel="preload" href="{{ asset('fonts/cormorant-garamond-latin-400-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
+    <link rel="preload" href="{{ asset('fonts/cormorant-garamond-latin-500-normal.woff2') }}" as="font" type="font/woff2" crossorigin>
     <script type="application/ld+json">{!! json_encode($websiteSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
     <script type="application/ld+json">{!! json_encode($businessSchema, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) !!}</script>
     @stack('json_ld')
     @if ($analyticsMeasurementId)
-        {{-- Queue analytics immediately but defer the gtag.js download until the
-             user interacts or the browser goes idle, keeping it off the critical
-             path. Queued calls flush once the script loads. --}}
+        {{-- Queue analytics immediately so custom events (availability_date_select,
+             inquiry steps) land in dataLayer before gtag.js arrives. Download the
+             library on the first real interaction, or a few seconds after load,
+             so it stays off the initial paint. Scroll and idle callbacks are
+             omitted because a performance audit fires both and would still pay
+             the download during measurement. --}}
         <script>
             window.dataLayer = window.dataLayer || [];
             function gtag(){dataLayer.push(arguments);}
@@ -115,12 +123,12 @@
             gtag('config', '{{ $analyticsMeasurementId }}');
             (function () {
                 var loaded = false;
-                var events = ['scroll', 'keydown', 'pointerdown', 'touchstart'];
+                var events = ['pointerdown', 'keydown', 'touchstart'];
                 function load() {
                     if (loaded) { return; }
                     loaded = true;
                     events.forEach(function (name) {
-                        window.removeEventListener(name, load, { passive: true });
+                        window.removeEventListener(name, load, true);
                     });
                     var script = document.createElement('script');
                     script.async = true;
@@ -128,13 +136,11 @@
                     document.head.appendChild(script);
                 }
                 events.forEach(function (name) {
-                    window.addEventListener(name, load, { passive: true });
+                    window.addEventListener(name, load, { capture: true, passive: true });
                 });
-                if ('requestIdleCallback' in window) {
-                    requestIdleCallback(load, { timeout: 5000 });
-                } else {
+                window.addEventListener('load', function () {
                     window.setTimeout(load, 5000);
-                }
+                });
             })();
         </script>
     @endif

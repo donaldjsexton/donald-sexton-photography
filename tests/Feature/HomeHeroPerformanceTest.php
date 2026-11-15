@@ -47,9 +47,10 @@ class HomeHeroPerformanceTest extends TestCase
     {
         $content = $this->get(route('home'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('rel="preload" as="style" href="https://fonts.bunny.net', $content);
-        $this->assertStringContainsString('this.rel=\'stylesheet\'', $content);
-        $this->assertStringContainsString('display=swap', $content);
+        $this->assertStringNotContainsString('fonts.bunny.net', $content);
+        $this->assertStringContainsString('as="font" type="font/woff2" crossorigin', $content);
+        $this->assertStringContainsString('/fonts/cormorant-garamond-latin-400-normal.woff2', $content);
+        $this->assertStringContainsString('/fonts/cormorant-garamond-latin-500-normal.woff2', $content);
     }
 
     public function test_analytics_script_is_deferred_off_the_critical_path(): void
@@ -58,10 +59,14 @@ class HomeHeroPerformanceTest extends TestCase
 
         $content = $this->get(route('home'))->assertOk()->getContent();
 
-        // The queue is set up inline, but the gtag.js download must be deferred
-        // rather than loaded with a render-time <script async src> tag.
+        // The queue is set up inline, but the gtag.js download must wait for a
+        // real interaction or until after window load. Idle and scroll callbacks
+        // still fire during a lab audit and pull the library onto the load path.
         $this->assertStringContainsString("gtag('config', 'G-TEST12345')", $content);
-        $this->assertStringContainsString('requestIdleCallback', $content);
+        $this->assertStringContainsString("window.addEventListener('load'", $content);
+        $this->assertStringContainsString('pointerdown', $content);
+        $this->assertStringNotContainsString('requestIdleCallback', $content);
+        $this->assertStringNotContainsString("'scroll'", $content);
         $this->assertStringNotContainsString('<script async src="https://www.googletagmanager.com/gtag/js', $content);
     }
 }

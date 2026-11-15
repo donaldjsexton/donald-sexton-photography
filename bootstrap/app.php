@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\AttachLogContext;
+use App\Http\Middleware\RedirectTrailingSlashes;
 use App\Http\Middleware\ResolveTenant;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,6 +17,8 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(RedirectTrailingSlashes::class);
+
         $middleware->web(append: [
             ResolveTenant::class,
             AttachLogContext::class,

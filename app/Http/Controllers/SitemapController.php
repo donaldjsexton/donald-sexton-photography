@@ -65,6 +65,7 @@ class SitemapController extends Controller
     {
         $homeSettings = HomepageSetting::query()->latest('updated_at')->first();
         $collectionsPage = Page::published()->where('slug', 'collections')->latest('updated_at')->first();
+        $aboutPage = Page::published()->where('slug', 'about')->latest('updated_at')->first();
         $latestStory = WeddingStory::published()->latest('updated_at')->first();
         $latestJournalPost = JournalPost::published()->latest('updated_at')->first();
         $latestVenue = Venue::query()->latest('updated_at')->first();
@@ -76,6 +77,9 @@ class SitemapController extends Controller
             $this->entry(route('journal.index'), $latestJournalPost?->updated_at),
             $this->entry(route('venues.index'), $latestVenue?->updated_at),
             $this->entry(route('inquiry.create')),
+            $this->entry(route('pages.about'), $aboutPage?->updated_at ?? $aboutPage?->published_at),
+            $this->entry(route('legal.privacy')),
+            $this->entry(route('legal.terms')),
         ]);
 
         $heroMedia = fn ($query) => $query->select(self::MEDIA_COLUMNS);

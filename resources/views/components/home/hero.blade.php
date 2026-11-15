@@ -111,7 +111,7 @@
 
     <div class="page-shell--tight home-hero__intro" data-reveal data-reveal-delay="0.18">
         <p class="eyebrow">{{ $heroEyebrow }}</p>
-        <p class="home-hero__intro-copy">{{ $introCopy }}</p>
+        <h1 class="home-hero__intro-copy">{{ $introCopy }}</h1>
         <div class="home-hero__intro-meta">
             <span>Clearwater</span>
             <span>Tampa</span>

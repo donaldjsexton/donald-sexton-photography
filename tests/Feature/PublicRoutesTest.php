@@ -1166,7 +1166,9 @@ HTML,
             ->assertSee('<loc>'.route('weddings.show', $story->slug).'</loc>', false)
             ->assertSee('<loc>'.route('journal.show', $post->slug).'</loc>', false)
             ->assertSee('<loc>'.route('collections.index').'</loc>', false)
-            ->assertDontSee('<loc>'.route('pages.about').'</loc>', false)
+            ->assertSee('<loc>'.route('pages.about').'</loc>', false)
+            ->assertSee('<loc>'.route('legal.privacy').'</loc>', false)
+            ->assertSee('<loc>'.route('legal.terms').'</loc>', false)
             ->assertSee('<lastmod>', false);
     }
 
