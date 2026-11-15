@@ -19,14 +19,38 @@ class PwaManifestTest extends TestCase
 
     public function test_manifest_icons_exist_as_valid_pngs_at_declared_sizes(): void
     {
-        $manifestPath = public_path('manifest.json');
+        foreach (['manifest.json', 'admin-manifest.json'] as $filename) {
+            $this->assertManifestIcons($filename);
+        }
+
+        $public = json_decode(File::get(public_path('manifest.json')), true);
+        $admin = json_decode(File::get(public_path('admin-manifest.json')), true);
+
+        $this->assertSame('/', $public['start_url'] ?? null);
+        $this->assertSame('/admin', $admin['start_url'] ?? null);
+    }
+
+    public function test_admin_layout_links_manifest_assets_and_standard_meta(): void
+    {
+        $response = $this->actingAs(User::factory()->create())->get(route('admin.dashboard'));
+
+        $response->assertOk();
+        $response->assertSee('<meta name="mobile-web-app-capable" content="yes">', false);
+        $response->assertSee('<link rel="manifest" href="/admin-manifest.json">', false);
+        $response->assertDontSee('<link rel="manifest" href="/manifest.json">', false);
+        $response->assertSee('<link rel="apple-touch-icon" href="/icon-192.png">', false);
+    }
+
+    private function assertManifestIcons(string $filename): void
+    {
+        $manifestPath = public_path($filename);
 
         $this->assertFileExists($manifestPath);
 
         $manifest = json_decode(File::get($manifestPath), true);
 
-        $this->assertIsArray($manifest, 'manifest.json is not valid JSON.');
-        $this->assertNotEmpty($manifest['icons'] ?? [], 'manifest.json declares no icons.');
+        $this->assertIsArray($manifest, $filename.' is not valid JSON.');
+        $this->assertNotEmpty($manifest['icons'] ?? [], $filename.' declares no icons.');
 
         foreach ($manifest['icons'] as $icon) {
             $iconPath = public_path(ltrim($icon['src'], '/'));
@@ -43,15 +67,5 @@ class PwaManifestTest extends TestCase
             $this->assertSame($expectedWidth, $dimensions[0], "Manifest icon {$icon['src']} width does not match its declared size.");
             $this->assertSame($expectedHeight, $dimensions[1], "Manifest icon {$icon['src']} height does not match its declared size.");
         }
-    }
-
-    public function test_admin_layout_links_manifest_assets_and_standard_meta(): void
-    {
-        $response = $this->actingAs(User::factory()->create())->get(route('admin.dashboard'));
-
-        $response->assertOk();
-        $response->assertSee('<meta name="mobile-web-app-capable" content="yes">', false);
-        $response->assertSee('<link rel="manifest" href="/manifest.json">', false);
-        $response->assertSee('<link rel="apple-touch-icon" href="/icon-192.png">', false);
     }
 }

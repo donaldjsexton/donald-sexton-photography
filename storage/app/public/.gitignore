@@ -1,2 +1,7 @@
-*
+/*
 !.gitignore
+!/media
+/media/*
+!/media/site
+/media/site/*
+!/media/site/journal-share.jpg

@@ -1,11 +1,12 @@
 {
     "name": "Donald Sexton Photography",
-    "short_name": "DSP Studio",
-    "description": "Studio management for Donald Sexton Photography",
-    "start_url": "/admin",
-    "display": "standalone",
+    "short_name": "Sexton",
+    "description": "Calm wedding photography for Clearwater, Tampa, and beyond.",
+    "start_url": "/",
+    "scope": "/",
+    "display": "browser",
     "background_color": "#f9f7f4",
-    "theme_color": "#2d1d15",
+    "theme_color": "#f9f7f4",
     "icons": [
         {
             "src": "/icon-192.png",
