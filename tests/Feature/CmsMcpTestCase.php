@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\CmsMcpCredential;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -16,6 +17,8 @@ abstract class CmsMcpTestCase extends TestCase
     {
         parent::setUp();
 
+        // The route is throttled; do not let one test's requests count against the next.
+        Cache::flush();
         Storage::fake('public');
     }
 
