@@ -4,16 +4,17 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Page;
+use App\Services\Cms\PageManager;
 use App\Support\LocationPageDraft;
 use App\Tenancy\CurrentSite;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class PageController extends Controller
 {
+    public function __construct(private readonly PageManager $pages) {}
+
     public function index(): View
     {
         return view('admin.pages.index', [
@@ -33,9 +34,9 @@ class PageController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $this->validatePage($request);
+        $validated = $request->validate($this->pages->rules());
         $page = new Page;
-        $this->fillPage($page, $validated);
+        $this->pages->save($page, $validated);
 
         return redirect()
             ->route('admin.pages.edit', $page)
@@ -56,8 +57,8 @@ class PageController extends Controller
 
     public function update(Request $request, Page $page): RedirectResponse
     {
-        $validated = $this->validatePage($request, $page);
-        $this->fillPage($page, $validated);
+        $validated = $request->validate($this->pages->rules($page));
+        $this->pages->save($page, $validated);
 
         return redirect()
             ->route('admin.pages.edit', $page)
@@ -119,79 +120,14 @@ class PageController extends Controller
         return $slug;
     }
 
-    private function validatePage(Request $request, ?Page $page = null): array
-    {
-        return $request->validate([
-            'title' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('pages', 'slug')->where('site_id', app(CurrentSite::class)->id())->ignore($page?->id)],
-            'template' => ['required', Rule::in($this->templates())],
-            'status' => ['required', Rule::in($this->statuses())],
-            'excerpt' => ['nullable', 'string'],
-            'body' => ['nullable', 'string'],
-            'hero_media_id' => ['nullable', 'integer', 'exists:media,id'],
-            'seo_title' => ['nullable', 'string', 'max:255'],
-            'seo_description' => ['nullable', 'string'],
-            'canonical_url' => ['nullable', 'url', 'max:255'],
-            'published_at' => ['nullable', 'date'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
-            'faqs_text' => ['nullable', 'string', 'max:8000'],
-        ]);
-    }
-
-    private function fillPage(Page $page, array $validated): void
-    {
-        $faqsText = $validated['faqs_text'] ?? null;
-        unset($validated['faqs_text']);
-
-        $page->fill($validated);
-        $page->slug = $validated['slug'] ?: Str::slug($validated['title']);
-        $page->sort_order = $validated['sort_order'] ?? 0;
-        $page->faqs = $this->parseFaqs($faqsText);
-        $page->save();
-    }
-
-    /**
-     * Parse the admin textarea into `[{question, answer}, ...]`. Each FAQ is
-     * a line in the form `Question | Answer` — blank lines are ignored,
-     * everything else is dropped to avoid bad schema output.
-     *
-     * @return array<int, array{question: string, answer: string}>|null
-     */
-    private function parseFaqs(?string $raw): ?array
-    {
-        if ($raw === null || trim($raw) === '') {
-            return null;
-        }
-
-        $faqs = collect(preg_split('/\r\n|\r|\n/', $raw))
-            ->map(fn ($line) => trim((string) $line))
-            ->filter(fn (string $line) => $line !== '' && str_contains($line, '|'))
-            ->map(function (string $line): ?array {
-                [$question, $answer] = array_pad(explode('|', $line, 2), 2, '');
-                $question = trim($question);
-                $answer = trim($answer);
-
-                if ($question === '' || $answer === '') {
-                    return null;
-                }
-
-                return ['question' => $question, 'answer' => $answer];
-            })
-            ->filter()
-            ->values()
-            ->all();
-
-        return $faqs === [] ? null : $faqs;
-    }
-
     private function templates(): array
     {
-        return ['home', 'about', 'collections', 'faq', 'location', 'custom'];
+        return PageManager::templates();
     }
 
     private function statuses(): array
     {
-        return ['draft', 'published', 'archived'];
+        return PageManager::statuses();
     }
 
     /**

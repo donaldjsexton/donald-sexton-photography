@@ -7,12 +7,15 @@ use App\Models\HomepageSetting;
 use App\Models\JournalPost;
 use App\Models\Testimonial;
 use App\Models\WeddingStory;
+use App\Services\Cms\HomepageSettingsManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
 class HomepageSettingsController extends Controller
 {
+    public function __construct(private readonly HomepageSettingsManager $settings) {}
+
     public function edit(): View
     {
         $settings = HomepageSetting::query()->with(['heroMedia', 'allBlocks.media'])->first() ?? new HomepageSetting;
@@ -40,24 +43,7 @@ class HomepageSettingsController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'hero_heading' => ['nullable', 'string', 'max:255'],
-            'hero_subheading' => ['nullable', 'string'],
-            'hero_media_id' => ['nullable', 'integer', 'exists:media,id'],
-            'featured_story_ids_json' => ['nullable', 'array'],
-            'featured_story_ids_json.*' => ['integer', 'exists:wedding_stories,id'],
-            'featured_testimonial_ids_json' => ['nullable', 'array'],
-            'featured_testimonial_ids_json.*' => ['integer', 'exists:testimonials,id'],
-            'featured_journal_post_ids_json' => ['nullable', 'array'],
-            'featured_journal_post_ids_json.*' => ['integer', 'exists:journal_posts,id'],
-            'investment_teaser' => ['nullable', 'string'],
-            'final_cta_heading' => ['nullable', 'string', 'max:255'],
-            'final_cta_body' => ['nullable', 'string'],
-        ]);
-
-        $settings = HomepageSetting::query()->first() ?? new HomepageSetting;
-        $settings->fill($validated);
-        $settings->save();
+        $this->settings->save($request->validate($this->settings->rules()));
 
         return redirect()
             ->route('admin.homepage.edit')

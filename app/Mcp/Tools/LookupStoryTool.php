@@ -34,7 +34,7 @@ class LookupStoryTool extends Tool
 
     public function handle(Request $request): ResponseFactory
     {
-        $this->gate->authorize(CmsMcpCredential::READ);
+        $this->gate->authorize(CmsMcpCredential::READ, $this->name);
 
         $validated = $request->validate([
             'story_id' => ['nullable', 'integer', 'required_without:slug'],

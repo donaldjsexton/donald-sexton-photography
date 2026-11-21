@@ -4,10 +4,10 @@ namespace App\Http\Controllers\Admin\Concerns;
 
 use App\Models\Block;
 use App\Models\Media;
+use App\Services\Cms\BlockManager;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Symfony\Component\HttpFoundation\Response;
 
 trait ManagesBlocks
@@ -16,17 +16,8 @@ trait ManagesBlocks
 
     protected function createBlock(Request $request, Model $owner): RedirectResponse
     {
-        $validated = $this->validateBlock($request);
-
-        $owner->allBlocks()->create([
-            'type' => $validated['type'],
-            'heading' => $validated['heading'] ?? null,
-            'subheading' => $validated['subheading'] ?? null,
-            'body' => $validated['body'] ?? null,
-            'data' => $this->cleanBlockData($validated['data'] ?? null),
-            'is_visible' => (bool) ($validated['is_visible'] ?? true),
-            'sort_order' => $validated['sort_order'] ?? $this->nextBlockSortOrder($owner),
-        ]);
+        $blocks = app(BlockManager::class);
+        $blocks->create($owner, $request->validate($blocks->rules()));
 
         return $this->blocksEditorRedirect('Block added.', $owner);
     }
@@ -35,17 +26,8 @@ trait ManagesBlocks
     {
         $this->authorizeBlock($owner, $block);
 
-        $validated = $this->validateBlock($request);
-
-        $block->update([
-            'type' => $validated['type'],
-            'heading' => $validated['heading'] ?? null,
-            'subheading' => $validated['subheading'] ?? null,
-            'body' => $validated['body'] ?? null,
-            'data' => $this->cleanBlockData($validated['data'] ?? null),
-            'is_visible' => (bool) ($validated['is_visible'] ?? false),
-            'sort_order' => $validated['sort_order'] ?? $block->sort_order,
-        ]);
+        $blocks = app(BlockManager::class);
+        $blocks->update($block, $request->validate($blocks->rules()));
 
         return $this->blocksEditorRedirect('Block updated.', $owner);
     }
@@ -67,18 +49,7 @@ trait ManagesBlocks
             'block_ids.*' => ['integer'],
         ]);
 
-        $ownedIds = $owner->allBlocks()->pluck('id')->all();
-        $position = 0;
-
-        foreach ($validated['block_ids'] as $id) {
-            $id = (int) $id;
-
-            if (! in_array($id, $ownedIds, true)) {
-                continue;
-            }
-
-            Block::whereKey($id)->update(['sort_order' => $position++]);
-        }
+        app(BlockManager::class)->reorder($owner, $validated['block_ids']);
 
         if ($request->wantsJson() || $request->ajax()) {
             return response()->noContent();
@@ -118,50 +89,8 @@ trait ManagesBlocks
         return $this->blocksEditorRedirect('Image removed.', $owner);
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function validateBlock(Request $request): array
-    {
-        return $request->validate([
-            'type' => ['required', Rule::in(array_keys((array) config('blocks.types')))],
-            'heading' => ['nullable', 'string', 'max:255'],
-            'subheading' => ['nullable', 'string', 'max:255'],
-            'body' => ['nullable', 'string'],
-            'data' => ['nullable', 'array'],
-            'is_visible' => ['nullable', 'boolean'],
-            'sort_order' => ['nullable', 'integer', 'min:0'],
-        ]);
-    }
-
-    /**
-     * @param  array<string, mixed>|null  $data
-     * @return array<string, mixed>|null
-     */
-    private function cleanBlockData(?array $data): ?array
-    {
-        if ($data === null) {
-            return null;
-        }
-
-        $filtered = array_filter(
-            $data,
-            fn ($value) => $value !== null && $value !== '',
-        );
-
-        return $filtered === [] ? null : $filtered;
-    }
-
-    private function nextBlockSortOrder(Model $owner): int
-    {
-        return (int) $owner->allBlocks()->max('sort_order') + 1;
-    }
-
     private function authorizeBlock(Model $owner, Block $block): void
     {
-        abort_unless(
-            $block->blockable_type === $owner->getMorphClass() && (int) $block->blockable_id === (int) $owner->getKey(),
-            404,
-        );
+        abort_unless(app(BlockManager::class)->owns($owner, $block), 404);
     }
 }

@@ -1,6 +1,6 @@
 # CMS MCP interface
 
-Remote clients can manage wedding-story drafts through the Model Context Protocol server provided by `laravel/mcp`. That package is a production dependency in `composer.json` `require`, so `composer install --no-dev` installs it and its service provider can register `routes/ai.php`. A route cache built without the package omits `/mcp/cms`. This document is the setup guide. It does not deploy the server or create a live credential.
+Remote clients can manage wedding-story drafts, pages, journal posts, venues, media, and redirects through the Model Context Protocol server provided by `laravel/mcp`. That package is a production dependency in `composer.json` `require`, so `composer install --no-dev` installs it and its service provider can register `routes/ai.php`. A route cache built without the package omits `/mcp/cms`. This document is the setup guide. It does not deploy the server or create a live credential.
 
 ## Transport
 
@@ -28,11 +28,27 @@ Abilities:
 | Ability | Allows |
 | --- | --- |
 | `stories:read` | `lookup_story` |
-| `stories:draft` | `create_draft_story`, `update_draft_story` |
+| `stories:draft` | `create_draft_story`, `update_draft_story`, `generate_seo` for stories |
 | `media:upload` | `upload_media` |
 | `stories:publish` | `publish_story` only |
+| `site:read` | `get_homepage`, `list_pages`, `get_page`, `list_journal_posts`, `get_journal_post`, `list_venues`, `get_venue`, `list_media`, `list_redirects` |
+| `pages:write` | `create_draft_page`, `update_page`, `create_page_block`, `update_page_block`, `reorder_page_blocks`, `generate_seo` for pages |
+| `pages:publish` | `publish_page` only |
+| `journal:write` | `create_draft_journal_post`, `update_journal_post`, `generate_seo` for journal posts |
+| `journal:publish` | `publish_journal_post` only |
+| `venues:write` | `update_venue`, `generate_seo` for venues |
+| `media:write` | `update_media_alt_text`, `attach_media`, `generate_alt_text` |
+| `redirects:write` | `create_redirect`, `update_redirect` |
+| `inquiries:read` | `list_inquiries`, `get_inquiry`, `list_clients` |
+| `jobs:read` | `list_booked_jobs`, `get_booked_job`, `get_calendar_availability` |
+| `finance:read` | `list_invoices`, `get_invoice`, `list_contracts`, `get_contract`, `list_proposals` (read only) |
+| `settings:write` | `get_site_settings`, `update_site_settings`, `update_homepage_settings`, `create_homepage_block`, `update_homepage_block`, `reorder_homepage_blocks` |
 
-The default issue command grants read, draft, and upload. It does not grant publish. Add `--publish` or `--ability=stories:publish` when that credential should be able to make a story public.
+No tool deletes anything, so there are no `*:delete` abilities. If a delete tool is added later it needs its own `<area>:delete` ability that is never in the default grant.
+
+Every tool call writes a `cms_mcp.tool_call` log line with the credential id and name, the tool, the ability, and whether it was allowed. The log never contains the token or the tool arguments.
+
+The default issue command grants `stories:read`, `stories:draft`, and `media:upload`. It does not grant publish, delete, or any of the newer abilities. Add `--publish` or `--ability=stories:publish` when that credential should be able to make a story public.
 
 ```bash
 php artisan cms-mcp:issue "Grok Bot"
@@ -43,6 +59,33 @@ php artisan cms-mcp:revoke 1
 A missing, wrong, expired, or revoked token gets HTTP 401. A valid token without the ability gets a tool error and does not change data.
 
 `create_draft_story` and `update_draft_story` always leave `status` as `draft`. Uploading an image does not attach it and does not publish. `publish_story` is the only tool that sets `published`. Calling it again does not rewrite the body, gallery, hero, or alt text. Updates refuse a story that is already published.
+
+## Content tools
+
+The content tools call the same validation rules and save logic as the admin screens (`App\Services\Cms\*`). They are partial by design: an update changes only the fields it sends.
+
+- Pages, page blocks, and journal posts are created as drafts. `status` and `published_at` are ignored on create and update. A page or post that is no longer a draft cannot be edited, reordered, or given blocks through MCP; `publish_page` and `publish_journal_post` are the only tools that publish.
+- Venues, media alt text, and redirects have no draft state, so `update_venue`, `update_media_alt_text`, `create_redirect`, and `update_redirect` change the live site immediately. `update_venue` cannot touch billing, referral, or portal fields, and venue reads omit them.
+- Redirect targets must be a path on this site. External and protocol-relative targets are refused.
+- `attach_media` appends to the gallery of a draft story or draft page.
+- `generate_seo` and `generate_alt_text` run the same generators as the `seo:generate-*` and `media:generate-alt-text` commands. They call the Anthropic API with the server's key, fill blank fields only unless `overwrite` is true, and `generate_seo` refuses non-draft pages, posts, and stories.
+
+## Read-only CRM tools
+
+`inquiries:read` and `jobs:read` change nothing. Responses are allowlisted and redacted:
+
+- Inquiries return name, email, status, event type, event date, venue, city, guest and budget ranges, and timestamps. Phone numbers, message text, SMS consent, tracking fields, and mail ids are never returned. Archived inquiries are listed only when you filter by `status: archived`.
+- Clients return name, partner name, email, and inquiry and invoice counts. No phone, address, notes, or portal data.
+- Booked jobs return summary, couple names, type, date, time, location, and status. Calendar descriptions, coordinator and ceremony notes, and calendar event ids are never returned.
+- `get_calendar_availability` returns the public per-day status for one month from the same calendar as the booking page. It returns no client names.
+
+## Finance (read only)
+
+`finance:read` covers invoices, contracts, and proposals. There is no tool that creates, sends, voids, signs, or records a payment. Invoices return totals, dates, line items, and the installment schedule. Contracts return status, dates, and body text. A proposal is a contract with its invoice. Payment records, gateway ids and tokens, public portal ids, signer IP and user agent, and internal notes are never returned.
+
+## Site settings and homepage
+
+`settings:write` changes live site content. `update_site_settings` accepts only an allowlist (`SiteSettingsManager::MCP_FIELDS`): the analytics measurement id, social links, search verification tags, and business details. Unknown keys are ignored. OAuth tokens, Square credentials, the IndexNow key, and Business Profile links cannot be read or written; `get_site_settings` reports only whether Google, Square, and an IndexNow key are set. The homepage tools use the same validation as the admin homepage screens, and `update_homepage_settings` changes only the fields you send. The grant is separate from content writing and is never in the default.
 
 ## Grok Bot
 

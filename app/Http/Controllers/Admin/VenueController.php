@@ -4,15 +4,15 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Venue;
-use App\Tenancy\CurrentSite;
+use App\Services\Cms\VenueManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class VenueController extends Controller
 {
+    public function __construct(private readonly VenueManager $venues) {}
+
     public function index(Request $request): View
     {
         $search = trim((string) $request->query('search', ''));
@@ -48,9 +48,9 @@ class VenueController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $validated = $this->validateVenue($request);
+        $validated = $request->validate($this->venues->rules());
         $venue = new Venue;
-        $this->fillVenue($venue, $validated);
+        $this->venues->save($venue, $validated);
 
         return redirect()
             ->route('admin.venues.edit', $venue)
@@ -68,8 +68,8 @@ class VenueController extends Controller
 
     public function update(Request $request, Venue $venue): RedirectResponse
     {
-        $validated = $this->validateVenue($request, $venue);
-        $this->fillVenue($venue, $validated);
+        $validated = $request->validate($this->venues->rules($venue));
+        $this->venues->save($venue, $validated);
 
         return redirect()
             ->route('admin.venues.edit', $venue)
@@ -83,120 +83,5 @@ class VenueController extends Controller
         return redirect()
             ->route('admin.venues.index')
             ->with('status', 'Venue deleted.');
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function validateVenue(Request $request, ?Venue $venue = null): array
-    {
-        return $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'slug' => ['nullable', 'string', 'max:255', Rule::unique('venues', 'slug')->where('site_id', app(CurrentSite::class)->id())->ignore($venue?->id)],
-            'city' => ['nullable', 'string', 'max:255'],
-            'state' => ['nullable', 'string', 'max:255'],
-            'region' => ['nullable', 'string', 'max:255'],
-            'headline' => ['nullable', 'string', 'max:255'],
-            'summary' => ['nullable', 'string'],
-            'body' => ['nullable', 'string'],
-            'hero_media_id' => ['nullable', 'integer', 'exists:media,id'],
-            'website_url' => ['nullable', 'url', 'max:255'],
-            'google_places_id' => ['nullable', 'string', 'max:255'],
-            'referral_emails' => ['nullable', 'string'],
-            'referral_contact_name' => ['nullable', 'string', 'max:255'],
-            'referral_requires_approval' => ['nullable', 'boolean'],
-            'is_featured' => ['nullable', 'boolean'],
-            'seo_title' => ['nullable', 'string', 'max:255'],
-            'seo_description' => ['nullable', 'string'],
-            'faqs_text' => ['nullable', 'string', 'max:8000'],
-
-            'business_name' => ['nullable', 'string', 'max:255'],
-            'billing_email' => ['nullable', 'email', 'max:255'],
-            'billing_contact_name' => ['nullable', 'string', 'max:255'],
-            'billing_address_line_1' => ['nullable', 'string', 'max:255'],
-            'billing_address_line_2' => ['nullable', 'string', 'max:255'],
-            'billing_city' => ['nullable', 'string', 'max:255'],
-            'billing_state' => ['nullable', 'string', 'max:100'],
-            'billing_postal_code' => ['nullable', 'string', 'max:20'],
-            'billing_country' => ['nullable', 'string', 'size:2'],
-            'net_payment_terms' => ['nullable', 'string', 'max:50'],
-            'portal_password' => ['nullable', 'string', 'min:8'],
-        ]);
-    }
-
-    /**
-     * @param  array<string, mixed>  $validated
-     */
-    private function fillVenue(Venue $venue, array $validated): void
-    {
-        $portalPassword = $validated['portal_password'] ?? null;
-        $faqsText = $validated['faqs_text'] ?? null;
-        unset($validated['portal_password'], $validated['faqs_text']);
-
-        $venue->fill($validated);
-        $venue->slug = ! empty($validated['slug']) ? $validated['slug'] : Str::slug($validated['name']);
-        $venue->is_featured = (bool) ($validated['is_featured'] ?? false);
-        $venue->referral_requires_approval = (bool) ($validated['referral_requires_approval'] ?? false);
-        $venue->referral_emails = $this->parseReferralEmails($validated['referral_emails'] ?? null);
-        $venue->faqs = $this->parseFaqs($faqsText);
-
-        if (filled($portalPassword)) {
-            $venue->password = $portalPassword;
-        }
-
-        $venue->save();
-    }
-
-    /**
-     * Parse the admin textarea into `[{question, answer}, ...]`. Each FAQ is
-     * a line in the form `Question | Answer` — blank lines are ignored,
-     * everything else is dropped to avoid bad schema output.
-     *
-     * @return array<int, array{question: string, answer: string}>|null
-     */
-    private function parseFaqs(?string $raw): ?array
-    {
-        if ($raw === null || trim($raw) === '') {
-            return null;
-        }
-
-        $faqs = collect(preg_split('/\r\n|\r|\n/', $raw))
-            ->map(fn ($line) => trim((string) $line))
-            ->filter(fn (string $line) => $line !== '' && str_contains($line, '|'))
-            ->map(function (string $line): ?array {
-                [$question, $answer] = array_pad(explode('|', $line, 2), 2, '');
-                $question = trim($question);
-                $answer = trim($answer);
-
-                if ($question === '' || $answer === '') {
-                    return null;
-                }
-
-                return ['question' => $question, 'answer' => $answer];
-            })
-            ->filter()
-            ->values()
-            ->all();
-
-        return $faqs === [] ? null : $faqs;
-    }
-
-    /**
-     * @return array<int, string>|null
-     */
-    private function parseReferralEmails(?string $raw): ?array
-    {
-        if ($raw === null || trim($raw) === '') {
-            return null;
-        }
-
-        $emails = collect(preg_split('/[\s,;]+/', $raw))
-            ->map(fn ($email) => strtolower(trim((string) $email)))
-            ->filter(fn ($email) => $email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL))
-            ->unique()
-            ->values()
-            ->all();
-
-        return $emails === [] ? null : $emails;
     }
 }
