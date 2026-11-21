@@ -5,7 +5,12 @@ namespace App\Mcp;
 use App\Models\Block;
 use App\Models\BookedJob;
 use App\Models\Client;
+use App\Models\Contract;
+use App\Models\HomepageSetting;
 use App\Models\Inquiry;
+use App\Models\Invoice;
+use App\Models\InvoiceInstallment;
+use App\Models\InvoiceLineItem;
 use App\Models\JournalPost;
 use App\Models\Media;
 use App\Models\Page;
@@ -233,6 +238,122 @@ class CmsPayloads
             'event_time' => $job->event_time,
             'location' => $job->location,
             'inquiry_id' => $job->inquiry_id,
+        ];
+    }
+
+    /**
+     * Amounts and schedule only. No public portal id, payment records,
+     * payment tokens, or internal notes.
+     *
+     * @return array<string, mixed>
+     */
+    public function invoice(Invoice $invoice, bool $detail = false): array
+    {
+        $payload = [
+            'id' => $invoice->id,
+            'number' => $invoice->number,
+            'status' => $invoice->status,
+            'currency' => $invoice->currency,
+            'issue_date' => $invoice->issue_date?->toDateString(),
+            'due_date' => $invoice->due_date?->toDateString(),
+            'client_name' => $invoice->billableName(),
+            'booked_job_id' => $invoice->booked_job_id,
+            'subtotal_cents' => $invoice->subtotal_cents,
+            'discount_cents' => $invoice->discount_cents,
+            'tax_cents' => $invoice->tax_cents,
+            'total_cents' => $invoice->total_cents,
+            'amount_paid_cents' => $invoice->amount_paid_cents,
+            'amount_due_cents' => $invoice->amountDueCents(),
+            'sent_at' => $invoice->sent_at?->toIso8601String(),
+            'paid_at' => $invoice->paid_at?->toIso8601String(),
+        ];
+
+        if (! $detail) {
+            return $payload;
+        }
+
+        $invoice->load(['lineItems', 'installments']);
+
+        return $payload + [
+            'notes' => $invoice->notes,
+            'terms' => $invoice->terms,
+            'line_items' => $invoice->lineItems->map(fn (InvoiceLineItem $item): array => [
+                'description' => $item->description,
+                'quantity' => $item->quantity,
+                'unit_price_cents' => $item->unit_price_cents,
+                'total_cents' => $item->total_cents,
+            ])->values()->all(),
+            'installments' => $invoice->installments->map(fn (InvoiceInstallment $installment): array => [
+                'sequence' => $installment->sequence,
+                'label' => $installment->label,
+                'due_date' => $installment->due_date?->toDateString(),
+                'amount_cents' => $installment->amount_cents,
+                'amount_paid_cents' => $installment->amount_paid_cents,
+                'status' => $installment->status,
+            ])->values()->all(),
+        ];
+    }
+
+    /**
+     * No signer IP or user agent, public portal id, or internal notes.
+     *
+     * @return array<string, mixed>
+     */
+    public function contract(Contract $contract, bool $detail = false): array
+    {
+        $payload = [
+            'id' => $contract->id,
+            'number' => $contract->number,
+            'status' => $contract->status,
+            'title' => $contract->title,
+            'client_name' => $contract->billableName(),
+            'invoice_id' => $contract->invoice_id,
+            'booked_job_id' => $contract->booked_job_id,
+            'issue_date' => $contract->issue_date?->toDateString(),
+            'expires_at' => $contract->expires_at?->toDateString(),
+            'sent_at' => $contract->sent_at?->toIso8601String(),
+            'viewed_at' => $contract->viewed_at?->toIso8601String(),
+            'signed_at' => $contract->signed_at?->toIso8601String(),
+            'declined_at' => $contract->declined_at?->toIso8601String(),
+        ];
+
+        return $detail ? $payload + ['body' => $contract->body] : $payload;
+    }
+
+    /**
+     * A proposal is a contract with its invoice, as built by the admin
+     * proposal screen.
+     *
+     * @return array<string, mixed>
+     */
+    public function proposal(Contract $contract, bool $detail = false): array
+    {
+        return [
+            'contract' => $this->contract($contract, $detail),
+            'invoice' => $contract->invoice instanceof Invoice ? $this->invoice($contract->invoice, $detail) : null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function homepage(HomepageSetting $settings): array
+    {
+        $settings->loadMissing('allBlocks');
+
+        return [
+            'hero_heading' => $settings->hero_heading,
+            'hero_subheading' => $settings->hero_subheading,
+            'hero_media_id' => $settings->hero_media_id,
+            'featured_story_ids_json' => $settings->featured_story_ids_json,
+            'featured_testimonial_ids_json' => $settings->featured_testimonial_ids_json,
+            'featured_journal_post_ids_json' => $settings->featured_journal_post_ids_json,
+            'investment_teaser' => $settings->investment_teaser,
+            'final_cta_heading' => $settings->final_cta_heading,
+            'final_cta_body' => $settings->final_cta_body,
+            'blocks' => $settings->exists
+                ? $settings->allBlocks->map(fn (Block $block): array => $this->block($block))->values()->all()
+                : [],
         ];
     }
 }

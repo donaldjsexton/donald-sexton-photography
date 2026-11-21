@@ -31,7 +31,7 @@ Abilities:
 | `stories:draft` | `create_draft_story`, `update_draft_story`, `generate_seo` for stories |
 | `media:upload` | `upload_media` |
 | `stories:publish` | `publish_story` only |
-| `site:read` | `list_pages`, `get_page`, `list_journal_posts`, `get_journal_post`, `list_venues`, `get_venue`, `list_media`, `list_redirects` |
+| `site:read` | `get_homepage`, `list_pages`, `get_page`, `list_journal_posts`, `get_journal_post`, `list_venues`, `get_venue`, `list_media`, `list_redirects` |
 | `pages:write` | `create_draft_page`, `update_page`, `create_page_block`, `update_page_block`, `reorder_page_blocks`, `generate_seo` for pages |
 | `pages:publish` | `publish_page` only |
 | `journal:write` | `create_draft_journal_post`, `update_journal_post`, `generate_seo` for journal posts |
@@ -41,6 +41,8 @@ Abilities:
 | `redirects:write` | `create_redirect`, `update_redirect` |
 | `inquiries:read` | `list_inquiries`, `get_inquiry`, `list_clients` |
 | `jobs:read` | `list_booked_jobs`, `get_booked_job`, `get_calendar_availability` |
+| `finance:read` | `list_invoices`, `get_invoice`, `list_contracts`, `get_contract`, `list_proposals` (read only) |
+| `settings:write` | `get_site_settings`, `update_site_settings`, `update_homepage_settings`, `create_homepage_block`, `update_homepage_block`, `reorder_homepage_blocks` |
 
 No tool deletes anything, so there are no `*:delete` abilities. If a delete tool is added later it needs its own `<area>:delete` ability that is never in the default grant.
 
@@ -76,6 +78,14 @@ The content tools call the same validation rules and save logic as the admin scr
 - Clients return name, partner name, email, and inquiry and invoice counts. No phone, address, notes, or portal data.
 - Booked jobs return summary, couple names, type, date, time, location, and status. Calendar descriptions, coordinator and ceremony notes, and calendar event ids are never returned.
 - `get_calendar_availability` returns the public per-day status for one month from the same calendar as the booking page. It returns no client names.
+
+## Finance (read only)
+
+`finance:read` covers invoices, contracts, and proposals. There is no tool that creates, sends, voids, signs, or records a payment. Invoices return totals, dates, line items, and the installment schedule. Contracts return status, dates, and body text. A proposal is a contract with its invoice. Payment records, gateway ids and tokens, public portal ids, signer IP and user agent, and internal notes are never returned.
+
+## Site settings and homepage
+
+`settings:write` changes live site content. `update_site_settings` accepts only an allowlist (`SiteSettingsManager::MCP_FIELDS`): the analytics measurement id, social links, search verification tags, and business details. Unknown keys are ignored. OAuth tokens, Square credentials, the IndexNow key, and Business Profile links cannot be read or written; `get_site_settings` reports only whether Google, Square, and an IndexNow key are set. The homepage tools use the same validation as the admin homepage screens, and `update_homepage_settings` changes only the fields you send. The grant is separate from content writing and is never in the default.
 
 ## Grok Bot
 

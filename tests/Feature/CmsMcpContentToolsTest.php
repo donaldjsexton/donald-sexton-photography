@@ -25,7 +25,7 @@ class CmsMcpContentToolsTest extends CmsMcpTestCase
         $reader = $this->toolNames($this->token([CmsMcpCredential::SITE_READ]));
         $this->assertEqualsCanonicalizing([
             'list_pages', 'get_page', 'list_journal_posts', 'get_journal_post', 'list_venues', 'get_venue',
-            'list_media', 'list_redirects',
+            'list_media', 'list_redirects', 'get_homepage',
         ], $reader);
 
         $pages = $this->toolNames($this->token([CmsMcpCredential::PAGES_WRITE]));
