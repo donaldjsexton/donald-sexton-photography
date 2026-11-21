@@ -32,7 +32,7 @@ class UpdateDraftStoryTool extends Tool
 
     public function handle(Request $request): ResponseFactory
     {
-        $this->gate->authorize(CmsMcpCredential::DRAFT);
+        $this->gate->authorize(CmsMcpCredential::DRAFT, $this->name);
 
         $validated = $request->validate([
             'story_id' => ['required', 'integer', 'min:1'],

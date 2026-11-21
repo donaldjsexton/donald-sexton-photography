@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Media;
+use App\Services\Media\AltTextContext;
 use App\Services\Media\AltTextGenerator;
 use Illuminate\Console\Attributes\Description;
 use Illuminate\Console\Attributes\Signature;
@@ -198,28 +199,6 @@ class GenerateMediaAltTextCommand extends Command
 
     private function buildContext(Media $media): ?string
     {
-        $story = $media->weddingStories->first();
-
-        if ($story) {
-            $venueName = $story->venue?->name ?? $story->location_name ?? null;
-
-            return $venueName
-                ? $story->title.' — '.$venueName
-                : $story->title;
-        }
-
-        $post = $media->journalPosts->first();
-
-        if ($post) {
-            return $post->title;
-        }
-
-        $venue = $media->venues->first();
-
-        if ($venue) {
-            return $venue->name.' wedding venue';
-        }
-
-        return null;
+        return AltTextContext::for($media);
     }
 }

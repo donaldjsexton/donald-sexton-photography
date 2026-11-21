@@ -20,6 +20,30 @@ class CmsMcpCredential extends Model
 
     public const PUBLISH = 'stories:publish';
 
+    public const SITE_READ = 'site:read';
+
+    public const PAGES_WRITE = 'pages:write';
+
+    public const PAGES_PUBLISH = 'pages:publish';
+
+    public const JOURNAL_WRITE = 'journal:write';
+
+    public const JOURNAL_PUBLISH = 'journal:publish';
+
+    public const VENUES_WRITE = 'venues:write';
+
+    public const MEDIA_WRITE = 'media:write';
+
+    public const REDIRECTS_WRITE = 'redirects:write';
+
+    public const INQUIRIES_READ = 'inquiries:read';
+
+    public const JOBS_READ = 'jobs:read';
+
+    public const FINANCE_READ = 'finance:read';
+
+    public const SETTINGS_WRITE = 'settings:write';
+
     /**
      * @var list<string>
      */
@@ -28,10 +52,24 @@ class CmsMcpCredential extends Model
         self::DRAFT,
         self::UPLOAD,
         self::PUBLISH,
+        self::SITE_READ,
+        self::PAGES_WRITE,
+        self::PAGES_PUBLISH,
+        self::JOURNAL_WRITE,
+        self::JOURNAL_PUBLISH,
+        self::VENUES_WRITE,
+        self::MEDIA_WRITE,
+        self::REDIRECTS_WRITE,
+        self::INQUIRIES_READ,
+        self::JOBS_READ,
+        self::FINANCE_READ,
+        self::SETTINGS_WRITE,
     ];
 
     /**
-     * Draft and upload access. Publishing is opt-in.
+     * Draft and upload access. Publishing, deleting, finance, and settings
+     * access are opt-in. No MCP tool deletes data, so there are no delete
+     * abilities.
      *
      * @var list<string>
      */

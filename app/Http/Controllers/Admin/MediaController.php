@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Media;
+use App\Services\Cms\MediaMetadata;
 use App\Services\Media\MediaUploader;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -315,11 +316,7 @@ class MediaController extends Controller
     {
         return $request->validate([
             'file' => [$requireFile ? 'required' : 'nullable', 'file', 'image', 'max:12288'],
-            'alt_text' => ['nullable', 'string', 'max:255'],
-            'caption' => ['nullable', 'string'],
-            'credit' => ['nullable', 'string', 'max:255'],
-            'focal_point_x' => ['nullable', 'numeric', 'between:0,1'],
-            'focal_point_y' => ['nullable', 'numeric', 'between:0,1'],
+            ...app(MediaMetadata::class)->rules(),
         ]);
     }
 

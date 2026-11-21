@@ -34,7 +34,7 @@ class UploadMediaTool extends Tool
 
     public function handle(Request $request): ResponseFactory
     {
-        $credential = $this->gate->authorize(CmsMcpCredential::UPLOAD);
+        $credential = $this->gate->authorize(CmsMcpCredential::UPLOAD, $this->name);
 
         /** @var array{filename?: string|null, content_base64: string, alt_text?: string|null, idempotency_key: string} $validated */
         $validated = $request->validate([
