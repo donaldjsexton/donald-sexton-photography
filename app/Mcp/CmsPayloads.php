@@ -3,6 +3,9 @@
 namespace App\Mcp;
 
 use App\Models\Block;
+use App\Models\BookedJob;
+use App\Models\Client;
+use App\Models\Inquiry;
 use App\Models\JournalPost;
 use App\Models\Media;
 use App\Models\Page;
@@ -163,6 +166,73 @@ class CmsPayloads
             'to_path' => $redirect->to_path,
             'status_code' => $redirect->status_code,
             'source' => $redirect->source,
+        ];
+    }
+
+    /**
+     * Contact fields are limited to names, email, status, and dates. Phone,
+     * message text, consent records, tracking, and mail ids are not exposed.
+     *
+     * @return array<string, mixed>
+     */
+    public function inquiry(Inquiry $inquiry): array
+    {
+        return [
+            'id' => $inquiry->id,
+            'status' => $inquiry->status,
+            'primary_name' => $inquiry->primary_name,
+            'partner_name' => $inquiry->partner_name,
+            'email' => $inquiry->email,
+            'event_type' => $inquiry->event_type,
+            'event_date' => $inquiry->event_date?->toDateString(),
+            'venue_name' => $inquiry->venue_name,
+            'location_city' => $inquiry->location_city,
+            'guest_count_range' => $inquiry->guest_count_range,
+            'budget_range' => $inquiry->budget_range,
+            'client_id' => $inquiry->client_id,
+            'first_responded_at' => $inquiry->first_responded_at?->toIso8601String(),
+            'created_at' => $inquiry->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Name, email, and counts only. No phone, address, notes, or portal data.
+     *
+     * @return array<string, mixed>
+     */
+    public function client(Client $client): array
+    {
+        return [
+            'id' => $client->id,
+            'first_name' => $client->first_name,
+            'last_name' => $client->last_name,
+            'partner_first_name' => $client->partner_first_name,
+            'partner_last_name' => $client->partner_last_name,
+            'email' => $client->email,
+            'inquiries_count' => $client->inquiries_count ?? null,
+            'invoices_count' => $client->invoices_count ?? null,
+            'created_at' => $client->created_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * No coordinator notes, calendar event ids, or raw calendar descriptions.
+     *
+     * @return array<string, mixed>
+     */
+    public function bookedJob(BookedJob $job): array
+    {
+        return [
+            'id' => $job->id,
+            'status' => $job->status,
+            'summary' => $job->summary,
+            'couple_names' => $job->couple_names,
+            'event_type' => $job->event_type,
+            'event_date' => $job->event_date?->toDateString(),
+            'previous_event_date' => $job->previous_event_date?->toDateString(),
+            'event_time' => $job->event_time,
+            'location' => $job->location,
+            'inquiry_id' => $job->inquiry_id,
         ];
     }
 }

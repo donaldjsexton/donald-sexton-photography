@@ -39,6 +39,8 @@ Abilities:
 | `venues:write` | `update_venue`, `generate_seo` for venues |
 | `media:write` | `update_media_alt_text`, `attach_media`, `generate_alt_text` |
 | `redirects:write` | `create_redirect`, `update_redirect` |
+| `inquiries:read` | `list_inquiries`, `get_inquiry`, `list_clients` |
+| `jobs:read` | `list_booked_jobs`, `get_booked_job`, `get_calendar_availability` |
 
 No tool deletes anything, so there are no `*:delete` abilities. If a delete tool is added later it needs its own `<area>:delete` ability that is never in the default grant.
 
@@ -65,6 +67,15 @@ The content tools call the same validation rules and save logic as the admin scr
 - Redirect targets must be a path on this site. External and protocol-relative targets are refused.
 - `attach_media` appends to the gallery of a draft story or draft page.
 - `generate_seo` and `generate_alt_text` run the same generators as the `seo:generate-*` and `media:generate-alt-text` commands. They call the Anthropic API with the server's key, fill blank fields only unless `overwrite` is true, and `generate_seo` refuses non-draft pages, posts, and stories.
+
+## Read-only CRM tools
+
+`inquiries:read` and `jobs:read` change nothing. Responses are allowlisted and redacted:
+
+- Inquiries return name, email, status, event type, event date, venue, city, guest and budget ranges, and timestamps. Phone numbers, message text, SMS consent, tracking fields, and mail ids are never returned. Archived inquiries are listed only when you filter by `status: archived`.
+- Clients return name, partner name, email, and inquiry and invoice counts. No phone, address, notes, or portal data.
+- Booked jobs return summary, couple names, type, date, time, location, and status. Calendar descriptions, coordinator and ceremony notes, and calendar event ids are never returned.
+- `get_calendar_availability` returns the public per-day status for one month from the same calendar as the booking page. It returns no client names.
 
 ## Grok Bot
 

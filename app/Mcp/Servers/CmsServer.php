@@ -10,9 +10,15 @@ use App\Mcp\Tools\CreatePageBlockTool;
 use App\Mcp\Tools\CreateRedirectTool;
 use App\Mcp\Tools\GenerateAltTextTool;
 use App\Mcp\Tools\GenerateSeoTool;
+use App\Mcp\Tools\GetBookedJobTool;
+use App\Mcp\Tools\GetCalendarAvailabilityTool;
+use App\Mcp\Tools\GetInquiryTool;
 use App\Mcp\Tools\GetJournalPostTool;
 use App\Mcp\Tools\GetPageTool;
 use App\Mcp\Tools\GetVenueTool;
+use App\Mcp\Tools\ListBookedJobsTool;
+use App\Mcp\Tools\ListClientsTool;
+use App\Mcp\Tools\ListInquiriesTool;
 use App\Mcp\Tools\ListJournalPostsTool;
 use App\Mcp\Tools\ListMediaTool;
 use App\Mcp\Tools\ListPagesTool;
@@ -38,7 +44,7 @@ use Laravel\Mcp\Server\Attributes\Version;
 
 #[Name('Donald Sexton Photography CMS')]
 #[Version('1.0.0')]
-#[Instructions('Manage wedding story drafts, pages, page blocks, journal posts, venues, media alt text, and redirects. Read a record before editing it. Upload images with an idempotency key, then set the ordered gallery and hero on the draft. Create and update tools only touch drafts and never publish; publish_story, publish_page, and publish_journal_post are the only tools that make content public. Venue, alt text, and redirect changes are live immediately. Only the tools your credential allows are listed.')]
+#[Instructions('Manage wedding story drafts, pages, page blocks, journal posts, venues, media alt text, and redirects. Read a record before editing it. Upload images with an idempotency key, then set the ordered gallery and hero on the draft. Create and update tools only touch drafts and never publish; publish_story, publish_page, and publish_journal_post are the only tools that make content public. Venue, alt text, and redirect changes are live immediately. Inquiries, clients, booked jobs, and calendar availability are read-only and redacted. Only the tools your credential allows are listed.')]
 class CmsServer extends Server
 {
     /**
@@ -74,6 +80,12 @@ class CmsServer extends Server
         UpdatePageTool::class,
         UpdateRedirectTool::class,
         UpdateVenueTool::class,
+        GetBookedJobTool::class,
+        GetCalendarAvailabilityTool::class,
+        GetInquiryTool::class,
+        ListBookedJobsTool::class,
+        ListClientsTool::class,
+        ListInquiriesTool::class,
     ];
 
     /**
