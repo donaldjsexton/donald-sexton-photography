@@ -133,6 +133,21 @@ class CmsMcpContentToolsTest extends CmsMcpTestCase
             ->assertJsonPath('result.isError', true);
     }
 
+    public function test_draft_journal_posts_can_be_deleted_but_published_ones_cannot(): void
+    {
+        $writer = $this->token([CmsMcpCredential::JOURNAL_WRITE]);
+        $publisher = $this->token([CmsMcpCredential::JOURNAL_PUBLISH]);
+
+        $draft = (int) $this->tool($writer, 'create_draft_journal_post', ['title' => 'Gone', 'post_type' => 'venue'])->json('result.structuredContent.post.id');
+        $this->tool($writer, 'delete_draft_journal_post', ['post_id' => $draft])->assertJsonPath('result.structuredContent.deleted', true);
+        $this->assertNull(JournalPost::query()->find($draft));
+
+        $kept = (int) $this->tool($writer, 'create_draft_journal_post', ['title' => 'Kept', 'post_type' => 'venue'])->json('result.structuredContent.post.id');
+        $this->tool($publisher, 'publish_journal_post', ['post_id' => $kept]);
+        $this->tool($writer, 'delete_draft_journal_post', ['post_id' => $kept])->assertJsonPath('result.isError', true);
+        $this->assertNotNull(JournalPost::query()->find($kept));
+    }
+
     public function test_journal_posts_are_drafts_until_published_with_the_separate_ability(): void
     {
         $writer = $this->token([CmsMcpCredential::JOURNAL_WRITE]);
