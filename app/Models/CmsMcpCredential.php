@@ -67,9 +67,9 @@ class CmsMcpCredential extends Model
     ];
 
     /**
-     * Draft and upload access. Publishing, deleting, finance, and settings
-     * access are opt-in. No MCP tool deletes data, so there are no delete
-     * abilities.
+     * Draft and upload access. Publishing, finance, and settings
+     * access are opt-in. The only delete tool removes drafts and needs journal:write, so there are no
+     * separate delete abilities.
      *
      * @var list<string>
      */

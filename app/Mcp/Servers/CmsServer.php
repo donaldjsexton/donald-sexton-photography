@@ -4,6 +4,7 @@ namespace App\Mcp\Servers;
 
 use App\Mcp\Tools\AttachMediaTool;
 use App\Mcp\Tools\CreateDraftJournalPostTool;
+use App\Mcp\Tools\DeleteDraftJournalPostTool;
 use App\Mcp\Tools\CreateDraftPageTool;
 use App\Mcp\Tools\CreateDraftStoryTool;
 use App\Mcp\Tools\CreateHomepageBlockTool;
@@ -70,6 +71,7 @@ class CmsServer extends Server
         PublishStoryTool::class,
         AttachMediaTool::class,
         CreateDraftJournalPostTool::class,
+        DeleteDraftJournalPostTool::class,
         CreateDraftPageTool::class,
         CreatePageBlockTool::class,
         CreateRedirectTool::class,
