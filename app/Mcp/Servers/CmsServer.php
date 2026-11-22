@@ -4,12 +4,13 @@ namespace App\Mcp\Servers;
 
 use App\Mcp\Tools\AttachMediaTool;
 use App\Mcp\Tools\CreateDraftJournalPostTool;
-use App\Mcp\Tools\DeleteDraftJournalPostTool;
 use App\Mcp\Tools\CreateDraftPageTool;
 use App\Mcp\Tools\CreateDraftStoryTool;
 use App\Mcp\Tools\CreateHomepageBlockTool;
 use App\Mcp\Tools\CreatePageBlockTool;
 use App\Mcp\Tools\CreateRedirectTool;
+use App\Mcp\Tools\DeleteDraftJournalPostTool;
+use App\Mcp\Tools\DeletePublishedJournalPostTool;
 use App\Mcp\Tools\GenerateAltTextTool;
 use App\Mcp\Tools\GenerateSeoTool;
 use App\Mcp\Tools\GetBookedJobTool;
@@ -72,6 +73,7 @@ class CmsServer extends Server
         AttachMediaTool::class,
         CreateDraftJournalPostTool::class,
         DeleteDraftJournalPostTool::class,
+        DeletePublishedJournalPostTool::class,
         CreateDraftPageTool::class,
         CreatePageBlockTool::class,
         CreateRedirectTool::class,
