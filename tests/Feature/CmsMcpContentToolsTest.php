@@ -92,6 +92,22 @@ class CmsMcpContentToolsTest extends CmsMcpTestCase
         $this->assertSame('<p>Hello</p>', Page::query()->find($id)->body);
     }
 
+    public function test_published_page_can_be_returned_to_draft_and_edited(): void
+    {
+        $writer = $this->token([CmsMcpCredential::PAGES_WRITE]);
+        $publisher = $this->token([CmsMcpCredential::PAGES_PUBLISH]);
+
+        $id = (int) $this->tool($writer, 'create_draft_page', ['title' => 'Back', 'body' => '<p>One</p>'])->json('result.structuredContent.page.id');
+        $this->tool($publisher, 'publish_page', ['page_id' => $id]);
+        $this->tool($writer, 'unpublish_page', ['page_id' => $id])->assertJsonPath('error.code', -32602);
+
+        $this->tool($publisher, 'unpublish_page', ['page_id' => $id])
+            ->assertJsonPath('result.structuredContent.page.status', 'draft');
+        $this->tool($writer, 'update_page', ['page_id' => $id, 'body' => '<p>Two</p>'])
+            ->assertJsonPath('result.isError', false);
+        $this->assertSame('<p>Two</p>', Page::query()->find($id)->body);
+    }
+
     public function test_draft_pages_can_be_deleted_but_published_ones_cannot(): void
     {
         $writer = $this->token([CmsMcpCredential::PAGES_WRITE]);
