@@ -38,6 +38,7 @@ use App\Mcp\Tools\ListVenuesTool;
 use App\Mcp\Tools\LookupStoryTool;
 use App\Mcp\Tools\PublishJournalPostTool;
 use App\Mcp\Tools\PublishPageTool;
+use App\Mcp\Tools\UnpublishPageTool;
 use App\Mcp\Tools\PublishStoryTool;
 use App\Mcp\Tools\ReorderHomepageBlocksTool;
 use App\Mcp\Tools\ReorderPageBlocksTool;
@@ -91,6 +92,7 @@ class CmsServer extends Server
         ListVenuesTool::class,
         PublishJournalPostTool::class,
         PublishPageTool::class,
+        UnpublishPageTool::class,
         ReorderPageBlocksTool::class,
         UpdateJournalPostTool::class,
         UpdateMediaAltTextTool::class,
