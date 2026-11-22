@@ -148,6 +148,24 @@ class CmsMcpContentToolsTest extends CmsMcpTestCase
         $this->assertNotNull(JournalPost::query()->find($kept));
     }
 
+    public function test_published_journal_posts_can_be_deleted_only_with_publish_ability_and_slug_confirmation(): void
+    {
+        $writer = $this->token([CmsMcpCredential::JOURNAL_WRITE]);
+        $publisher = $this->token([CmsMcpCredential::JOURNAL_PUBLISH]);
+
+        $id = (int) $this->tool($writer, 'create_draft_journal_post', ['title' => 'Dupe', 'slug' => 'dupe', 'post_type' => 'venue'])->json('result.structuredContent.post.id');
+
+        $this->tool($publisher, 'delete_published_journal_post', ['post_id' => $id, 'confirm_slug' => 'dupe'])->assertJsonPath('result.isError', true);
+        $this->tool($publisher, 'publish_journal_post', ['post_id' => $id]);
+
+        $this->tool($writer, 'delete_published_journal_post', ['post_id' => $id, 'confirm_slug' => 'dupe'])->assertJsonPath('error.code', -32602);
+        $this->tool($publisher, 'delete_published_journal_post', ['post_id' => $id, 'confirm_slug' => 'wrong'])->assertJsonPath('result.isError', true);
+        $this->assertNotNull(JournalPost::query()->find($id));
+
+        $this->tool($publisher, 'delete_published_journal_post', ['post_id' => $id, 'confirm_slug' => 'dupe'])->assertJsonPath('result.structuredContent.deleted', true);
+        $this->assertNull(JournalPost::query()->find($id));
+    }
+
     public function test_journal_posts_are_drafts_until_published_with_the_separate_ability(): void
     {
         $writer = $this->token([CmsMcpCredential::JOURNAL_WRITE]);
