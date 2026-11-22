@@ -92,6 +92,21 @@ class CmsMcpContentToolsTest extends CmsMcpTestCase
         $this->assertSame('<p>Hello</p>', Page::query()->find($id)->body);
     }
 
+    public function test_draft_pages_can_be_deleted_but_published_ones_cannot(): void
+    {
+        $writer = $this->token([CmsMcpCredential::PAGES_WRITE]);
+        $publisher = $this->token([CmsMcpCredential::PAGES_PUBLISH]);
+
+        $draft = (int) $this->tool($writer, 'create_draft_page', ['title' => 'Gone'])->json('result.structuredContent.page.id');
+        $this->tool($writer, 'delete_draft_page', ['page_id' => $draft])->assertJsonPath('result.structuredContent.deleted', true);
+        $this->assertNull(Page::query()->find($draft));
+
+        $kept = (int) $this->tool($writer, 'create_draft_page', ['title' => 'Kept'])->json('result.structuredContent.page.id');
+        $this->tool($publisher, 'publish_page', ['page_id' => $kept]);
+        $this->tool($writer, 'delete_draft_page', ['page_id' => $kept])->assertJsonPath('result.isError', true);
+        $this->assertNotNull(Page::query()->find($kept));
+    }
+
     public function test_page_slug_must_be_unique_like_the_admin_form(): void
     {
         Page::factory()->create(['slug' => 'taken']);
