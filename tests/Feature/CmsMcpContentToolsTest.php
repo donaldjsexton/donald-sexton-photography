@@ -133,6 +133,29 @@ class CmsMcpContentToolsTest extends CmsMcpTestCase
         $this->assertSame(1, Page::query()->count());
     }
 
+    public function test_media_can_be_attached_to_page_blocks_on_drafts_only(): void
+    {
+        $writer = $this->token([CmsMcpCredential::PAGES_WRITE]);
+        $draft = Page::factory()->create(['status' => 'draft']);
+        $live = Page::factory()->create(['status' => 'published']);
+        $one = Media::query()->create(['disk' => 'public', 'path' => 'x/1.jpg', 'filename' => '1.jpg']);
+        $two = Media::query()->create(['disk' => 'public', 'path' => 'x/2.jpg', 'filename' => '2.jpg']);
+
+        $blockId = (int) $this->tool($writer, 'create_page_block', ['page_id' => $draft->id, 'type' => 'gallery', 'heading' => 'G'])
+            ->json('result.structuredContent.block.id');
+
+        $this->tool($writer, 'attach_page_block_media', ['page_id' => $draft->id, 'block_id' => $blockId, 'media_ids' => [$two->id, $one->id]])
+            ->assertJsonPath('result.isError', false);
+        $this->tool($writer, 'attach_page_block_media', ['page_id' => $draft->id, 'block_id' => $blockId, 'media_ids' => [$one->id]]);
+
+        $block = Block::query()->find($blockId);
+        $this->assertSame([$two->id, $one->id], $block->media()->orderBy('mediables.sort_order')->pluck('media.id')->all());
+
+        $liveBlock = (int) Block::query()->create(['blockable_type' => Page::class, 'blockable_id' => $live->id, 'type' => 'gallery', 'sort_order' => 0, 'is_visible' => true])->id;
+        $this->tool($writer, 'attach_page_block_media', ['page_id' => $live->id, 'block_id' => $liveBlock, 'media_ids' => [$one->id]])
+            ->assertJsonPath('result.isError', true);
+    }
+
     public function test_page_blocks_can_be_created_updated_and_reordered_on_drafts_only(): void
     {
         $writer = $this->token([CmsMcpCredential::PAGES_WRITE, CmsMcpCredential::SITE_READ]);
