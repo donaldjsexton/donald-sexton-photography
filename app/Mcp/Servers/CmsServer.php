@@ -10,6 +10,7 @@ use App\Mcp\Tools\CreateHomepageBlockTool;
 use App\Mcp\Tools\CreatePageBlockTool;
 use App\Mcp\Tools\CreateRedirectTool;
 use App\Mcp\Tools\DeleteDraftJournalPostTool;
+use App\Mcp\Tools\DeleteDraftPageTool;
 use App\Mcp\Tools\DeletePublishedJournalPostTool;
 use App\Mcp\Tools\GenerateAltTextTool;
 use App\Mcp\Tools\GenerateSeoTool;
@@ -73,6 +74,7 @@ class CmsServer extends Server
         AttachMediaTool::class,
         CreateDraftJournalPostTool::class,
         DeleteDraftJournalPostTool::class,
+        DeleteDraftPageTool::class,
         DeletePublishedJournalPostTool::class,
         CreateDraftPageTool::class,
         CreatePageBlockTool::class,
