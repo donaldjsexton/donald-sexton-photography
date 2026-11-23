@@ -190,6 +190,19 @@
                         <p class="form-step__copy">A sentence or two is plenty.</p>
 
                         <label>
+                            How did you hear about us? <span class="meta">(optional)</span>
+                            <select name="lead_source" id="lead_source" toolparamdescription="Optional: how the person found the studio." @error('lead_source') aria-invalid="true" aria-describedby="lead_source-error" @enderror>
+                                <option value="">Please choose…</option>
+                                @foreach (\App\Models\Inquiry::leadSourceOptions() as $value => $label)
+                                    <option value="{{ $value }}" @selected(old('lead_source') === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                            @error('lead_source')
+                                <p class="field-error" id="lead_source-error">{{ $message }}</p>
+                            @enderror
+                        </label>
+
+                        <label>
                             Message <span class="meta">(optional)</span>
                             <textarea name="message" id="message" rows="6" placeholder="What matters most about the photos? How did you find me? Anything else I should know?" toolparamdescription="Optional note: what matters most about the photos, guest count, how they found the studio, anything else." @error('message') aria-invalid="true" aria-describedby="message-error" @enderror>{{ old('message') }}</textarea>
                             @error('message')

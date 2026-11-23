@@ -58,6 +58,7 @@ class InquiryController extends Controller
             'coverage_interest' => ['nullable', 'array'],
             'coverage_interest.*' => ['string', 'max:255'],
             'heard_about' => ['nullable', 'string', 'max:255'],
+            'lead_source' => ['nullable', Rule::in(array_keys(Inquiry::leadSourceOptions()))],
             'message' => ['nullable', 'string'],
             'sms_opt_in_transactional' => ['nullable', 'boolean'],
             'sms_opt_in_marketing' => ['nullable', 'boolean'],

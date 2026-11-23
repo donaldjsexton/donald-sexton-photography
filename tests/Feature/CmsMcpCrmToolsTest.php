@@ -55,6 +55,7 @@ class CmsMcpCrmToolsTest extends CmsMcpTestCase
             'utm_source' => 'tracking-source',
             'sms_consent_ip' => '203.0.113.9',
             'event_date' => '2027-05-01',
+            'lead_source' => 'instagram',
         ]);
         Inquiry::factory()->archived()->create(['primary_name' => 'Archived Person']);
         $client = Client::factory()->create([
@@ -69,7 +70,8 @@ class CmsMcpCrmToolsTest extends CmsMcpTestCase
         $list = $this->tool($token, 'list_inquiries')
             ->assertJsonPath('result.structuredContent.total', 1)
             ->assertJsonPath('result.structuredContent.inquiries.0.email', 'jordan@example.test')
-            ->assertJsonPath('result.structuredContent.inquiries.0.event_date', '2027-05-01');
+            ->assertJsonPath('result.structuredContent.inquiries.0.event_date', '2027-05-01')
+            ->assertJsonPath('result.structuredContent.inquiries.0.lead_source', 'instagram');
         $get = $this->tool($token, 'get_inquiry', ['inquiry_id' => $inquiry->id])
             ->assertJsonPath('result.structuredContent.inquiry.primary_name', 'Jordan Lee');
         $clients = $this->tool($token, 'list_clients', ['search' => 'Casey'])

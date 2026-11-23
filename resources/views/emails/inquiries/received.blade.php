@@ -61,6 +61,10 @@
                     <td style="padding:10px 0; border-bottom:1px solid #efe3d7; font-weight:700;">Budget</td>
                     <td style="padding:10px 0; border-bottom:1px solid #efe3d7;">{{ $budget }}</td>
                 </tr>
+                <tr>
+                    <td style="padding:10px 0; border-bottom:1px solid #efe3d7; font-weight:700;">Heard about us via</td>
+                    <td style="padding:10px 0; border-bottom:1px solid #efe3d7;">{{ $inquiry->lead_source ? $inquiry->leadSourceLabel() : 'Not shared yet' }}</td>
+                </tr>
             </tbody>
         </table>
 

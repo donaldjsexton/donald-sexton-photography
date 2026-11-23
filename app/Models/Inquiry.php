@@ -38,6 +38,7 @@ class Inquiry extends Model
         'budget_range',
         'coverage_interest',
         'heard_about',
+        'lead_source',
         'message',
         'status',
         'source',
@@ -59,6 +60,31 @@ class Inquiry extends Model
             'sms_opt_in_marketing' => 'boolean',
             'sms_consent_at' => 'datetime',
         ];
+    }
+
+    /**
+     * How a lead says they found the studio (public form, optional).
+     *
+     * @return array<string, string>
+     */
+    public static function leadSourceOptions(): array
+    {
+        return [
+            'google_search' => 'Google search',
+            'google_business' => 'Google Business / reviews',
+            'instagram' => 'Instagram',
+            'facebook' => 'Facebook',
+            'tiktok' => 'TikTok',
+            'pic_time' => 'Pic-Time gallery',
+            'past_client_referral' => 'Referral from a past client',
+            'venue_vendor_referral' => 'Venue or vendor referral',
+            'other' => 'Other',
+        ];
+    }
+
+    public function leadSourceLabel(): string
+    {
+        return self::leadSourceOptions()[$this->lead_source] ?? ($this->lead_source ?: 'Not provided');
     }
 
     public static function statusOptions(): array
