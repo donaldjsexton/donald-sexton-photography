@@ -194,6 +194,7 @@ class CmsPayloads
             'location_city' => $inquiry->location_city,
             'guest_count_range' => $inquiry->guest_count_range,
             'budget_range' => $inquiry->budget_range,
+            'lead_source' => $inquiry->lead_source,
             'client_id' => $inquiry->client_id,
             'first_responded_at' => $inquiry->first_responded_at?->toIso8601String(),
             'created_at' => $inquiry->created_at?->toIso8601String(),

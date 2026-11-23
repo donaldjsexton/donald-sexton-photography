@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\InquiryReceived;
 use App\Models\BookedJob;
 use App\Models\Client;
 use App\Models\Inquiry;
@@ -47,6 +48,37 @@ class InquiryEventTypeTest extends TestCase
     {
         $this->post(route('inquiry.store'), $this->inquiryPayload(['event_type' => 'quinceañera-ish']))
             ->assertSessionHasErrors('event_type');
+    }
+
+    public function test_lead_source_is_optional_validated_and_stored(): void
+    {
+        $this->get(route('inquiry.create'))->assertOk()->assertSee('How did you hear about us?');
+
+        $this->post(route('inquiry.store'), $this->inquiryPayload(['lead_source' => 'bogus']))
+            ->assertSessionHasErrors('lead_source');
+
+        $this->post(route('inquiry.store'), $this->inquiryPayload(['lead_source' => 'instagram']))
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('inquiries', ['email' => 'lead@example.com', 'lead_source' => 'instagram']);
+
+        $this->post(route('inquiry.store'), $this->inquiryPayload(['email' => 'none@example.com']))
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('inquiries', ['email' => 'none@example.com', 'lead_source' => null]);
+    }
+
+    public function test_lead_source_shows_in_notification_email_and_admin_view(): void
+    {
+        $inquiry = Inquiry::create([
+            'primary_name' => 'Dana Reyes', 'email' => 'lead@example.com',
+            'event_type' => 'family', 'status' => 'new', 'lead_source' => 'tiktok',
+        ]);
+
+        $html = (new InquiryReceived($inquiry))->render();
+        $this->assertStringContainsString('TikTok', $html);
+
+        $this->actingAs(User::factory()->create())
+            ->get(route('admin.inquiries.edit', $inquiry))
+            ->assertOk()->assertSee('TikTok');
     }
 
     public function test_a_family_shoot_can_be_submitted_as_a_family_shoot(): void

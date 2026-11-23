@@ -50,6 +50,10 @@
                     <span class="meta">{{ $inquiry->instagram_handle ?: 'Not provided' }}</span>
                 </div>
                 <div class="admin-detail-list__item">
+                    <strong>Lead source</strong>
+                    <span class="meta">{{ $inquiry->leadSourceLabel() }}</span>
+                </div>
+                <div class="admin-detail-list__item">
                     <strong>Heard about us</strong>
                     <span class="meta">{{ $inquiry->heard_about ?: 'Not provided' }}</span>
                 </div>
