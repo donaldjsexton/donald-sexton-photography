@@ -157,6 +157,8 @@
         </section>
     @endunless
 
+    <x-editorial.google-reviews />
+
     <x-editorial.page-closing
         eyebrow="Inquiry"
         title="Planning around this venue?"
