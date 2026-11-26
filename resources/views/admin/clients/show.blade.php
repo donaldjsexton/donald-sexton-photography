@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.admin-v2')
 
 @php
     use App\Models\Invoice;
@@ -23,159 +23,131 @@
 @section('title', $client->displayName())
 @section('eyebrow', 'Studio')
 @section('heading', $client->displayName())
+@section('subheading', 'Client since '.optional($sinceDate)->format('M Y').($client->company ? ' · '.$client->company : ''))
+@section('header_actions')
+    <div class="flex flex-wrap gap-2">
+        <x-ui.button :href="route('admin.proposals.create', ['client_id' => $client->id])">New proposal</x-ui.button>
+        <x-ui.button variant="secondary" :href="route('admin.contracts.create', ['client_id' => $client->id])">Contract</x-ui.button>
+        <x-ui.button variant="secondary" :href="route('admin.invoices.create', ['client_id' => $client->id])">Invoice</x-ui.button>
+        <x-ui.button variant="secondary" :href="route('admin.clients.edit', $client)">Edit</x-ui.button>
+    </div>
+@endsection
 @section('content')
+    @php($link = 'text-brand-600 hover:underline dark:text-brand-400')
     @if (session('error'))
-        <div class="admin-flash admin-flash--error" style="margin-bottom:1rem;">{{ session('error') }}</div>
+        <x-ui.alert class="mb-4 !border-rose-200 !bg-rose-50 !text-rose-800 dark:!border-rose-500/30 dark:!bg-rose-500/10 dark:!text-rose-300">{{ session('error') }}</x-ui.alert>
     @endif
 
-    <div class="client-profile">
-        <section class="client-hero">
-            <div class="client-hero__avatar" aria-hidden="true">{{ $initials }}</div>
-            <h2 class="client-hero__name">{{ $client->displayName() }}</h2>
-            @if ($client->company)
-                <p class="client-hero__tagline">{{ $client->company }}</p>
-            @endif
-            <p class="client-hero__since">Client since {{ optional($sinceDate)->format('M Y') }}</p>
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <x-ui.stat-card label="Billed" :value="$money($totalBilledCents)" />
+        <x-ui.stat-card label="Paid" :value="$money($totalPaidCents)" />
+        <x-ui.stat-card label="Due" :value="$money($totalOutstandingCents)" />
+    </div>
 
-            <div class="client-hero__chips">
-                <a class="client-chip" href="mailto:{{ $client->email }}">✉️ {{ $client->email }}</a>
-                @if ($client->phone)
-                    <a class="client-chip" href="tel:{{ preg_replace('/[^0-9+]/', '', $client->phone) }}">📞 {{ $client->phone }}</a>
-                @endif
-                @if ($location)
-                    <span class="client-chip">📍 {{ $location }}</span>
-                @endif
-            </div>
-
-            <div class="client-stats">
-                <div class="client-stat">
-                    <span class="client-stat__value">{{ $money($totalBilledCents) }}</span>
-                    <span class="client-stat__label">Billed</span>
-                </div>
-                <div class="client-stat">
-                    <span class="client-stat__value">{{ $money($totalPaidCents) }}</span>
-                    <span class="client-stat__label">Paid</span>
-                </div>
-                <div class="client-stat {{ $totalOutstandingCents > 0 ? 'client-stat--alert' : '' }}">
-                    <span class="client-stat__value">{{ $money($totalOutstandingCents) }}</span>
-                    <span class="client-stat__label">Due</span>
-                </div>
-            </div>
-
-            <div class="client-hero__actions">
-                <a class="cta client-cta--primary" href="{{ route('admin.proposals.create', ['client_id' => $client->id]) }}">＋ New Proposal</a>
-                <div class="client-hero__actions-row">
-                    <a class="cta-secondary" href="{{ route('admin.contracts.create', ['client_id' => $client->id]) }}">Contract</a>
-                    <a class="cta-secondary" href="{{ route('admin.invoices.create', ['client_id' => $client->id]) }}">Invoice</a>
-                    <form method="POST" action="{{ route('admin.clients.questionnaire', $client) }}">
-                        @csrf
-                        <button class="cta-secondary" type="submit">Send questionnaire</button>
-                    </form>
-                    <a class="cta-secondary" href="{{ route('admin.clients.edit', $client) }}">Edit</a>
-                </div>
-            </div>
-        </section>
-
-        @if ($bookings->isNotEmpty())
-            <section class="client-section">
-                <h3 class="client-section__title">Bookings</h3>
-                <div class="client-bookings">
+    <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div class="space-y-6 lg:col-span-2">
+            @if ($bookings->isNotEmpty())
+                <x-ui.card title="Bookings" flush>
                     @foreach ($bookings as $inquiry)
                         @php($job = $inquiry->bookedJob)
-                        <article class="client-booking">
-                            <div class="client-booking__head">
-                                <div>
-                                    <strong class="client-booking__name">{{ $job->summary ?: $job->couple_names ?: 'Booking' }}</strong>
-                                    <span class="client-booking__date">
-                                        @if ($job->event_date){{ $job->event_date->format('l, M j, Y') }}@else Date TBD @endif
-                                    </span>
+                        <div class="flex flex-wrap items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 text-sm last:border-0 dark:border-gray-800">
+                            <div>
+                                <p class="font-medium text-gray-900 dark:text-white">{{ $job->summary ?: $job->couple_names ?: 'Booking' }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">@if ($job->event_date){{ $job->event_date->format('l, M j, Y') }}@else Date TBD @endif</p>
+                                <div class="mt-2 flex gap-3 text-xs">
+                                    <a class="{{ $link }}" href="{{ route('admin.proposals.create', ['client_id' => $client->id, 'booked_job_id' => $job->id]) }}">+ Proposal</a>
+                                    <a class="{{ $link }}" href="{{ route('admin.contracts.create', ['client_id' => $client->id, 'booked_job_id' => $job->id]) }}">+ Contract</a>
+                                    <a class="{{ $link }}" href="{{ route('admin.invoices.create', ['client_id' => $client->id, 'booked_job_id' => $job->id]) }}">+ Invoice</a>
                                 </div>
-                                <span class="client-pill client-pill--{{ $job->isCancelled() ? 'muted' : 'live' }}">{{ $job->portalStage() }}</span>
                             </div>
-                            <div class="client-booking__actions">
-                                <a href="{{ route('admin.proposals.create', ['client_id' => $client->id, 'booked_job_id' => $job->id]) }}">＋ Proposal</a>
-                                <a href="{{ route('admin.contracts.create', ['client_id' => $client->id, 'booked_job_id' => $job->id]) }}">＋ Contract</a>
-                                <a href="{{ route('admin.invoices.create', ['client_id' => $client->id, 'booked_job_id' => $job->id]) }}">＋ Invoice</a>
-                            </div>
-                        </article>
+                            <x-ui.badge :tone="$job->isCancelled() ? 'gray' : 'green'">{{ $job->portalStage() }}</x-ui.badge>
+                        </div>
                     @endforeach
-                </div>
-            </section>
-        @endif
-
-        <section class="client-section">
-            <h3 class="client-section__title">Activity</h3>
-            @if (empty($timeline))
-                <p class="client-empty">Nothing yet. New inquiries from {{ $client->email }} land here automatically.</p>
-            @else
-                <ol class="client-feed">
-                    @foreach ($timeline as $event)
-                        <li class="client-feed__item client-feed__item--{{ $event['kind'] }}">
-                            @php($tag = $event['url'] ? 'a' : 'div')
-                            <{{ $tag }} class="client-feed__link" @if ($event['url']) href="{{ $event['url'] }}" @endif>
-                                <span class="client-feed__icon" aria-hidden="true">{{ $event['icon'] }}</span>
-                                <span class="client-feed__body">
-                                    <span class="client-feed__title">{{ $event['title'] }}</span>
-                                    @if ($event['meta'])
-                                        <span class="client-feed__meta">{{ $event['meta'] }}</span>
-                                    @endif
-                                </span>
-                                <time class="client-feed__time" datetime="{{ optional($event['at'])->toIso8601String() }}">
-                                    {{ optional($event['at'])->diffForHumans(null, true) }} ago
-                                </time>
-                            </{{ $tag }}>
-                        </li>
-                    @endforeach
-                </ol>
+                </x-ui.card>
             @endif
-        </section>
 
-        <section class="client-section">
-            <div class="client-aux">
-                <div class="client-aux__item">
-                    <h3 class="client-section__title">Portal access</h3>
-                    @if ($client->password !== null)
-                        <p class="client-muted">
-                            Active · {{ $client->last_login_at ? 'last sign-in '.$client->last_login_at->diffForHumans() : 'not signed in yet' }}
-                            @if ($loginCount > 0)
-                                · {{ $loginCount }} {{ Str::plural('sign-in', $loginCount) }}
+            <x-ui.card title="Activity" flush>
+                @if (empty($timeline))
+                    <p class="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">Nothing yet. New inquiries from {{ $client->email }} land here automatically.</p>
+                @else
+                    <ol>
+                        @foreach ($timeline as $event)
+                            @php($tag = $event['url'] ? 'a' : 'div')
+                            <li class="border-b border-gray-100 last:border-0 dark:border-gray-800">
+                                <{{ $tag }} class="flex items-start gap-3 px-5 py-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-800/60" @if ($event['url']) href="{{ $event['url'] }}" @endif>
+                                    <span aria-hidden="true">{{ $event['icon'] }}</span>
+                                    <span class="min-w-0 flex-1">
+                                        <span class="block font-medium text-gray-900 dark:text-white">{{ $event['title'] }}</span>
+                                        @if ($event['meta'])
+                                            <span class="block text-xs text-gray-500 dark:text-gray-400">{{ $event['meta'] }}</span>
+                                        @endif
+                                    </span>
+                                    <time class="shrink-0 text-xs text-gray-500 dark:text-gray-400" datetime="{{ optional($event['at'])->toIso8601String() }}">{{ optional($event['at'])->diffForHumans(null, true) }} ago</time>
+                                </{{ $tag }}>
+                            </li>
+                        @endforeach
+                    </ol>
+                @endif
+            </x-ui.card>
+        </div>
+
+        <div class="space-y-6">
+            <x-ui.card title="Contact">
+                <ul class="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                    <li><a class="{{ $link }}" href="mailto:{{ $client->email }}">{{ $client->email }}</a></li>
+                    @if ($client->phone)
+                        <li><a class="{{ $link }}" href="tel:{{ preg_replace('/[^0-9+]/', '', $client->phone) }}">{{ $client->phone }}</a></li>
+                    @endif
+                    @if ($location)
+                        <li>{{ $location }}</li>
+                    @endif
+                </ul>
+            </x-ui.card>
+
+            <x-ui.card title="Portal access">
+                @if ($client->password !== null)
+                    <p class="text-sm text-gray-600 dark:text-gray-400">
+                        Active · {{ $client->last_login_at ? 'last sign-in '.$client->last_login_at->diffForHumans() : 'not signed in yet' }}
+                        @if ($loginCount > 0)
+                            · {{ $loginCount }} {{ Str::plural('sign-in', $loginCount) }}
+                        @endif
+                    </p>
+                @else
+                    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">No portal access yet.</p>
+                    <form method="POST" action="{{ route('admin.clients.portal-invite', $client) }}">
+                        @csrf
+                        <x-ui.button variant="secondary" type="submit">Send portal invite</x-ui.button>
+                    </form>
+                @endif
+            </x-ui.card>
+
+            <x-ui.card title="Questionnaire">
+                @if ($questionnaires->isEmpty())
+                    <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">Not sent yet. Email {{ $client->email ?: 'the client' }} a link.</p>
+                @else
+                    @foreach ($questionnaires as $questionnaire)
+                        <p class="mb-2 text-sm text-gray-600 dark:text-gray-400">
+                            @if ($questionnaire->isSubmitted())
+                                Submitted {{ $questionnaire->submitted_at->format('M j, Y') }} ·
+                                <a class="{{ $link }}" href="{{ route('admin.questionnaires.show', $questionnaire) }}">View responses</a>
+                            @else
+                                Sent, awaiting responses ·
+                                <a class="{{ $link }}" href="{{ $questionnaire->publicUrl() }}">Open link</a>
                             @endif
                         </p>
-                    @else
-                        <p class="client-muted">No portal access yet.</p>
-                        <form method="POST" action="{{ route('admin.clients.portal-invite', $client) }}">
-                            @csrf
-                            <button class="cta-secondary" type="submit">Send portal invite</button>
-                        </form>
-                    @endif
-                </div>
-
-                <div class="client-aux__item">
-                    <h3 class="client-section__title">Questionnaire</h3>
-                    @if ($questionnaires->isEmpty())
-                        <p class="client-muted">Not sent yet. Use “Send questionnaire” above to email {{ $client->email ?: 'the client' }} a link.</p>
-                    @else
-                        @foreach ($questionnaires as $questionnaire)
-                            <p class="client-muted">
-                                @if ($questionnaire->isSubmitted())
-                                    ✅ Submitted {{ $questionnaire->submitted_at->format('M j, Y') }} ·
-                                    <a href="{{ route('admin.questionnaires.show', $questionnaire) }}">View responses</a>
-                                @else
-                                    ⏳ Sent · awaiting responses ·
-                                    <a href="{{ $questionnaire->publicUrl() }}">Open link</a>
-                                @endif
-                            </p>
-                        @endforeach
-                    @endif
-                </div>
-
-                @if ($client->notes)
-                    <details class="client-aux__item">
-                        <summary class="client-section__title">Internal notes</summary>
-                        <p class="client-notes">{{ $client->notes }}</p>
-                    </details>
+                    @endforeach
                 @endif
-            </div>
-        </section>
+                <form method="POST" action="{{ route('admin.clients.questionnaire', $client) }}" class="mt-3">
+                    @csrf
+                    <x-ui.button variant="secondary" type="submit">Send questionnaire</x-ui.button>
+                </form>
+            </x-ui.card>
+
+            @if ($client->notes)
+                <x-ui.card title="Internal notes">
+                    <p class="whitespace-pre-line text-sm text-gray-700 dark:text-gray-300">{{ $client->notes }}</p>
+                </x-ui.card>
+            @endif
+        </div>
     </div>
 @endsection
