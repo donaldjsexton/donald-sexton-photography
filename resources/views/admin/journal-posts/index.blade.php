@@ -1,42 +1,43 @@
-@extends('layouts.admin')
+@extends('layouts.admin-v2')
 
 @section('title', 'Journal Posts')
+@section('eyebrow', 'Content')
 @section('heading', 'Journal Posts')
+@section('subheading', 'Manage the journal archive directly and review imported legacy content before publishing.')
+@section('header_actions')
+    <x-ui.button :href="route('admin.journal-posts.create')">New Journal Post</x-ui.button>
+@endsection
 @section('content')
-    <div class="admin-toolbar">
-        <p class="section-copy">Manage the journal archive directly and review imported legacy content before publishing.</p>
-        <a class="cta" href="{{ route('admin.journal-posts.create') }}">New Journal Post</a>
-    </div>
 
-    <div class="admin-table-wrap">
-        <table class="admin-table">
-            <thead>
-                <tr>
-                    <th>Title</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Published</th>
-                    <th>Legacy ID</th>
-                    <th></th>
+    <x-ui.card flush class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+            <thead class="border-b border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/60">
+<tr>
+                    <th class="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Title</th>
+                    <th class="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Type</th>
+                    <th class="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Status</th>
+                    <th class="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Published</th>
+                    <th class="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Legacy ID</th>
+                    <th class="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400"></th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($posts as $post)
-                    <tr>
-                        <td>{{ $post->title }}</td>
-                        <td>{{ $post->post_type }}</td>
-                        <td>{{ $post->status }}</td>
-                        <td>{{ $post->published_at?->format('M j, Y') ?: '—' }}</td>
-                        <td>{{ $post->original_wp_post_id ?: '—' }}</td>
-                        <td><a href="{{ route('admin.journal-posts.edit', $post) }}">Edit</a></td>
+                    <tr class="border-b border-gray-100 last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800/60">
+                        <td class="px-5 py-3 align-top text-gray-700 dark:text-gray-300">{{ $post->title }}</td>
+                        <td class="px-5 py-3 align-top text-gray-700 dark:text-gray-300">{{ $post->post_type }}</td>
+                        <td class="px-5 py-3 align-top text-gray-700 dark:text-gray-300">{{ $post->status }}</td>
+                        <td class="px-5 py-3 align-top text-gray-700 dark:text-gray-300">{{ $post->published_at?->format('M j, Y') ?: '—' }}</td>
+                        <td class="px-5 py-3 align-top text-gray-700 dark:text-gray-300">{{ $post->original_wp_post_id ?: '—' }}</td>
+                        <td class="px-5 py-3 align-top text-gray-700 dark:text-gray-300"><a class="text-brand-600 hover:underline dark:text-brand-400" href="{{ route('admin.journal-posts.edit', $post) }}">Edit</a></td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
-    </div>
+    </x-ui.card>
 
     @if ($posts->hasPages())
-        <div class="pagination">
+        <div class="mt-4">
             {{ $posts->links() }}
         </div>
     @endif
