@@ -26,6 +26,7 @@
                     ['label' => 'Dashboard', 'href' => route('admin.dashboard'), 'patterns' => ['admin.dashboard']],
                     ['label' => 'Inquiries', 'href' => route('admin.inquiries.index'), 'patterns' => ['admin.inquiries.*']],
                     ['label' => 'Calendar', 'href' => route('admin.booked-jobs.index'), 'patterns' => ['admin.booked-jobs.*']],
+                    ['label' => 'Contacts', 'href' => route('admin.contacts.index'), 'patterns' => ['admin.contacts.*']],
                     ['label' => 'Clients', 'href' => route('admin.clients.index'), 'patterns' => ['admin.clients.*']],
                     ['label' => 'Invoices', 'href' => route('admin.invoices.index'), 'patterns' => ['admin.invoices.*']],
                     ['label' => 'Contracts', 'href' => route('admin.contracts.index'), 'patterns' => ['admin.contracts.*', 'admin.contract-templates.*']],

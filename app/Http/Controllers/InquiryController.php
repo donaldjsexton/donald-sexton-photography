@@ -7,6 +7,7 @@ use App\Mail\InquiryReceived;
 use App\Models\Inquiry;
 use App\Models\Testimonial;
 use App\Services\Availability\AvailabilityCalendar;
+use App\Services\Crm\ContactDirectory;
 use App\Services\InquiryAvailabilityService;
 use App\Services\WebPushService;
 use Illuminate\Http\RedirectResponse;
@@ -109,11 +110,33 @@ class InquiryController extends Controller
             'source' => 'site_form',
         ] + $utm + $smsConsent);
 
+        $this->linkContact($inquiry);
+
         $this->notifyStudio($inquiry);
         $this->acknowledgeClient($inquiry);
         $this->pushNotify($inquiry);
 
         return redirect()->route('inquiry.thank-you')->with('inquiry_submitted', true);
+    }
+
+    private function linkContact(Inquiry $inquiry): void
+    {
+        $directory = app(ContactDirectory::class);
+        $contact = $directory->findOrCreate($inquiry->email, 'site_form', [
+            'type' => 'couple',
+            'name' => $inquiry->primary_name,
+            'partner_name' => $inquiry->partner_name,
+            'phone' => $inquiry->phone,
+            'shoot_type' => $inquiry->event_type,
+            'event_date' => $inquiry->event_date,
+            'source_detail' => $inquiry->lead_source ?: null,
+        ]);
+
+        if (in_array($contact->stage, ['lead'], true)) {
+            $contact->update(['stage' => 'inquiry']);
+        }
+
+        $inquiry->update(['contact_id' => $contact->id]);
     }
 
     public function thankYou(): View

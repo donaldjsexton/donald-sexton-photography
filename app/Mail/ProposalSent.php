@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\IsTransactional;
 use App\Models\Contract;
 use App\Models\Invoice;
 use App\Services\Contracts\ContractPdfRenderer;
@@ -15,6 +16,7 @@ use Illuminate\Queue\SerializesModels;
 
 class ProposalSent extends Mailable
 {
+    use IsTransactional;
     use Queueable;
     use SerializesModels;
 

@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\IsTransactional;
 use App\Models\Contract;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -11,6 +12,7 @@ use Illuminate\Queue\SerializesModels;
 
 class ContractDeclined extends Mailable
 {
+    use IsTransactional;
     use Queueable;
     use SerializesModels;
 
