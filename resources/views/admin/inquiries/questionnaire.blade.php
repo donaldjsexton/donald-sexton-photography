@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.admin-v2')
 
 @section('title', 'Wedding Questionnaire')
 @section('eyebrow', 'Leads')
@@ -6,12 +6,12 @@
 @section('subheading', $questionnaire->isSubmitted() ? 'Submitted '.$questionnaire->submitted_at->format('F j, Y g:i A') : 'Awaiting submission.')
 @section('header_actions')
     @if ($inquiry)
-        <a class="cta-secondary" href="{{ route('admin.inquiries.edit', $inquiry) }}">Back to Lead</a>
+        <x-ui.button variant="secondary" :href="route('admin.inquiries.edit', $inquiry)">Back to Lead</x-ui.button>
     @elseif ($questionnaire->client)
-        <a class="cta-secondary" href="{{ route('admin.clients.show', $questionnaire->client) }}">Back to Client</a>
+        <x-ui.button variant="secondary" :href="route('admin.clients.show', $questionnaire->client)">Back to Client</x-ui.button>
     @endif
     @if ($questionnaire->isSubmitted())
-        <button type="button" class="cta" onclick="window.print()" style="border:0; cursor:pointer; margin-left:.5rem;">Print / Save PDF</button>
+        <x-ui.button type="button" onclick="window.print()" class="ml-2">Print / Save PDF</x-ui.button>
     @endif
 @endsection
 @section('content')
@@ -23,18 +23,19 @@
         .q-view__row dt { margin: 0; color: #6b6157; font-weight: 600; }
         .q-view__row dd { margin: 0; color: #2a2320; }
         @media print {
-            .admin-header, .admin-nav, .admin-sidebar, .cta, .cta-secondary, .header_actions { display: none !important; }
+            aside, header, [data-print-hide], a[class*="rounded-lg"], button { display: none !important; }
             body { background: #fff !important; }
-            .admin-card { border: 0 !important; padding: 0 !important; }
+            .q-card { border: 0 !important; box-shadow: none !important; padding: 0 !important; }
+            .lg\:pl-72, .lg\:pl-20 { padding-left: 0 !important; }
         }
     </style>
 
-    <article class="admin-card">
+    <x-ui.card class="q-card">
         @if ($questionnaire->isSubmitted())
             @include('questionnaires._responses', ['questionnaire' => $questionnaire, 'schema' => $schema])
         @else
-            <p class="meta">Questionnaire has not been submitted yet. Shareable link:</p>
-            <p class="meta" style="word-break:break-all;"><a href="{{ $questionnaire->publicUrl() }}" target="_blank" rel="noopener">{{ $questionnaire->publicUrl() }}</a></p>
+            <p class="text-sm text-gray-500 dark:text-gray-400">Questionnaire has not been submitted yet. Shareable link:</p>
+            <p class="break-all text-sm text-gray-500 dark:text-gray-400"><a class="text-brand-600 underline dark:text-brand-400" href="{{ $questionnaire->publicUrl() }}" target="_blank" rel="noopener">{{ $questionnaire->publicUrl() }}</a></p>
         @endif
-    </article>
+    </x-ui.card>
 @endsection

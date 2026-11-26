@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.admin-v2')
 
 @section('title', 'Application Logs')
 @section('eyebrow', 'Operations')
@@ -7,32 +7,38 @@
 
 @section('content')
     @php
+        $input = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100';
+        $meta = 'text-sm text-gray-500 dark:text-gray-400';
+        $eyebrow = 'text-xs font-semibold uppercase tracking-wide text-brand-600 dark:text-brand-400';
+    @endphp
+    @php
         $levelTone = [
-            'EMERGENCY' => 'failed',
-            'ALERT' => 'failed',
-            'CRITICAL' => 'failed',
-            'ERROR' => 'failed',
-            'WARNING' => 'running',
-            'NOTICE' => 'follow-up',
-            'INFO' => 'completed',
-            'DEBUG' => 'archived',
+            'EMERGENCY' => 'red',
+            'ALERT' => 'red',
+            'CRITICAL' => 'red',
+            'ERROR' => 'red',
+            'WARNING' => 'amber',
+            'NOTICE' => 'amber',
+            'INFO' => 'green',
+            'DEBUG' => 'gray',
         ];
     @endphp
 
-    <section class="admin-card">
-        <x-admin.section-header
-            eyebrow="Browse"
-            title="Log files"
-            description="The most recent 512 KB of the selected file are parsed. Older entries stay on disk untouched."
-        />
+    <x-ui.card class="mb-6 space-y-4">
+        <div class="admin-section-header flex flex-wrap items-end justify-between gap-3">
+<div>
+<p class="{{ $eyebrow }}">Browse</p>
+<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Log files</h2>
+<p class="{{ $meta }}">The most recent 512 KB of the selected file are parsed. Older entries stay on disk untouched.</p>
+</div>
+</div>
 
         @if ($files->isEmpty())
-            <p class="meta">No log files were found in <code>storage/logs</code>. Logs will appear here as soon as the application writes one.</p>
+            <p class="{{ $meta }}">No log files were found in <code>storage/logs</code>. Logs will appear here as soon as the application writes one.</p>
         @else
-            <form method="GET" action="{{ route('admin.logs.index') }}" class="admin-search-form">
-                <label>
-                    Log file
-                    <select name="file">
+            <form method="GET" action="{{ route('admin.logs.index') }}" class="max-w-none! space-y-4">
+                <x-ui.field label="Log file">
+                    <select class="{{ $input }}" name="file">
                         @foreach ($files as $file)
                             <option
                                 value="{{ $file['name'] }}"
@@ -44,91 +50,90 @@
                             </option>
                         @endforeach
                     </select>
-                </label>
+                </x-ui.field>
 
-                <label>
-                    Level
-                    <select name="level">
+                <x-ui.field label="Level">
+                    <select class="{{ $input }}" name="level">
                         <option value="">All levels</option>
                         @foreach ($levels as $option)
                             <option value="{{ $option }}" @selected($level === $option)>{{ $option }}</option>
                         @endforeach
                     </select>
-                </label>
+                </x-ui.field>
 
-                <label>
-                    Search
-                    <input
+                <x-ui.field label="Search">
+                    <input class="{{ $input }}"
                         type="search"
                         name="search"
                         value="{{ $search }}"
                         placeholder="Match message or context"
                     >
-                </label>
+                </x-ui.field>
 
-                <button class="cta" type="submit" style="border: 0; cursor: pointer;">Apply</button>
+                <x-ui.button type="submit">Apply</x-ui.button>
 
                 @if ($level !== '' || $search !== '' || ($activeFile && request('file') && request('file') !== $activeFile['name']))
-                    <a class="cta-secondary" href="{{ route('admin.logs.index') }}">Reset</a>
+                    <x-ui.button variant="secondary" :href="route('admin.logs.index')">Reset</x-ui.button>
                 @endif
             </form>
         @endif
-    </section>
+    </x-ui.card>
 
     @if ($activeFile)
-        <section class="admin-stat-grid">
-            <article class="admin-card admin-card--metric">
-                <p class="eyebrow">File</p>
-                <p class="admin-stat" style="font-size: 1.1rem; word-break: break-all;">{{ $activeFile['name'] }}</p>
-                <p class="meta">{{ number_format($activeFile['size'] / 1024, 1) }} KB on disk</p>
-            </article>
+        <section class="mb-6 [display:grid] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <x-ui.card>
+                <p class="{{ $eyebrow }}">File</p>
+                <p class="break-all text-lg font-semibold text-gray-900 dark:text-white">{{ $activeFile['name'] }}</p>
+                <p class="{{ $meta }}">{{ number_format($activeFile['size'] / 1024, 1) }} KB on disk</p>
+            </x-ui.card>
 
-            <article class="admin-card admin-card--metric">
-                <p class="eyebrow">Last Write</p>
-                <p class="admin-stat">{{ $activeFile['modified_at']->diffForHumans() }}</p>
-                <p class="meta">{{ $activeFile['modified_at']->format('M j, Y g:i A') }}</p>
-            </article>
+            <x-ui.card>
+                <p class="{{ $eyebrow }}">Last Write</p>
+                <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ $activeFile['modified_at']->diffForHumans() }}</p>
+                <p class="{{ $meta }}">{{ $activeFile['modified_at']->format('M j, Y g:i A') }}</p>
+            </x-ui.card>
 
-            <article class="admin-card admin-card--metric">
-                <p class="eyebrow">Parsed Entries</p>
-                <p class="admin-stat">{{ number_format($totalEntries) }}</p>
-                <p class="meta">
+            <x-ui.card>
+                <p class="{{ $eyebrow }}">Parsed Entries</p>
+                <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ number_format($totalEntries) }}</p>
+                <p class="{{ $meta }}">
                     @if ($truncated)
                         Truncated to last 512&nbsp;KB
                     @else
                         Full file parsed
                     @endif
                 </p>
-            </article>
+            </x-ui.card>
 
-            <article class="admin-card admin-card--metric">
-                <p class="eyebrow">Showing</p>
-                <p class="admin-stat">{{ number_format($filteredEntries) }}</p>
-                <p class="meta">
+            <x-ui.card>
+                <p class="{{ $eyebrow }}">Showing</p>
+                <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ number_format($filteredEntries) }}</p>
+                <p class="{{ $meta }}">
                     @if ($level !== '' || $search !== '')
                         After filters
                     @else
                         All parsed entries
                     @endif
                 </p>
-            </article>
+            </x-ui.card>
         </section>
 
-        <section class="admin-card">
-            <x-admin.section-header
-                eyebrow="Recent Activity"
-                title="Latest entries first"
-                description="Each entry shows the timestamp, level, and message. Expand the context for the JSON payload or stack trace when present."
-            >
-                @if (! empty($entries))
+        <x-ui.card class="mb-6 space-y-4">
+            <div class="admin-section-header flex flex-wrap items-end justify-between gap-3">
+<div>
+<p class="{{ $eyebrow }}">Recent Activity</p>
+<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Latest entries first</h2>
+<p class="{{ $meta }}">Each entry shows the timestamp, level, and message. Expand the context for the JSON payload or stack trace when present.</p>
+</div>
+@if (! empty($entries))
                     <div>
-                        <button type="button" class="admin-copy-btn" data-copy-all-entries>Copy all shown</button>
+                        <x-ui.button variant="secondary" type="button" class="admin-copy-btn" data-copy-all-entries>Copy all shown</x-ui.button>
                     </div>
                 @endif
-            </x-admin.section-header>
+</div>
 
             @if (empty($entries))
-                <p class="meta">
+                <p class="{{ $meta }}">
                     @if ($totalEntries === 0)
                         This file is empty or doesn't contain any parseable Laravel log entries.
                     @else
@@ -136,7 +141,7 @@
                     @endif
                 </p>
             @else
-                <ol class="admin-import-run-list" style="list-style: none; padding: 0;">
+                <ol class="admin-import-run-list m-0 list-none space-y-3 p-0">
                     @foreach ($entries as $entry)
                         @php
                             $logLine = sprintf(
@@ -148,42 +153,42 @@
                             );
                         @endphp
 
-                        <li class="admin-import-run" data-log-entry data-log-line="{{ $logLine }}">
-                            <div class="admin-import-run__header">
+                        <li class="admin-import-run rounded-xl border border-gray-200 p-4 dark:border-gray-700" data-log-entry data-log-line="{{ $logLine }}">
+                            <div class="admin-import-run__header flex items-start justify-between gap-3">
                                 <div class="admin-import-run__copy">
-                                    <p class="eyebrow">
+                                    <p class="{{ $eyebrow }}">
                                         {{ $entry['timestamp']?->format('M j, Y g:i:s A') ?: 'Unknown time' }}
                                         @if ($entry['environment'])
                                             · {{ $entry['environment'] }}
                                         @endif
                                     </p>
-                                    <h3 class="admin-import-run__title" style="word-break: break-word;">
+                                    <h3 class="admin-import-run__title break-words text-sm font-medium text-gray-900 dark:text-white">
                                         {{ $entry['message'] !== '' ? $entry['message'] : '(empty message)' }}
                                     </h3>
                                 </div>
 
-                                <div class="admin-log-entry__actions">
-                                    <x-admin.badge :tone="$levelTone[$entry['level']] ?? 'archived'">
+                                <div class="admin-log-entry__actions flex shrink-0 items-center gap-2">
+                                    <x-ui.badge :tone="$levelTone[$entry['level']] ?? 'gray'">
                                         {{ $entry['level'] }}
-                                    </x-admin.badge>
+                                    </x-ui.badge>
 
-                                    <button type="button" class="admin-copy-btn" data-copy-entry aria-label="Copy log entry">
+                                    <button type="button" class="admin-copy-btn rounded-lg border border-gray-300 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-700" data-copy-entry aria-label="Copy log entry">
                                         Copy
                                     </button>
                                 </div>
                             </div>
 
                             @if ($entry['context'])
-                                <details class="admin-details">
+                                <details class="admin-details mt-3 text-sm">
                                     <summary>Context</summary>
-                                    <pre class="admin-pre admin-pre--wrap" data-log-context>{{ $entry['context'] }}</pre>
+                                    <pre class="admin-pre admin-pre--wrap mt-2 max-h-96 overflow-auto whitespace-pre-wrap break-words rounded-lg bg-gray-50 p-3 text-xs text-gray-800 dark:bg-gray-900 dark:text-gray-200" data-log-context>{{ $entry['context'] }}</pre>
                                 </details>
                             @endif
                         </li>
                     @endforeach
                 </ol>
             @endif
-        </section>
+        </x-ui.card>
 
         @if (! empty($entries))
             <script>
