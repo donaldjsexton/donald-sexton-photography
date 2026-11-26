@@ -1,0 +1,26 @@
+@import 'tailwindcss';
+
+@source '../views/layouts/admin-v2.blade.php';
+@source '../views/components/ui';
+@source '../views/admin/contacts';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+    --color-brand-50: #eef2ff;
+    --color-brand-100: #e0e7ff;
+    --color-brand-200: #c7d2fe;
+    --color-brand-300: #a5b4fc;
+    --color-brand-400: #818cf8;
+    --color-brand-500: #635bff;
+    --color-brand-600: #5048e5;
+    --color-brand-700: #4338ca;
+    --color-brand-900: #312e81;
+}
+
+[x-cloak] { display: none !important; }
+
+/* Thin scrollbars to match the dashboard look */
+* { scrollbar-width: thin; scrollbar-color: rgb(148 163 184 / 0.5) transparent; }
