@@ -7266,11 +7266,6 @@ button:tool-submit-active { box-shadow: 0 0 0 3px rgba(0,0,0,.25); }
 }
 
 @media (max-width: 480px) {
-    .availability {
-        width: calc(100vw - 8px);
-        margin-inline: calc(50% - 50vw + 4px);
-    }
-
     .availability__table {
         border-spacing: 0.12rem;
     }
