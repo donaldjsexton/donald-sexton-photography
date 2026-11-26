@@ -55,7 +55,10 @@ class CoverageQuizScorer
             }
         }
         if ($picked !== []) {
-            $reasons[] = 'you want '.implode(', ', array_slice($picked, 0, 3)).(count($picked) > 3 ? ' and more' : '');
+            $top = array_slice($picked, 0, 3);
+            $last = array_pop($top);
+            $list = $top === [] ? $last : implode(', ', $top).' and '.$last;
+            $reasons[] = 'you want photos of '.$list.(count($picked) > 3 ? ' and more' : '');
         }
 
         if (($a['start'] ?? null) === 'evening') {

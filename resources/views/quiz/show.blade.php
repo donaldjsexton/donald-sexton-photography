@@ -9,7 +9,7 @@
     .quiz{max-width:640px;margin:0 auto;padding:48px 20px 80px}
     .quiz h1{font-weight:400;line-height:1.15;margin:0 0 12px}
     .quiz__sub{color:#5a4d42;margin:0 0 24px}
-    .quiz__btn{display:inline-block;background:#2c2018;color:#fffdfa;border:0;padding:14px 26px;font:inherit;cursor:pointer}
+    .quiz__btn{display:inline-block;text-decoration:none;background:#2c2018;color:#fffdfa;border:0;padding:14px 26px;font:inherit;cursor:pointer}
     .quiz__btn[disabled]{opacity:.4;cursor:default}
     .quiz__link{background:none;border:0;padding:0;font:inherit;color:#7a6555;text-decoration:underline;cursor:pointer;margin-right:18px}
     .quiz__small{font-size:13px;color:#7a6555;margin:10px 0 0}
@@ -153,6 +153,7 @@
     function show(){var list=active();var cur=list[i];
         steps.forEach(function(s){form.querySelector('[data-step='+s+']').hidden = s!==cur;});
         bar.style.width=((i+1)/list.length*100)+'%'; back.hidden=i===0;
+        var f=form.querySelector('[data-step='+cur+'] input[type=text],[data-step='+cur+'] input[type=email]'); if(f&&i>0||f&&cur==='name'){f.focus();}
         next.textContent = cur==='email' ? 'Show my plan' : (cur==='when' ? 'Next' : 'Next'); err.hidden=true;}
     function valid(cur){
         if(cur==='name') return form.first_name.value.trim()!==''||'Tell me what to call you.';
@@ -160,6 +161,8 @@
         if(cur==='email'){ if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(form.email.value.trim())) return 'That email does not look right.'; if(!form.consent.checked) return 'Please tick the box so I can email your plan.'; }
         return true;}
     document.getElementById('quiz-start').onclick=function(){landing.hidden=true;form.hidden=false;i=0;show();window.scrollTo(0,0);};
+    form.addEventListener('submit',function(e){e.preventDefault();});
+    form.addEventListener('keydown',function(e){if(e.key==='Enter'&&e.target.tagName==='INPUT'){e.preventDefault();next.click();}});
     back.onclick=function(){if(i>0){i--;show();}};
     next.onclick=function(){var list=active(),cur=list[i],v=valid(cur);
         if(v!==true){err.textContent=v;err.hidden=false;return;}
