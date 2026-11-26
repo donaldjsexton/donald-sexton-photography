@@ -19,6 +19,7 @@
     .quiz__bar i{display:block;height:100%;background:#2c2018;width:0;transition:width .25s}
     .quiz__opts{display:grid;gap:10px;margin:0 0 22px}
     .quiz__opt{display:flex;gap:10px;align-items:center;border:1px solid #d9c8b6;padding:14px 16px;cursor:pointer;background:#fffdfa}
+    .quiz input[type=radio],.quiz input[type=checkbox]{width:auto;padding:0;margin:0;flex:none}
     .quiz__opt:has(input:checked){border-color:#2c2018;background:#f6f1ea}
     .quiz input[type=text],.quiz input[type=email]{width:100%;padding:12px;border:1px solid #d9c8b6;font:inherit;box-sizing:border-box;margin:0 0 20px}
     .quiz__err{color:#9a3b2a;margin:0 0 12px}
