@@ -20,6 +20,13 @@ class CrmContactsTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // CI runs tests before the frontend build, so there is no Vite manifest.
+        $this->withoutVite();
+    }
+
     private function directory(): ContactDirectory
     {
         return app(ContactDirectory::class);
