@@ -3,7 +3,7 @@
 @section('title', 'Check Availability')
 
 @php
-    $prefill = $prefill ?? ['primary_name' => '', 'email' => '', 'event_date' => ''];
+    $prefill = ($prefill ?? []) + ['primary_name' => '', 'email' => '', 'event_date' => '', 'event_type' => '', 'venue_name' => '', 'guest_count_range' => '', 'message' => ''];
     $trustQuote = ($featuredTestimonials ?? collect())->first();
 @endphp
 
@@ -143,7 +143,7 @@
                                 <select name="event_type" id="event_type" required toolparamdescription="What kind of photography is needed." @error('event_type') aria-invalid="true" aria-describedby="event_type-error" @enderror>
                                     <option value="">Please choose…</option>
                                     @foreach (\App\Models\Inquiry::eventTypeOptions() as $value => $label)
-                                        <option value="{{ $value }}" @selected(old('event_type') === $value)>{{ $label }}</option>
+                                        <option value="{{ $value }}" @selected(old('event_type', $prefill['event_type']) === $value)>{{ $label }}</option>
                                     @endforeach
                                 </select>
                                 @error('event_type')
@@ -167,7 +167,7 @@
                                         type="text"
                                         name="venue_name"
                                         id="venue_name"
-                                        value="{{ old('venue_name') }}"
+                                        value="{{ old('venue_name', $prefill['venue_name']) }}"
                                         placeholder="Start typing a venue name"
                                         autocomplete="off"
                                         data-venue-input
@@ -204,7 +204,7 @@
 
                         <label>
                             Message <span class="meta">(optional)</span>
-                            <textarea name="message" id="message" rows="6" placeholder="What matters most about the photos? How did you find me? Anything else I should know?" toolparamdescription="Optional note: what matters most about the photos, guest count, how they found the studio, anything else." @error('message') aria-invalid="true" aria-describedby="message-error" @enderror>{{ old('message') }}</textarea>
+                            <textarea name="message" id="message" rows="6" placeholder="What matters most about the photos? How did you find me? Anything else I should know?" toolparamdescription="Optional note: what matters most about the photos, guest count, how they found the studio, anything else." @error('message') aria-invalid="true" aria-describedby="message-error" @enderror>{{ old('message', $prefill['message']) }}</textarea>
                             @error('message')
                                 <p class="field-error" id="message-error">{{ $message }}</p>
                             @enderror

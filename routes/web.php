@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
+use App\Http\Controllers\QuizController;
 use App\Http\Controllers\Admin\BookedJobController as AdminBookedJobController;
 use App\Http\Controllers\Admin\BookingProposalController as AdminBookingProposalController;
 use App\Http\Controllers\Admin\ClientController as AdminClientController;
@@ -320,6 +321,9 @@ Route::get('/api/availability', AvailabilityController::class)
     ->withoutMiddleware($statelessBotMiddleware)
     ->middleware('throttle:60,1');
 
+Route::get('/quiz', [QuizController::class, 'show'])->name('quiz.show');
+Route::post('/quiz', [QuizController::class, 'store'])->middleware('throttle:10,1')->name('quiz.store');
+Route::get('/quiz/unsubscribe/{token}', [QuizController::class, 'unsubscribe'])->name('quiz.unsubscribe');
 Route::get('/inquire', [InquiryController::class, 'create'])->name('inquiry.create');
 Route::post('/inquire', [InquiryController::class, 'store'])->name('inquiry.store');
 Route::get('/thank-you', [InquiryController::class, 'thankYou'])->name('inquiry.thank-you');
