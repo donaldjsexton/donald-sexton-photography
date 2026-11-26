@@ -1,4 +1,4 @@
-@props(['label', 'value', 'icon' => 'users', 'tone' => 'brand'])
+@props(['label', 'value', 'icon' => 'users', 'tone' => 'brand', 'hint' => null])
 @php
     $tones = [
         'brand' => 'bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-300',
@@ -14,5 +14,6 @@
     <div>
         <p class="text-sm text-gray-500 dark:text-gray-400">{{ $label }}</p>
         <p class="text-2xl font-semibold text-gray-900 dark:text-white">{{ $value }}</p>
+        @if ($hint)<p class="text-xs text-gray-500 dark:text-gray-400">{{ $hint }}</p>@endif
     </div>
 </div>
