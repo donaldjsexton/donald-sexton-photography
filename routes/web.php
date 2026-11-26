@@ -1,11 +1,11 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
-use App\Http\Controllers\QuizController;
 use App\Http\Controllers\Admin\BookedJobController as AdminBookedJobController;
 use App\Http\Controllers\Admin\BookingProposalController as AdminBookingProposalController;
 use App\Http\Controllers\Admin\ClientController as AdminClientController;
 use App\Http\Controllers\Admin\ConsoleCommandController as AdminConsoleCommandController;
+use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\ContractController as AdminContractController;
 use App\Http\Controllers\Admin\ContractTemplateController as AdminContractTemplateController;
 use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
@@ -61,6 +61,7 @@ use App\Http\Controllers\Portal\QuestionnaireController as PortalQuestionnaireCo
 use App\Http\Controllers\Portal\SettingsController as PortalSettingsController;
 use App\Http\Controllers\Portal\SquarePaymentController as PortalSquarePaymentController;
 use App\Http\Controllers\QuestionnaireController;
+use App\Http\Controllers\QuizController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\VenueController;
 use App\Http\Controllers\Webhooks\PayPalWebhookController;
@@ -146,6 +147,11 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/booked-jobs/{bookedJob}', [AdminBookedJobController::class, 'show'])->name('booked-jobs.show');
         Route::put('/booked-jobs/{bookedJob}', [AdminBookedJobController::class, 'update'])->name('booked-jobs.update');
         Route::put('/booked-jobs/{bookedJob}/reschedule', [AdminBookedJobController::class, 'reschedule'])->name('booked-jobs.reschedule');
+
+        Route::get('/contacts', [AdminContactController::class, 'index'])->name('contacts.index');
+        Route::get('/contacts/{contact}', [AdminContactController::class, 'show'])->name('contacts.show');
+        Route::post('/contacts/{contact}/suppress', [AdminContactController::class, 'suppress'])->name('contacts.suppress');
+        Route::post('/contacts/{contact}/unsuppress', [AdminContactController::class, 'unsuppress'])->name('contacts.unsuppress');
 
         Route::get('/clients', [AdminClientController::class, 'index'])->name('clients.index');
         Route::get('/clients/create', [AdminClientController::class, 'create'])->name('clients.create');

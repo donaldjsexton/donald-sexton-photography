@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\IsTransactional;
 use App\Models\Inquiry;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -12,6 +13,7 @@ use Illuminate\Support\Carbon;
 
 class InquiryAcknowledgment extends Mailable
 {
+    use IsTransactional;
     use Queueable;
     use SerializesModels;
 

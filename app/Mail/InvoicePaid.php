@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\IsTransactional;
 use App\Models\Invoice;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -11,6 +12,7 @@ use Illuminate\Queue\SerializesModels;
 
 class InvoicePaid extends Mailable
 {
+    use IsTransactional;
     use Queueable;
     use SerializesModels;
 

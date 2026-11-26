@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\IsTransactional;
 use App\Models\Inquiry;
 use App\Models\InquiryMessage;
 use Illuminate\Bus\Queueable;
@@ -12,6 +13,7 @@ use Illuminate\Queue\SerializesModels;
 
 class InquiryReply extends Mailable
 {
+    use IsTransactional;
     use Queueable;
     use SerializesModels;
 

@@ -32,6 +32,7 @@ class Client extends Model implements AuthenticatableContract, CanResetPasswordC
 
     protected $fillable = [
         'uuid',
+        'contact_id',
         'first_name',
         'last_name',
         'partner_first_name',

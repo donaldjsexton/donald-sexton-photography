@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Mail\QuizResult;
 use App\Models\QuizLead;
+use App\Services\Crm\ContactDirectory;
 use App\Services\Quiz\CoverageQuizScorer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,7 @@ class QuizController extends Controller
         return view('quiz.show', ['moments' => CoverageQuizScorer::MOMENTS]);
     }
 
-    public function store(Request $request, CoverageQuizScorer $scorer): JsonResponse
+    public function store(Request $request, CoverageQuizScorer $scorer, ContactDirectory $directory): JsonResponse
     {
         if (filled($request->input('website'))) {
             return response()->json(['ok' => true, 'tier' => null]);
@@ -55,6 +56,14 @@ class QuizController extends Controller
             'consent_ip' => $request->ip(),
             'unsubscribe_token' => Str::random(48),
         ]);
+
+        $contact = $directory->findOrCreate($lead->email, 'coverage_quiz', [
+            'type' => 'couple',
+            'name' => $lead->first_name,
+            'event_date' => null,
+            'shoot_type' => $scored['result'] === 'elopement' ? 'elopement' : 'wedding',
+        ]);
+        $lead->update(['contact_id' => $contact->id]);
 
         $isElope = $scored['result'] === 'elopement';
         $tier = $isElope ? config('quiz.elopement') : config('quiz.tiers.'.$scored['result']);
@@ -98,6 +107,7 @@ class QuizController extends Controller
         $lead = QuizLead::query()->where('unsubscribe_token', $token)->first();
         if ($lead && ! $lead->unsubscribed_at) {
             $lead->update(['unsubscribed_at' => now()]);
+            app(ContactDirectory::class)->suppress($lead->email, 'unsubscribe', 'Unsubscribed from the coverage quiz email');
         }
 
         return view('quiz.unsubscribed');

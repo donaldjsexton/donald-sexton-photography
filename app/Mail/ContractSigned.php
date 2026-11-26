@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Mail\Concerns\IsTransactional;
 use App\Models\Contract;
 use App\Services\Contracts\ContractPdfRenderer;
 use Illuminate\Bus\Queueable;
@@ -13,6 +14,7 @@ use Illuminate\Queue\SerializesModels;
 
 class ContractSigned extends Mailable
 {
+    use IsTransactional;
     use Queueable;
     use SerializesModels;
 
