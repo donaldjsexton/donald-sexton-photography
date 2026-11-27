@@ -122,6 +122,8 @@ class LlmsTxtController extends Controller
         $lines[] = '- [Journal feed]('.route('journal.feed').'): Atom feed of journal posts.';
         $lines[] = '- [Privacy policy]('.route('legal.privacy').')';
         $lines[] = '- [Terms of service]('.route('legal.terms').')';
+        $lines[] = '- [Accessibility statement]('.route('legal.accessibility').')';
+        $lines[] = '- [Data deletion]('.route('legal.data-deletion').')';
         $lines[] = '';
 
         return response(implode("\n", $lines), 200, [

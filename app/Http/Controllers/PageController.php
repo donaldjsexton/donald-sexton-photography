@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\JournalPost;
 use App\Models\Page;
+use App\Models\SiteSetting;
 use App\Models\Venue;
 use App\Models\WeddingStory;
 use App\Support\StructuredData;
@@ -40,12 +41,42 @@ HTML,
 
     public function privacy(): View
     {
-        return view('legal.privacy');
+        return view('legal.privacy', $this->legalData());
     }
 
     public function terms(): View
     {
-        return view('legal.terms');
+        return view('legal.terms', $this->legalData());
+    }
+
+    public function accessibility(): View
+    {
+        return view('legal.accessibility', $this->legalData());
+    }
+
+    public function dataDeletion(): View
+    {
+        return view('legal.data-deletion', $this->legalData());
+    }
+
+    /** @return array<string, ?string> */
+    private function legalData(): array
+    {
+        $settings = SiteSetting::current();
+        $address = collect([
+            $settings->business_street_address,
+            trim(implode(', ', array_filter([
+                trim((string) $settings->business_locality),
+                trim(implode(' ', array_filter([trim((string) $settings->business_region), trim((string) $settings->business_postal_code)]))),
+            ]))),
+        ])->map(fn ($part) => trim((string) $part))->filter()->implode(', ');
+
+        return [
+            'contactEmail' => $settings->contactEmail(),
+            'contactPhone' => trim((string) $settings->business_phone) ?: null,
+            'contactAddress' => $address !== '' ? $address : null,
+            'effectiveDate' => 'November 27, 2026',
+        ];
     }
 
     public function location(string $slug): View
