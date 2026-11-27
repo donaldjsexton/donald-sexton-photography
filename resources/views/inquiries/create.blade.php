@@ -220,7 +220,7 @@
                             </label>
 
                             <p class="sms-consent-group__links meta">
-                                By opting in you agree to our <a href="{{ route('legal.privacy') }}" target="_blank">Privacy Policy</a> and <a href="{{ route('legal.terms') }}" target="_blank">Terms of Service</a>.
+                                By opting in you agree to our <a href="{{ route('legal.privacy') }}" target="_blank" rel="noopener">Privacy Policy</a> and <a href="{{ route('legal.terms') }}" target="_blank" rel="noopener">Terms of Service</a>. Consent is not required to inquire or book.
                             </p>
                         </fieldset>
 
@@ -239,6 +239,7 @@
                     </div>
 
                     <p class="form-reassurance meta">A real reply within 24 hours. No automated follow-ups.</p>
+                    <p class="form-reassurance meta">By sending this inquiry you agree that we will use your details to reply to you, as described in our <a href="{{ route('legal.privacy') }}" target="_blank" rel="noopener">Privacy Policy</a> and <a href="{{ route('legal.terms') }}" target="_blank" rel="noopener">Terms of Service</a>. You will not be signed up for marketing.</p>
                 </form>
             </div>
         </div>

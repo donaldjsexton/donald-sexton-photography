@@ -80,6 +80,8 @@ class SitemapController extends Controller
             $this->entry(route('pages.about'), $aboutPage?->updated_at ?? $aboutPage?->published_at),
             $this->entry(route('legal.privacy')),
             $this->entry(route('legal.terms')),
+            $this->entry(route('legal.accessibility')),
+            $this->entry(route('legal.data-deletion')),
         ]);
 
         $heroMedia = fn ($query) => $query->select(self::MEDIA_COLUMNS);

@@ -196,6 +196,8 @@
         <nav class="shell site-footer__legal" aria-label="Legal">
             <a href="{{ route('legal.privacy') }}">Privacy Policy</a>
             <a href="{{ route('legal.terms') }}">Terms of Service</a>
+            <a href="{{ route('legal.accessibility') }}">Accessibility</a>
+            <a href="{{ route('legal.data-deletion') }}">Data Deletion</a>
         </nav>
     </footer>
 

@@ -310,6 +310,8 @@ Route::withoutMiddleware($statelessBotMiddleware)->group(function () {
 
 Route::get('/privacy-policy', [PageController::class, 'privacy'])->name('legal.privacy')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
 Route::get('/terms-of-service', [PageController::class, 'terms'])->name('legal.terms')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
+Route::get('/accessibility', [PageController::class, 'accessibility'])->name('legal.accessibility')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
+Route::get('/data-deletion', [PageController::class, 'dataDeletion'])->name('legal.data-deletion')->withoutMiddleware($statelessBotMiddleware)->middleware(CachePublicResponses::class);
 
 Route::get('/api/availability', AvailabilityController::class)
     ->name('availability.show')

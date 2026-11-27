@@ -128,7 +128,7 @@
         <section data-step="email" hidden>
             <h1>Where should I send your plan?</h1>
             <input type="email" name="email" autocomplete="email" maxlength="255" aria-label="Email">
-            <label style="display:flex;gap:10px;align-items:flex-start;margin:0 0 20px"><input type="checkbox" name="consent" value="1" style="margin-top:5px"> <span>Email me my result. I understand my answers are stored so Donald can follow up if I reach out. One email, with an unsubscribe link.</span></label>
+            <label style="display:flex;gap:10px;align-items:flex-start;margin:0 0 20px"><input type="checkbox" name="consent" value="1" style="margin-top:5px"> <span>Email me my result. I understand my answers are stored so Donald can follow up if I reach out. One email, with an unsubscribe link. See our <a href="{{ route('legal.privacy') }}" target="_blank" rel="noopener">Privacy Policy</a>. This does not sign you up for a newsletter.</span></label>
         </section>
 
         <p class="quiz__err" id="quiz-err" role="alert" hidden></p>

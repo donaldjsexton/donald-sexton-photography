@@ -87,6 +87,22 @@ class SiteSetting extends Model
         return static::query()->first() ?? new self;
     }
 
+    /**
+     * Public contact address for legal pages: Business Email from site
+     * settings, then the payments business email, then the mail sender.
+     */
+    public function contactEmail(): ?string
+    {
+        foreach ([$this->business_email, config('payments.business.email'), config('mail.from.address')] as $candidate) {
+            $candidate = trim((string) $candidate);
+            if ($candidate !== '') {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
     public function analyticsMeasurementId(): ?string
     {
         $measurementId = trim((string) ($this->google_analytics_measurement_id ?: config('services.google_analytics.measurement_id')));
