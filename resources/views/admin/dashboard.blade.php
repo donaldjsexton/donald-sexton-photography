@@ -181,16 +181,5 @@
             @endforelse
             <div class="px-5 py-3"><a class="{{ $link }}" href="{{ route('admin.inquiries.index') }}">Open inquiries →</a></div>
         </x-ui.card>
-        <x-ui.card title="Recent imports" flush>
-            @forelse ($recentImports as $import)
-                <div class="{{ $rowClass }}">
-                    <p class="font-medium text-gray-900 dark:text-white">{{ ucfirst($import->source_type) }}</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ $import->status }} · {{ $import->created_at?->format('M j, Y g:i A') }}</p>
-                </div>
-            @empty
-                <p class="px-5 py-8 text-sm text-gray-500 dark:text-gray-400">No import runs have been recorded yet.</p>
-            @endforelse
-            <div class="px-5 py-3"><a class="{{ $link }}" href="{{ route('admin.imports.index') }}">Open import activity →</a></div>
-        </x-ui.card>
     </div>
 @endsection

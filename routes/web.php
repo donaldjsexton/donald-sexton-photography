@@ -4,7 +4,6 @@ use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\BookedJobController as AdminBookedJobController;
 use App\Http\Controllers\Admin\BookingProposalController as AdminBookingProposalController;
 use App\Http\Controllers\Admin\ClientController as AdminClientController;
-use App\Http\Controllers\Admin\ConsoleCommandController as AdminConsoleCommandController;
 use App\Http\Controllers\Admin\ContactController as AdminContactController;
 use App\Http\Controllers\Admin\ContractController as AdminContractController;
 use App\Http\Controllers\Admin\ContractTemplateController as AdminContractTemplateController;
@@ -16,7 +15,6 @@ use App\Http\Controllers\Admin\GalleryShareLinkController as AdminGalleryShareLi
 use App\Http\Controllers\Admin\GoogleOAuthController as AdminGoogleOAuthController;
 use App\Http\Controllers\Admin\HomepageBlockController as AdminHomepageBlockController;
 use App\Http\Controllers\Admin\HomepageSettingsController as AdminHomepageSettingsController;
-use App\Http\Controllers\Admin\ImportRunController as AdminImportRunController;
 use App\Http\Controllers\Admin\InquiryController as AdminInquiryController;
 use App\Http\Controllers\Admin\InvoiceController as AdminInvoiceController;
 use App\Http\Controllers\Admin\JournalPostBlockController as AdminJournalPostBlockController;
@@ -25,14 +23,12 @@ use App\Http\Controllers\Admin\LogController as AdminLogController;
 use App\Http\Controllers\Admin\MediaController as AdminMediaController;
 use App\Http\Controllers\Admin\PageBlockController as AdminPageBlockController;
 use App\Http\Controllers\Admin\PageController as AdminPageController;
-use App\Http\Controllers\Admin\PicTimeImportController as AdminPicTimeImportController;
 use App\Http\Controllers\Admin\PushSubscriptionController as AdminPushSubscriptionController;
 use App\Http\Controllers\Admin\QuestionnaireController as AdminQuestionnaireController;
 use App\Http\Controllers\Admin\SettingsController as AdminSettingsController;
 use App\Http\Controllers\Admin\SquareOAuthController as AdminSquareOAuthController;
 use App\Http\Controllers\Admin\VenueController as AdminVenueController;
 use App\Http\Controllers\Admin\WeddingStoryController as AdminWeddingStoryController;
-use App\Http\Controllers\Admin\WordPressImportController as AdminWordPressImportController;
 use App\Http\Controllers\AvailabilityController;
 use App\Http\Controllers\CollectionController;
 use App\Http\Controllers\ContractPublicController;
@@ -278,16 +274,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::post('/galleries/{gallery}/shares', [AdminGalleryShareLinkController::class, 'store'])->name('galleries.shares.store');
         Route::delete('/galleries/{gallery}/shares/{shareToken}', [AdminGalleryShareLinkController::class, 'destroy'])->name('galleries.shares.destroy');
 
-        Route::get('/console', [AdminConsoleCommandController::class, 'index'])->name('console.index');
-        Route::post('/console/run', [AdminConsoleCommandController::class, 'run'])->name('console.run');
 
         Route::get('/logs', [AdminLogController::class, 'index'])->name('logs.index');
 
-        Route::get('/imports', [AdminImportRunController::class, 'index'])->name('imports.index');
-        Route::get('/imports/wordpress', [AdminWordPressImportController::class, 'index'])->name('imports.wordpress.index');
-        Route::post('/imports/wordpress', [AdminWordPressImportController::class, 'store'])->name('imports.wordpress.store');
-        Route::get('/imports/pictime', [AdminPicTimeImportController::class, 'index'])->name('imports.pictime.index');
-        Route::post('/imports/pictime', [AdminPicTimeImportController::class, 'store'])->name('imports.pictime.store');
     });
 });
 

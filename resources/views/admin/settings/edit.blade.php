@@ -3,7 +3,7 @@
 @section('title', 'Platform Settings')
 @section('eyebrow', 'Platform')
 @section('heading', 'Settings')
-@section('subheading', 'Analytics, Google access, and import tools.')
+@section('subheading', 'Analytics, Google access, and business settings.')
 @section('content')
     @php
         $input = 'w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100';
@@ -39,7 +39,6 @@
             <a class="{{ $pill }} {{ $currentTab === 'payments' ? 'is-active '.$on : $off }}" href="{{ route('admin.settings.edit', ['tab' => 'payments']) }}#payments-settings">Payments</a>
             <a class="{{ $pill }} {{ $currentTab === 'business' ? 'is-active '.$on : $off }}" href="{{ route('admin.settings.edit', ['tab' => 'business']) }}#business-settings">Business</a>
             <a class="{{ $pill }} {{ $currentTab === 'discovery' ? 'is-active '.$on : $off }}" href="{{ route('admin.settings.edit', ['tab' => 'discovery']) }}#discovery-settings">Discovery</a>
-            <a class="{{ $pill }} {{ $currentTab === 'imports' ? 'is-active '.$on : $off }}" href="{{ route('admin.settings.edit', ['tab' => 'imports']) }}#import-settings">Imports</a>
         </nav>
 
         @if ($currentTab === 'analytics')
@@ -369,111 +368,5 @@
             </section>
         @endif
 
-        @if ($currentTab === 'imports')
-            <section class="mb-6 space-y-4">
-                <div class="admin-section-header flex flex-wrap items-end justify-between gap-3">
-<div>
-<p class="{{ $eyebrow }}">Imports</p>
-<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Import tools</h2>
-<p class="{{ $meta }}">Bring WordPress and Pic-Time posts into the site. Longer jobs should run from the command line.</p>
-</div>
-</div>
-
-                <div class="admin-stat-grid [display:grid] grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    @foreach ($importsStats as $stat)
-                        <x-ui.stat-card :label="$stat['label']" :value="$stat['value']" :hint="$stat['meta']" />
-                    @endforeach
-                </div>
-            </section>
-
-            <section class="mb-6 admin-settings-grid admin-settings-grid--imports [display:grid] grid-cols-1 gap-4 lg:grid-cols-2" id="import-settings">
-                <x-ui.card>
-                    <p class="{{ $eyebrow }}">WordPress</p>
-                    <h3 class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">Import a WordPress export</h3>
-                    <p class="text-sm text-gray-600 dark:text-gray-300">Upload a WXR file to bring older posts into the site.</p>
-
-                    <form method="POST" action="{{ route('admin.imports.wordpress.store') }}" enctype="multipart/form-data" class="max-w-none! space-y-4">
-                        @csrf
-
-                        <x-ui.field label="WXR file">
-                            <input class="{{ $input }}" type="file" name="wxr_file" accept=".xml,text/xml,application/xml" required>
-                        </x-ui.field>
-
-                        <p class="{{ $meta }}">For larger files, run the import from the server instead.</p>
-
-                        <x-ui.button type="submit">Run WordPress Import</x-ui.button>
-                    </form>
-                </x-ui.card>
-
-                <x-ui.card>
-                    <p class="{{ $eyebrow }}">Pic-Time</p>
-                    <h3 class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">Import Pic-Time pages</h3>
-                    <p class="text-sm text-gray-600 dark:text-gray-300">Paste one URL per line to pull in copy and gallery images.</p>
-
-                    <form method="POST" action="{{ route('admin.imports.pictime.store') }}" class="max-w-none! space-y-4">
-                        @csrf
-
-                        <x-ui.field label="Pic-Time URLs">
-                            <textarea class="{{ $input }}" name="sources" rows="7" placeholder="https://gallery.example.com/blog/post-one&#10;https://gallery.example.com/blog/post-two" required>{{ old('sources') }}</textarea>
-                        </x-ui.field>
-
-                        <x-ui.field label="Destination">
-                            <select class="{{ $input }}" name="target">
-                                <option value="auto" @selected(old('target', 'auto') === 'auto')>Auto detect</option>
-                                <option value="weddings" @selected(old('target') === 'weddings')>Wedding stories</option>
-                                <option value="journal" @selected(old('target') === 'journal')>Journal posts</option>
-                            </select>
-                        </x-ui.field>
-
-                        <p class="{{ $meta }}">For larger cleanup passes, use the command line.</p>
-
-                        <x-ui.button type="submit">Run Pic-Time Import</x-ui.button>
-                    </form>
-                </x-ui.card>
-            </section>
-
-            <section class="mb-6 space-y-4">
-                <div class="admin-section-header flex flex-wrap items-end justify-between gap-3">
-<div>
-<p class="{{ $eyebrow }}">Recent Runs</p>
-<h2 class="text-lg font-semibold text-gray-900 dark:text-white">Latest import checks</h2>
-<p class="{{ $meta }}">A quick look at the most recent WordPress and Pic-Time jobs.</p>
-</div>
-<x-ui.button variant="secondary" :href="route('admin.imports.index')">View Full Activity</x-ui.button>
-</div>
-
-                <div class="admin-import-run-list space-y-3">
-                    @forelse ($recentImportRuns as $run)
-                        @php
-                            $sourceLabel = match ($run->source_type) {
-                                'wordpress' => 'WordPress',
-                                'pictime' => 'Pic-Time',
-                                default => ucfirst((string) $run->source_type),
-                            };
-                            $statusTone = match ($run->status) {
-                                'completed' => 'green',
-                                'failed' => 'red',
-                                'running' => 'amber',
-                                default => 'gray',
-                            };
-                            $startedAt = $run->started_at?->format('M j, Y g:i A') ?: $run->created_at?->format('M j, Y g:i A') ?: 'No start time recorded';
-                        @endphp
-
-                        <article class="admin-import-run rounded-xl border border-gray-200 p-4 dark:border-gray-700">
-                            <div class="admin-import-run__header flex items-start justify-between gap-3">
-                                <div class="admin-import-run__copy">
-                                    <p class="{{ $eyebrow }}">{{ $sourceLabel }} Import</p>
-                                    <h3 class="admin-import-run__title text-sm font-medium text-gray-900 dark:text-white">{{ $startedAt }}</h3>
-                                </div>
-
-                                <x-ui.badge :tone="$statusTone">{{ str($run->status)->headline() }}</x-ui.badge>
-                            </div>
-                        </article>
-                    @empty
-                        <p class="{{ $meta }}">No import runs have been recorded yet.</p>
-                    @endforelse
-                </div>
-            </section>
-        @endif
     </div>
 @endsection
