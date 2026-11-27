@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 
+@import './admin-widgets.css';
 @source '../views/layouts/admin-v2.blade.php';
 @source '../views/components/ui';
 @source '../views/admin/contacts';
