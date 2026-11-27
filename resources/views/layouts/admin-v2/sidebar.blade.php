@@ -28,8 +28,6 @@
             'label' => 'More',
             'items' => [
                 ['label' => 'Settings', 'icon' => 'cog-6-tooth', 'href' => route('admin.settings.edit'), 'patterns' => ['admin.settings.*']],
-                ['label' => 'Imports', 'icon' => 'arrow-down-tray', 'href' => route('admin.imports.index'), 'patterns' => ['admin.imports.*']],
-                ['label' => 'Console', 'icon' => 'command-line', 'href' => route('admin.console.index'), 'patterns' => ['admin.console.*']],
                 ['label' => 'Logs', 'icon' => 'list-bullet', 'href' => route('admin.logs.index'), 'patterns' => ['admin.logs.*']],
             ],
         ],

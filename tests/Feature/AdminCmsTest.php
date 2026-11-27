@@ -154,16 +154,13 @@ class AdminCmsTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $response = $this->actingAs($user)->get(route('admin.settings.edit', ['tab' => 'imports']));
+        $response = $this->actingAs($user)->get(route('admin.settings.edit', ['tab' => 'analytics']));
 
         $response->assertOk();
         $response->assertSee('admin-settings-page', false);
-        $response->assertSee('admin-settings-page--imports', false);
-        $response->assertSee('admin-settings-grid--imports', false);
+        $response->assertSee('admin-settings-page--analytics', false);
         $response->assertSee('admin-stat-grid', false);
         $response->assertSee('admin-section-header', false);
-        $response->assertSee('admin-import-run-list', false);
-        $response->assertSee(route('admin.imports.index'), false);
     }
 
     public function test_admin_settings_page_tags_each_tab_with_its_own_layout_hook(): void
@@ -180,31 +177,6 @@ class AdminCmsTest extends TestCase
         $integrations->assertOk();
         $integrations->assertSee('admin-settings-page--integrations', false);
         $integrations->assertSee('admin-stat-grid', false);
-    }
-
-    public function test_admin_can_view_import_activity_page(): void
-    {
-        $user = User::factory()->create();
-
-        ImportRun::query()->create([
-            'source_type' => 'wordpress',
-            'status' => 'failed',
-            'started_at' => now()->subMinutes(5),
-            'finished_at' => now()->subMinutes(4),
-            'summary_json' => [
-                'posts_imported' => 4,
-                'redirects_synced' => 4,
-            ],
-            'error_log' => 'Example import error log that should stay off the settings page.',
-        ]);
-
-        $response = $this->actingAs($user)->get(route('admin.imports.index'));
-
-        $response->assertOk();
-        $response->assertSee('Import Activity');
-        $response->assertSee('WordPress Import');
-        $response->assertSee('posts imported: 4');
-        $response->assertSee('View error log');
     }
 
     public function test_admin_can_upload_media(): void
@@ -253,97 +225,6 @@ class AdminCmsTest extends TestCase
         $response->assertSee('/storage/'.$path, false);
         $response->assertSee('data-focal-picker', false);
         $response->assertSee('object-position: 25% 75%;', false);
-    }
-
-    public function test_admin_can_import_wordpress_posts_into_the_journal(): void
-    {
-        Storage::fake('public');
-
-        $user = User::factory()->create();
-
-        Http::fake([
-            'https://images.example.com/*' => Http::response('image-bytes', 200, ['Content-Type' => 'image/jpeg']),
-        ]);
-
-        $xml = <<<'XML'
-<?xml version="1.0" encoding="UTF-8" ?>
-<rss version="2.0"
-    xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
-    xmlns:content="http://purl.org/rss/1.0/modules/content/"
-    xmlns:dc="http://purl.org/dc/elements/1.1/"
-    xmlns:wp="http://wordpress.org/export/1.2/">
-    <channel>
-        <item>
-            <title>Imported &amp; Wedding Timeline</title>
-            <link>https://oldsite.test/2024/05/imported-wedding-timeline/</link>
-            <pubDate>Fri, 03 May 2024 12:00:00 +0000</pubDate>
-            <dc:creator><![CDATA[Donald]]></dc:creator>
-            <category domain="category" nicename="wedding-advice"><![CDATA[Wedding Advice]]></category>
-            <category domain="post_tag" nicename="clearwater"><![CDATA[Clearwater]]></category>
-            <content:encoded><![CDATA[<p>Imported body copy.</p>]]></content:encoded>
-            <excerpt:encoded><![CDATA[Imported excerpt.]]></excerpt:encoded>
-            <wp:post_id>42</wp:post_id>
-            <wp:post_date>2024-05-03 12:00:00</wp:post_date>
-            <wp:post_date_gmt>2024-05-03 12:00:00</wp:post_date_gmt>
-            <wp:comment_status>closed</wp:comment_status>
-            <wp:ping_status>closed</wp:ping_status>
-            <wp:post_name>imported-wedding-timeline</wp:post_name>
-            <wp:status>publish</wp:status>
-            <wp:post_parent>0</wp:post_parent>
-            <wp:menu_order>0</wp:menu_order>
-            <wp:post_type>post</wp:post_type>
-            <wp:is_sticky>0</wp:is_sticky>
-            <wp:postmeta>
-                <wp:meta_key><![CDATA[_thumbnail_id]]></wp:meta_key>
-                <wp:meta_value><![CDATA[420]]></wp:meta_value>
-            </wp:postmeta>
-        </item>
-        <item>
-            <title>Imported Timeline Featured Image</title>
-            <wp:post_id>420</wp:post_id>
-            <wp:post_parent>42</wp:post_parent>
-            <wp:post_type>attachment</wp:post_type>
-            <wp:attachment_url><![CDATA[https://images.example.com/imported-timeline-featured.jpg]]></wp:attachment_url>
-        </item>
-    </channel>
-</rss>
-XML;
-
-        $response = $this->actingAs($user)->post('/admin/imports/wordpress', [
-            'wxr_file' => UploadedFile::fake()->createWithContent('wordpress-export.xml', $xml),
-        ]);
-
-        $response->assertRedirect(route('admin.settings.edit', ['tab' => 'imports']).'#wordpress-import');
-
-        $this->assertDatabaseHas('journal_posts', [
-            'title' => 'Imported & Wedding Timeline',
-            'original_wp_post_id' => 42,
-            'slug' => 'imported-wedding-timeline',
-        ]);
-
-        $post = JournalPost::query()->where('original_wp_post_id', 42)->first();
-        $this->assertNotNull($post);
-        $this->assertDatabaseHas('categories', ['slug' => 'wedding-advice']);
-        $this->assertDatabaseHas('tags', ['slug' => 'clearwater']);
-        $this->assertDatabaseHas('redirects', [
-            'from_path' => '/2024/05/imported-wedding-timeline/',
-            'to_path' => '/journal/imported-wedding-timeline',
-            'source' => 'wp_import',
-        ]);
-        $this->assertDatabaseHas('import_runs', [
-            'source_type' => 'wordpress',
-            'status' => 'completed',
-        ]);
-
-        $this->assertSame('Imported excerpt.', $post->excerpt);
-        $this->assertStringContainsString('Imported body copy', $post->body ?? '');
-        $this->assertCount(1, ImportRun::query()->get());
-        $this->assertNotNull($post->hero_media_id);
-
-        $media = Media::query()->find($post->hero_media_id);
-        $this->assertNotNull($media);
-        $this->assertSame(420, $media->original_wp_attachment_id);
-        Storage::disk('public')->assertExists($media->path);
     }
 
     public function test_admin_can_review_and_update_inquiries(): void

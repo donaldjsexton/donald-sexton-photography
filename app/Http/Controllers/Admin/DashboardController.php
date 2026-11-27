@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\BookedJob;
 use App\Models\HomepageSetting;
-use App\Models\ImportRun;
 use App\Models\Inquiry;
 use App\Models\JournalPost;
 use App\Models\Media;
@@ -27,20 +26,15 @@ class DashboardController extends Controller
     public function __invoke(): View
     {
         $siteSettings = SiteSetting::current();
-        $latestFailedImport = ImportRun::query()
-            ->where('status', 'failed')
-            ->latest()
-            ->first();
 
         return view('admin.dashboard', [
             'businessPulse' => $this->crmMetrics->pulse(),
             'marketingHealth' => $this->marketingHealth->snapshot($siteSettings),
-            'contentOps' => $this->contentOpsData($siteSettings, $latestFailedImport),
+            'contentOps' => $this->contentOpsData($siteSettings),
             'quickActions' => $this->quickActions(),
             'thisWeek' => $this->thisWeekJobs(),
             'needsReply' => $this->needsReplyInquiries(),
             'recentInquiries' => Inquiry::query()->where('status', '!=', 'archived')->latest()->limit(5)->get(),
-            'recentImports' => ImportRun::query()->latest()->limit(5)->get(),
         ]);
     }
 
@@ -93,7 +87,7 @@ class DashboardController extends Controller
     /**
      * @return array{stats: array<int, array{label: string, value: string, meta: string}>, systemPanels: array<int, array{label: string, value: string, description: string, tone: string}>, radar: array<int, array{label: string, value: int, context: string}>}
      */
-    private function contentOpsData(SiteSetting $siteSettings, ?ImportRun $latestFailedImport): array
+    private function contentOpsData(SiteSetting $siteSettings): array
     {
         $stats = [
             [
@@ -129,14 +123,6 @@ class DashboardController extends Controller
                     ? 'Hero copy and featured story selections are saved.'
                     : 'Homepage content is still using safe fallbacks.',
             ],
-            [
-                'label' => 'Imports',
-                'value' => (string) ImportRun::query()->count(),
-                'tone' => $latestFailedImport ? 'warning' : 'positive',
-                'description' => $latestFailedImport
-                    ? 'Latest failed run: '.ucfirst($latestFailedImport->source_type).' on '.$latestFailedImport->created_at?->format('M j, Y g:i A').'.'
-                    : 'No failed imports are currently recorded.',
-            ],
         ];
 
         $radar = [
@@ -154,13 +140,6 @@ class DashboardController extends Controller
                 'label' => 'Journal drafts',
                 'value' => JournalPost::query()->where('status', 'draft')->count(),
                 'context' => 'Posts not yet published.',
-            ],
-            [
-                'label' => 'Import runs this month',
-                'value' => ImportRun::query()
-                    ->where('created_at', '>=', now()->startOfMonth())
-                    ->count(),
-                'context' => 'Sync and migration activity.',
             ],
         ];
 

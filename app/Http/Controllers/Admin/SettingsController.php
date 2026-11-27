@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\ImportRun;
 use App\Models\SiteSetting;
 use App\Services\Cms\SiteSettingsManager;
 use App\Services\GoogleBusinessProfile;
@@ -78,29 +77,6 @@ class SettingsController extends Controller
             ],
         ];
 
-        $importsStats = [
-            [
-                'label' => 'Total Runs',
-                'value' => (string) ImportRun::query()->count(),
-                'meta' => 'All import jobs recorded so far.',
-            ],
-            [
-                'label' => 'Completed',
-                'value' => (string) ImportRun::query()->where('status', 'completed')->count(),
-                'meta' => 'Jobs that finished without errors.',
-            ],
-            [
-                'label' => 'Failed',
-                'value' => (string) ImportRun::query()->where('status', 'failed')->count(),
-                'meta' => 'Jobs that ended with an error.',
-            ],
-        ];
-
-        $recentImportRuns = ImportRun::query()
-            ->latest()
-            ->limit(6)
-            ->get();
-
         return view('admin.settings.edit', [
             'siteSettings' => $siteSettings,
             'gbpListing' => $gbpListing,
@@ -109,8 +85,6 @@ class SettingsController extends Controller
             'googleScopes' => $googleScopes,
             'analyticsStats' => $analyticsStats,
             'integrationsStats' => $integrationsStats,
-            'importsStats' => $importsStats,
-            'recentImportRuns' => $recentImportRuns,
         ]);
     }
 
