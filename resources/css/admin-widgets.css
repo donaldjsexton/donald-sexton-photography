@@ -1,0 +1,1175 @@
+/* Widget styles for the v2 admin: media picker field + library dialog and story gallery.
+   Ported from app.css (their markup is built by media-library.js / admin-widgets.js).
+   Theme tokens below replace the legacy :root variables and follow the .dark class. */
+:root {
+    --admin-panel: #fff;
+    --admin-panel-strong: #fff;
+    --admin-bg: #f3f4f6;
+    --admin-bg-alt: #f9fafb;
+    --admin-ink: #111827;
+    --admin-muted: #6b7280;
+    --admin-line: rgba(17, 24, 39, 0.14);
+    --admin-line-strong: rgba(17, 24, 39, 0.28);
+    --admin-accent: #5048e5;
+    --admin-accent-soft: rgba(80, 72, 229, 0.09);
+    --admin-success: #15803d;
+    --admin-warning: #b45309;
+    --accent: #5048e5;
+    --accent-soft: #818cf8;
+    --ink: #111827;
+    --muted: #6b7280;
+    --line: rgba(17, 24, 39, 0.14);
+    --line-strong: rgba(17, 24, 39, 0.28);
+    --paper: #fff;
+    --shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.12);
+    --shadow-large: 0 24px 60px rgba(0, 0, 0, 0.25);
+    --font-display: inherit;
+    --font-body: inherit;
+}
+
+.dark {
+    --admin-panel: #1f2937;
+    --admin-panel-strong: #111827;
+    --admin-bg: #0f172a;
+    --admin-bg-alt: #1f2937;
+    --admin-ink: #f3f4f6;
+    --admin-muted: #9ca3af;
+    --admin-line: rgba(255, 255, 255, 0.14);
+    --admin-line-strong: rgba(255, 255, 255, 0.28);
+    --admin-accent: #818cf8;
+    --admin-accent-soft: rgba(129, 140, 248, 0.14);
+    --accent: #818cf8;
+    --ink: #f3f4f6;
+    --muted: #9ca3af;
+    --line: rgba(255, 255, 255, 0.14);
+    --line-strong: rgba(255, 255, 255, 0.28);
+    --paper: #1f2937;
+}
+
+.cta,
+.cta-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.cta { background: var(--accent); color: #fff; border: 0; }
+.cta-secondary { border: 1px solid var(--line-strong); background: var(--admin-panel); color: var(--admin-ink); }
+.eyebrow { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--admin-muted); margin: 0; }
+.meta { color: var(--admin-muted); font-size: 0.85rem; }
+
+.admin-block-card.is-dragging { opacity: 0.4; }
+.admin-block-card.is-drop-target { box-shadow: inset 0 0 0 2px var(--admin-accent); }
+.admin-block-card__handle { cursor: grab; user-select: none; touch-action: none; }
+
+.media-picker {
+    display: grid;
+    gap: 0.55rem;
+}
+
+.media-picker__label {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    font-weight: 600;
+}
+
+.media-picker__label .meta {
+    font-weight: 400;
+    font-size: 0.85rem;
+    opacity: 0.75;
+}
+
+.media-picker__surface {
+    display: grid;
+    grid-template-columns: 96px 1fr auto;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    border: 1px solid var(--admin-line);
+    border-radius: 12px;
+    background: var(--admin-panel);
+}
+
+.media-picker__preview {
+    width: 96px;
+    height: 96px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--admin-accent-soft);
+    display: grid;
+    place-items: center;
+    color: var(--admin-muted);
+    font-size: 0.78rem;
+    text-align: center;
+    padding: 0.4rem;
+}
+
+.media-picker__preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.media-picker__placeholder {
+    line-height: 1.2;
+}
+
+.media-picker__meta {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+}
+
+.media-picker__meta strong {
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.media-picker__meta .meta {
+    font-size: 0.82rem;
+    opacity: 0.7;
+}
+
+.media-picker__actions {
+    display: flex;
+    gap: 0.4rem;
+    align-items: center;
+}
+
+.media-picker__clear[hidden] {
+    display: none;
+}
+
+@media (max-width: 640px) {
+    .media-picker__surface {
+        grid-template-columns: 72px 1fr;
+        grid-template-areas:
+            'preview meta'
+            'actions actions';
+    }
+
+    .media-picker__preview {
+        grid-area: preview;
+        width: 72px;
+        height: 72px;
+    }
+
+    .media-picker__meta {
+        grid-area: meta;
+    }
+
+    .media-picker__actions {
+        grid-area: actions;
+        flex-wrap: wrap;
+    }
+}
+
+/* ── Media library dialog ──
+   One dialog serves every picker: single-select for featured/hero fields,
+   multi-select for galleries, with search, filters, sort, and upload
+   (button or drop) in the same frame. Markup: resources/js/media-library.js */
+
+body.media-picker-modal-open {
+    overflow: hidden;
+}
+
+.media-picker-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 2vmin;
+}
+
+.media-picker-modal[hidden] {
+    display: none;
+}
+
+.media-picker-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 10, 8, 0.55);
+    backdrop-filter: blur(4px);
+    animation: media-modal-fade 0.25s ease;
+}
+
+.media-picker-modal__panel {
+    position: relative;
+    background: var(--admin-bg-alt, #f7f0e6);
+    border-radius: 16px;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+    width: min(1120px, 100%);
+    height: min(820px, 92vh);
+    max-height: min(820px, 92vh);
+    display: grid;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    overflow: hidden;
+    animation: media-modal-pop 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes media-modal-fade {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes media-modal-pop {
+    from {
+        opacity: 0;
+        transform: translateY(14px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+.media-picker-modal__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 1.5rem 0.85rem;
+}
+
+.media-picker-modal__heading h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.media-picker-modal__heading .eyebrow {
+    margin: 0 0 0.2rem;
+}
+
+.media-picker-modal__close {
+    border: 0;
+    background: transparent;
+    font-size: 1.6rem;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0.4rem 0.6rem;
+    border-radius: 8px;
+    min-width: 44px;
+    min-height: 44px;
+}
+
+.media-picker-modal__close:hover {
+    background: var(--admin-accent-soft, rgba(0, 0, 0, 0.05));
+}
+
+/* ── Toolbar ── */
+
+.media-picker-modal__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 0.75rem;
+    align-items: center;
+    padding: 0 1.5rem 0.9rem;
+    border-bottom: 1px solid var(--admin-line, rgba(0, 0, 0, 0.12));
+}
+
+.media-picker-modal__search {
+    position: relative;
+    flex: 2 1 200px;
+    min-width: 170px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.media-picker-modal__search svg {
+    position: absolute;
+    left: 0.7rem;
+    opacity: 0.55;
+    pointer-events: none;
+}
+
+.media-picker-modal__search input {
+    width: 100%;
+    padding: 0.65rem 0.85rem 0.65rem 2.15rem;
+    border: 1px solid var(--admin-line, rgba(0, 0, 0, 0.18));
+    border-radius: 10px;
+    background: var(--admin-panel-strong, #fff);
+    color: inherit;
+    font: inherit;
+    min-height: 44px;
+}
+
+/* The three filters share one row and shrink together, so a long option
+   label can never push the mode switch or Upload onto its own line. */
+.media-picker-modal__filters {
+    display: flex;
+    gap: 0.5rem;
+    flex: 3 1 320px;
+    min-width: 0;
+}
+
+.media-picker-modal__select {
+    flex: 1 1 0;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0.45rem 0.5rem;
+    border: 1px solid var(--admin-line, rgba(0, 0, 0, 0.18));
+    border-radius: 10px;
+    background: var(--admin-panel-strong, #fff);
+    color: inherit;
+    font: inherit;
+    font-size: 0.88rem;
+}
+
+.media-picker-modal__toolbar-end {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+    margin-left: auto;
+}
+
+.media-picker-modal__modes {
+    display: inline-flex;
+    border: 1px solid var(--admin-line, rgba(0, 0, 0, 0.18));
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--admin-panel-strong, #fff);
+}
+
+.media-picker-modal__modes[hidden] {
+    display: none;
+}
+
+.media-picker-modal__mode {
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 0 0.95rem;
+    min-height: 44px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.media-picker-modal__mode:hover {
+    background: var(--admin-accent-soft, rgba(0, 0, 0, 0.05));
+}
+
+.media-picker-modal__mode.is-active {
+    background: var(--admin-accent, #3c2a1f);
+    color: #fdf6ec;
+}
+
+.media-picker-modal__upload {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 44px;
+}
+
+.media-picker-modal__upload[hidden] {
+    display: none;
+}
+
+/* ── Grid ── */
+
+.media-picker-modal__body {
+    position: relative;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 1.1rem 1.5rem 1.25rem;
+}
+
+.media-picker-modal__grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 0.9rem 0.6rem;
+    align-content: start;
+    /* Size each row to its own content — never stretch a tile into an
+       ambiguous track height, which is what collapsed tiles to slivers. */
+    align-items: start;
+}
+
+.media-picker-modal__empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 3rem 1rem;
+    opacity: 0.7;
+}
+
+/* Invisible last row watched by the infinite-scroll IntersectionObserver. */
+.media-picker-modal__sentinel {
+    grid-column: 1 / -1;
+    height: 1px;
+}
+
+.media-picker-modal__more {
+    display: block;
+    margin: 1.25rem auto 0;
+    min-height: 44px;
+}
+
+.media-picker-modal__more[hidden] {
+    display: none;
+}
+
+/* Drop-to-upload overlay, shown only while files are dragged over the grid. */
+.media-picker-modal__dropzone {
+    position: absolute;
+    inset: 0.5rem;
+    z-index: 3;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.6rem;
+    border: 2px dashed var(--admin-accent, #3c2a1f);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--admin-bg-alt, #f7f0e6) 92%, transparent);
+    color: var(--admin-accent, #3c2a1f);
+    font-size: 1.05rem;
+    pointer-events: none;
+}
+
+.media-picker-modal__dropzone[hidden] {
+    display: none;
+}
+
+.media-picker-modal__panel.is-uploading .media-picker-modal__body {
+    opacity: 0.7;
+    pointer-events: none;
+}
+
+/* ── Tiles ── */
+
+.media-picker-tile {
+    position: relative;
+    display: grid;
+    gap: 0.3rem;
+    min-width: 0;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    /* Room inside the tile's own box for the photo's mat-and-hairline frame.
+       The frame is a box-shadow (see `.media-picker-tile__image`), and paint
+       containment below clips anything drawn past this edge — so the padding
+       is what keeps the frame visible. */
+    padding: 7px;
+    /*
+     * No aspect-ratio here. The square comes from the figure's percentage
+     * padding (see `.media-picker-tile__image`), which resolves against the
+     * tile's own content width — track-sizing an aspect-ratio item is what
+     * iOS Safari kept getting wrong (zero-height rows, so tiles overlapped
+     * in a cascade).
+     */
+    /* Far-offscreen tiles skip layout and paint, so a long session of
+       loaded pages stays cheap to scroll. `auto` keeps the real rendered
+       size once a tile has been on screen, so scroll position stays stable. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 215px;
+    /* Stagger each tile in for a livelier "feed loading" feel. */
+    animation: media-tile-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+    animation-delay: var(--enter-delay, 0ms);
+}
+
+.media-picker-tile:focus-visible {
+    outline: 2px solid var(--admin-accent, #3c2a1f);
+    outline-offset: 6px;
+    border-radius: 4px;
+}
+
+.media-picker-tile__image {
+    position: relative;
+    width: 100%;
+    /*
+     * The square is made of percentage PADDING, which resolves against the
+     * tile's width (the column track — always definite). This is the one
+     * sizing chain that never touches the grid row track or `aspect-ratio`,
+     * the two mechanisms iOS Safari kept mis-resolving: percentage heights
+     * collapsed tiles to slivers, and aspect-ratio heights were left out of
+     * row sizing so rows collapsed and tiles overlapped like dealt cards.
+     * Padding gives the row plain content height, with or without an <img>,
+     * loaded or not — so empty/error tiles stay the same square too.
+     */
+    height: 0;
+    padding-bottom: 100%;
+    display: block;
+    overflow: hidden;
+    background: var(--admin-accent-soft, rgba(0, 0, 0, 0.05));
+    /*
+     * The mat-and-hairline "plate" frame is drawn with box-shadow rather than
+     * a border, so it adds nothing to the box and the padding square above
+     * stays exactly square.
+     */
+    box-shadow:
+        0 0 0 6px var(--admin-bg-alt, #f7f0e6),
+        0 0 0 7px var(--admin-line, rgba(92, 71, 52, 0.22));
+    transition: box-shadow 160ms ease;
+}
+
+.media-picker-tile:hover .media-picker-tile__image,
+.media-picker-tile:focus-visible .media-picker-tile__image {
+    box-shadow:
+        0 0 0 6px var(--admin-bg-alt, #f7f0e6),
+        0 0 0 7px var(--admin-accent, #3c2a1f);
+}
+
+.media-picker-tile:hover .media-picker-tile__image img,
+.media-picker-tile:focus-visible .media-picker-tile__image img {
+    transform: scale(1.05);
+}
+
+/* Shimmer skeleton until the photo loads. */
+.media-picker-tile__image:not(.is-loaded):not(.is-error) {
+    background-image: linear-gradient(
+        100deg,
+        rgba(108, 87, 67, 0.07) 30%,
+        rgba(108, 87, 67, 0.16) 50%,
+        rgba(108, 87, 67, 0.07) 70%
+    );
+    background-size: 200% 100%;
+    animation: media-tile-shimmer 1.4s ease-in-out infinite;
+}
+
+.media-picker-tile__image.is-error {
+    background: var(--admin-accent-soft, rgba(0, 0, 0, 0.05));
+}
+
+.media-picker-tile__image img {
+    /*
+     * Absolute, filling the figure's padding box. The image takes no part in
+     * layout, so a photo that is still streaming in (or fails) can never
+     * change the tile's size — the padding square above is the only thing
+     * that ever sets it.
+     */
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    opacity: 0;
+    transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+.media-picker-tile__image.is-loaded img {
+    opacity: 1;
+}
+
+/* Format label, visible only while there is no photo to look at. */
+.media-picker-tile__kind {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    color: var(--admin-muted, #5b4d41);
+    pointer-events: none;
+}
+
+.media-picker-tile__image.is-loaded .media-picker-tile__kind {
+    opacity: 0;
+}
+
+.media-picker-tile__id {
+    position: absolute;
+    bottom: 0.4rem;
+    left: 0.45rem;
+    z-index: 1;
+    font-size: 0.7rem;
+    line-height: 1;
+    background: rgba(20, 14, 8, 0.55);
+    backdrop-filter: blur(2px);
+    color: #fff;
+    padding: 0.2rem 0.4rem;
+    border-radius: 999px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+}
+
+.media-picker-tile__image.is-loaded .media-picker-tile__id {
+    opacity: 1;
+}
+
+.media-picker-tile__name {
+    font-size: 0.82rem;
+    line-height: 1.3;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-top: 0.35rem;
+}
+
+.media-picker-tile__meta {
+    font-size: 0.72rem;
+    color: var(--admin-muted, #5b4d41);
+    opacity: 0.85;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Selection ──────────────────────────────────────────────────────────── */
+
+.media-picker-tile.is-selected .media-picker-tile__image {
+    box-shadow:
+        0 0 0 4px var(--admin-bg-alt, #f7f0e6),
+        0 0 0 7px var(--admin-accent, #3c2a1f);
+}
+
+.media-picker-tile.is-selected .media-picker-tile__image img {
+    transform: scale(1.03);
+}
+
+.media-picker-tile__check {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.45rem;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    border-radius: 6px;
+    background: rgba(255, 251, 245, 0.92);
+    color: transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2), inset 0 0 0 1px var(--admin-line, rgba(0, 0, 0, 0.15));
+    transition: background 0.18s ease, color 0.18s ease;
+}
+
+.media-picker-tile.is-selected .media-picker-tile__check {
+    background: var(--admin-accent, #3c2a1f);
+    color: #fdf6ec;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+    animation: media-check-pop 0.35s cubic-bezier(0.2, 1.5, 0.5, 1);
+}
+
+@keyframes media-check-pop {
+    0% {
+        transform: scale(0.7);
+    }
+
+    60% {
+        transform: scale(1.15);
+    }
+
+    100% {
+        transform: scale(1);
+    }
+}
+
+/* Already attached to the gallery being edited: shown for context, not pickable. */
+.media-picker-tile.is-attached {
+    cursor: default;
+    opacity: 0.55;
+}
+
+.media-picker-tile.is-attached:hover .media-picker-tile__image {
+    box-shadow:
+        0 0 0 6px var(--admin-bg-alt, #f7f0e6),
+        0 0 0 7px var(--admin-line, rgba(92, 71, 52, 0.22));
+}
+
+.media-picker-tile.is-attached:hover .media-picker-tile__image img {
+    transform: none;
+}
+
+.media-picker-tile__badge {
+    position: absolute;
+    top: 0.45rem;
+    right: 0.45rem;
+    z-index: 2;
+    font-size: 0.68rem;
+    line-height: 1;
+    padding: 0.3rem 0.45rem;
+    border-radius: 6px;
+    background: rgba(20, 14, 8, 0.62);
+    color: #fdf6ec;
+}
+
+@keyframes media-tile-in {
+    from {
+        opacity: 0;
+        transform: translateY(10px) scale(0.96);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes media-tile-shimmer {
+    from {
+        background-position: 200% 0;
+    }
+
+    to {
+        background-position: -200% 0;
+    }
+}
+
+/* ── Footer ── */
+
+.media-picker-modal__footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.9rem 1.5rem 1.1rem;
+    border-top: 1px solid var(--admin-line, rgba(0, 0, 0, 0.12));
+    background: var(--admin-panel, rgba(255, 251, 245, 0.94));
+}
+
+.media-picker-modal__results {
+    margin: 0;
+    font-size: 0.82rem;
+    font-variant-numeric: tabular-nums;
+    color: var(--admin-muted, #5b4d41);
+}
+
+.media-picker-modal__actions {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-left: auto;
+}
+
+.media-picker-modal__actions .cta,
+.media-picker-modal__actions .cta-secondary {
+    min-height: 44px;
+}
+
+.media-picker-modal__confirm:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Tablet: the toolbar's trailing controls drop to their own row. */
+@media (max-width: 900px) {
+    .media-picker-modal__toolbar-end {
+        margin-left: 0;
+        width: 100%;
+        justify-content: space-between;
+    }
+
+    .media-picker-modal__search,
+    .media-picker-modal__filters {
+        flex: 1 1 100%;
+    }
+}
+
+@media (max-width: 720px) {
+    .media-picker-modal {
+        padding: 0;
+    }
+
+    .media-picker-modal__panel {
+        width: 100%;
+        max-height: 100dvh;
+        height: 100dvh;
+        border-radius: 0;
+    }
+
+    .media-picker-modal__header,
+    .media-picker-modal__toolbar,
+    .media-picker-modal__footer {
+        padding-inline: 1rem;
+    }
+
+    .media-picker-modal__body {
+        padding: 0.9rem 1rem 1rem;
+    }
+
+    .media-picker-modal__grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 0.7rem 0.35rem;
+    }
+
+    .media-picker-tile {
+        contain-intrinsic-size: auto 165px;
+    }
+
+    .media-picker-modal__modes,
+    .media-picker-modal__upload {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+
+    .media-picker-modal__mode {
+        flex: 1 1 0;
+        padding-inline: 0.5rem;
+    }
+
+    .media-picker-modal__footer {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .media-picker-modal__actions {
+        margin-left: 0;
+    }
+
+    .media-picker-modal__actions .cta,
+    .media-picker-modal__actions .cta-secondary {
+        flex: 1 1 0;
+        text-align: center;
+    }
+}
+
+/* Admin console (Artisan command runner) */
+.admin-console__layout {
+    display: grid;
+    grid-template-columns: minmax(180px, 220px) 1fr;
+    gap: 1.5rem;
+    align-items: start;
+}
+
+/* ── Story / journal gallery panel ─────────────────────────────────── */
+
+.story-gallery {
+    position: relative;
+    display: grid;
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding: 1.2rem 1.2rem 1.4rem;
+    border: 1px solid var(--admin-line);
+    border-radius: 1.1rem;
+    background:
+        radial-gradient(120% 80% at 0% 0%, rgba(60, 42, 31, 0.06), transparent 60%),
+        var(--admin-panel-strong);
+}
+
+/* The editorial `.story-gallery` further up sets a two-column spread and the
+   admin editor panel shares the class name, so its columns leak in here and
+   squeeze the header against the tile grid. The panel is always one column —
+   header, then status, then tiles. */
+.story-gallery[data-story-gallery] {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+/* Drop-to-upload overlay, revealed only while photos are dragged over. */
+.story-gallery__dropzone {
+    position: absolute;
+    inset: 0.4rem;
+    z-index: 5;
+    display: grid;
+    place-items: center;
+    border: 2px dashed var(--admin-accent);
+    border-radius: 0.95rem;
+    background: color-mix(in srgb, var(--admin-panel-strong) 92%, transparent);
+    color: var(--admin-accent);
+    font-size: 1.05rem;
+    pointer-events: none;
+}
+
+.story-gallery__dropzone[hidden] {
+    display: none;
+}
+
+.story-gallery.is-uploading .story-gallery__grid {
+    opacity: 0.65;
+    pointer-events: none;
+}
+
+.story-gallery__head {
+    display: grid;
+    gap: 0.85rem;
+    grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+    .story-gallery__head {
+        grid-template-columns: 1fr auto auto;
+        align-items: center;
+    }
+}
+
+.story-gallery__title {
+    margin: 0.2rem 0 0.2rem;
+    font-size: 1.3rem;
+    line-height: 1.1;
+}
+
+.story-gallery__help {
+    margin: 0;
+    font-size: 0.84rem;
+    color: var(--admin-muted);
+}
+
+.story-gallery__stats {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+}
+
+.story-stat {
+    display: grid;
+    gap: 0.15rem;
+    padding: 0.55rem 0.75rem;
+    border: 1px solid var(--admin-line);
+    border-radius: 0.75rem;
+    background: var(--admin-panel);
+    text-align: center;
+}
+
+.story-stat__value {
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--admin-ink);
+    line-height: 1;
+}
+
+.story-stat__label {
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--admin-muted);
+}
+
+.story-stat--ok .story-stat__value { color: #4f7a55; }
+.story-stat--alert .story-stat__value { color: var(--admin-warning, #a75747); }
+
+.story-gallery__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.story-gallery__actions .cta,
+.story-gallery__actions .cta-secondary {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (max-width: 719px) {
+    .story-gallery__actions .cta,
+    .story-gallery__actions .cta-secondary {
+        flex: 1 1 auto;
+    }
+}
+
+.story-gallery__status {
+    margin: 0;
+    padding: 0.55rem 0.75rem;
+    border-radius: 0.6rem;
+    background: var(--admin-accent-soft);
+    color: var(--admin-ink);
+    font-size: 0.85rem;
+}
+
+.story-gallery__grid {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 0.6rem;
+}
+
+/* A 160px minimum leaves phones one tile per row — a 4:5 photo then fills
+   most of the screen and reordering turns into a scrolling marathon. */
+@media (max-width: 640px) {
+    .story-gallery__grid {
+        grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+    }
+}
+
+.story-gallery__grid.is-empty {
+    display: none;
+}
+
+.story-tile {
+    position: relative;
+    border: 1px solid var(--admin-line);
+    border-radius: 0.85rem;
+    background: var(--admin-panel);
+    overflow: hidden;
+    transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+    animation: storyTileIn 0.28s ease both;
+}
+
+@keyframes storyTileIn {
+    from { opacity: 0; transform: scale(0.97); }
+    to { opacity: 1; transform: none; }
+}
+
+.story-tile.is-hero {
+    border-color: #c89b6b;
+    box-shadow: 0 0 0 2px rgba(200, 155, 107, 0.35);
+}
+
+.story-tile.is-dragging {
+    opacity: 0.4;
+}
+
+.story-tile.is-drop-target {
+    box-shadow: inset 0 0 0 2px var(--admin-accent);
+}
+
+.story-tile__handle {
+    position: absolute;
+    top: 0.4rem;
+    left: 0.4rem;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    width: 1.8rem;
+    height: 1.8rem;
+    border-radius: 0.4rem;
+    background: rgba(20, 14, 8, 0.55);
+    color: #fdf6ec;
+    font-size: 0.85rem;
+    cursor: grab;
+    user-select: none;
+    backdrop-filter: blur(4px);
+}
+
+.story-tile__handle:active {
+    cursor: grabbing;
+}
+
+.story-tile__hero-badge {
+    position: absolute;
+    top: 0.4rem;
+    right: 0.4rem;
+    z-index: 2;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    background: linear-gradient(150deg, #c89b6b, #8a6238);
+    color: #fdf6ec;
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.story-tile__photo {
+    display: block;
+    aspect-ratio: 4 / 5;
+    overflow: hidden;
+    background: var(--admin-canvas, #f4ece0);
+    pointer-events: none;
+}
+
+.story-tile__photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.4s ease;
+}
+
+.story-tile:hover .story-tile__photo img {
+    transform: scale(1.03);
+}
+
+.story-tile__placeholder {
+    display: grid;
+    place-items: center;
+    height: 100%;
+    color: var(--admin-muted);
+    font-size: 0.78rem;
+}
+
+.story-tile__actions {
+    position: absolute;
+    bottom: 0.45rem;
+    right: 0.45rem;
+    display: flex;
+    gap: 0.3rem;
+    opacity: 0;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+    transform: translateY(4px);
+}
+
+.story-tile:hover .story-tile__actions,
+.story-tile:focus-within .story-tile__actions {
+    opacity: 1;
+    transform: none;
+}
+
+.story-tile__action {
+    display: inline-grid;
+    place-items: center;
+    width: 2.1rem;
+    height: 2.1rem;
+    padding: 0;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(253, 246, 236, 0.4);
+    background: rgba(20, 14, 8, 0.72);
+    color: #fdf6ec;
+    font-size: 0.95rem;
+    text-decoration: none;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+}
+
+.story-tile__action:hover {
+    background: rgba(20, 14, 8, 0.92);
+    border-color: rgba(253, 246, 236, 0.7);
+}
+
+.story-tile__action--danger:hover {
+    background: rgba(167, 87, 71, 0.92);
+    border-color: rgba(167, 87, 71, 0.92);
+}
+
+.story-gallery__empty {
+    margin: 0;
+    padding: 1.5rem;
+    text-align: center;
+    border: 1px dashed var(--admin-line);
+    border-radius: 0.85rem;
+    background: var(--admin-panel);
+    color: var(--admin-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .story-tile { animation: none; }
+    .story-tile:hover .story-tile__photo img { transform: none; }
+
+    .media-picker-modal__backdrop,
+    .media-picker-modal__panel,
+    .media-picker-tile,
+    .media-picker-tile__image:not(.is-loaded):not(.is-error),
+    .media-picker-tile.is-selected .media-picker-tile__check {
+        animation: none;
+    }
+
+    .media-picker-tile__image,
+    .media-picker-tile__image img,
+    .media-picker-tile__check {
+        transition: none;
+    }
+
+    .media-picker-tile:hover .media-picker-tile__image,
+    .media-picker-tile:focus-visible .media-picker-tile__image,
+    .media-picker-tile:hover .media-picker-tile__image img,
+    .media-picker-tile:focus-visible .media-picker-tile__image img,
+    .media-picker-tile.is-selected .media-picker-tile__image img {
+        transform: none;
+    }
+}

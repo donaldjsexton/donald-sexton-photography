@@ -1,6 +1,7 @@
 import Alpine from 'alpinejs';
 import persist from '@alpinejs/persist';
 import './admin-push';
+import './admin-widgets';
 
 Alpine.plugin(persist);
 window.Alpine = Alpine;
