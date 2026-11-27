@@ -1173,3 +1173,22 @@ body.media-picker-modal-open {
         transform: none;
     }
 }
+
+/* Gallery editor (admin galleries edit page) */
+.gallery-photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+@media (min-width: 640px) { .gallery-photo-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); } }
+.gallery-photo { border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; background: #f9fafb; }
+.gallery-photo img { width: 100%; aspect-ratio: 1 / 1; object-fit: cover; display: block; background: #e5e7eb; }
+.gallery-photo__bar { display: flex; gap: 6px; padding: 6px; }
+.upload-status { margin: 10px 0 0; padding: 8px 12px; border-radius: 6px; font-size: 13px; background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+.upload-status[data-tone="success"] { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
+.upload-status[data-tone="warn"] { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.upload-dropzone { margin: 10px 0 0; padding: 14px; border: 1px dashed #d1d5db; border-radius: 8px; background: #f9fafb; color: #6b7280; font-size: 13px; text-align: center; transition: border-color .15s, background .15s, color .15s; }
+.upload-dropzone.is-dragging { border-color: #6366f1; border-style: solid; background: #eef2ff; color: #3730a3; }
+.gallery-photo.is-fresh { animation: gallery-photo-pop .45s ease; outline: 2px solid #6366f1; outline-offset: -2px; }
+@keyframes gallery-photo-pop { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: scale(1); } }
+.dark .gallery-photo { border-color: #374151; background: #1f2937; }
+.dark .gallery-photo img { background: #374151; }
+.dark .upload-status { background: #1f2937; border-color: #374151; color: #d1d5db; }
+.dark .upload-dropzone { background: #111827; border-color: #4b5563; color: #9ca3af; }
+.dark .upload-dropzone.is-dragging { background: #1e1b4b; color: #c7d2fe; }
